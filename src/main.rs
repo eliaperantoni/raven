@@ -50,7 +50,10 @@ fn main_err() -> Result<(), Box<dyn Error>> {
         match event {
             Event::LoopDestroyed => return,
             Event::WindowEvent { event, .. } => match event {
-                WindowEvent::Resized(physical_size) => windowed_context.resize(physical_size),
+                WindowEvent::Resized(physical_size) => {
+                    windowed_context.resize(physical_size);
+                    unsafe { gl::Viewport(0, 0, physical_size.width as i32, physical_size.height as i32) };
+                },
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 _ => (),
             },
