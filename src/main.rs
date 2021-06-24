@@ -1,3 +1,5 @@
+#![feature(try_blocks)]
+
 use std::mem;
 
 use gl::{self, types::*};
@@ -5,8 +7,22 @@ use glutin::ContextBuilder;
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
+use std::error::Error;
+
+mod shader;
+mod shader_program;
+
+use shader::{Shader, ShaderType};
+use shader_program::{ShaderProgram};
 
 fn main() {
+    match main_err() {
+        Err(e) => println!("{}", e),
+        _ => ()
+    }
+}
+
+fn main_err() -> Result<(), Box<dyn Error>> {
     let el = EventLoop::new();
     let wb = WindowBuilder::new().with_title("Raven");
 
@@ -16,6 +32,17 @@ fn main() {
     gl::load_with(|s| windowed_context.get_proc_address(s));
 
     let vao = setup();
+
+    let mut vertex_shader = Shader::new(ShaderType::VERTEX, "shaders/triangle/vertex.s");
+    vertex_shader.load()?;
+
+    let mut fragment_shader = Shader::new(ShaderType::FRAGMENT, "shaders/triangle/fragment.s");
+    fragment_shader.load()?;
+
+    let mut shader_program = ShaderProgram::new(vertex_shader, fragment_shader);
+    shader_program.link()?;
+
+    shader_program.enable();
 
     el.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -75,7 +102,7 @@ fn setup() -> GLuint {
 
         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         gl::BindVertexArray(0);
-    };
+    }
 
     return vao;
 }
@@ -87,5 +114,5 @@ fn draw_frame(vao: GLuint) {
 
         gl::BindVertexArray(vao);
         gl::DrawArrays(gl::TRIANGLES, 0, 3);
-    };
+    }
 }
