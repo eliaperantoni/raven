@@ -15,7 +15,7 @@ mod model;
 
 use shader::{Shader, ShaderType};
 use shader_program::{ShaderProgram};
-use model::Model;
+use model::{Model, ModelLoader};
 
 fn main() {
     match main_err() {
@@ -46,7 +46,7 @@ fn main_err() -> Result<(), Box<dyn Error>> {
 
     shader_program.enable();
 
-    let backpack = Model::from_file("models/backpack/backpack.obj")?;
+    let cube = ModelLoader::load_file("models/cube/cube.glb")?;
 
     el.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
