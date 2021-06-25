@@ -9,6 +9,7 @@ mod assimp {
     pub use assimp::import::Importer;
     pub use assimp::math::Vector3D;
     pub use assimp::scene::{Mesh, Node, Scene};
+    pub use assimp_sys::aiGetMaterialTexture as get_material_texture;
 }
 
 pub struct Vertex {
@@ -80,6 +81,13 @@ fn process_mesh(mesh: &assimp::Mesh, scene: &assimp::Scene) -> Mesh {
         assert_eq!(face.num_indices, 3);
         (0..face.num_indices).map(move |i| face[i as _])
     }).collect();
+
+    dbg!(&scene.materials);
+
+    if mesh.material_index > 0 {
+        let mat = scene.material_iter().nth(mesh.material_index as _).unwrap();
+        assimp::get_material_texture(mat, )
+    }
 
     Mesh {
         vertices,
