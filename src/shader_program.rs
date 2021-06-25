@@ -1,8 +1,10 @@
-use super::shader::{Shader};
+use std::error::Error;
 use std::ptr;
 use std::str;
+
 use gl::{self, types::*};
-use std::error::Error;
+
+use super::shader::Shader;
 
 pub struct ShaderProgram {
     id: u32,
@@ -57,6 +59,14 @@ impl ShaderProgram {
     pub fn enable(&self) {
         unsafe {
             gl::UseProgram(self.id);
+        }
+    }
+}
+
+impl Drop for ShaderProgram {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteProgram(self.id);
         }
     }
 }

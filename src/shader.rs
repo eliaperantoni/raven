@@ -79,3 +79,11 @@ impl Shader {
         self.id
     }
 }
+
+impl Drop for Shader {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteShader(self.id);
+        }
+    }
+}
