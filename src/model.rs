@@ -1,7 +1,16 @@
-use gltf;
-use glam::{Vec2, Vec3};
+use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::error::Error;
-use itertools::izip;
+use std::mem;
+
+use glam::{Vec2, Vec3};
+
+mod assimp {
+    pub use assimp::import::Importer;
+    pub use assimp::math::Vector3D;
+    pub use assimp::scene::{Mesh, Node, Scene};
+    pub use assimp_sys::aiGetMaterialTexture as get_material_texture;
+}
 
 pub struct Vertex {
     position: Vec3,
@@ -18,79 +27,70 @@ pub struct Model {
     meshes: Vec<Mesh>,
 }
 
-pub struct ModelLoader {
-    document: gltf::Document,
-    buffers: Vec<gltf::buffer::Data>,
-    images: Vec<gltf::image::Data>,
-}
-
-impl ModelLoader {
-    pub fn load_file(path: &str) -> Result<Model, Box<dyn Error>> {
-        let (document, buffers, images) = gltf::import(path)?;
-
-        let model_loader = ModelLoader {
-            document,
-            buffers,
-            images,
-        };
-
-        let default_scene = match document.default_scene() {
-            Some(scene) => scene,
-            None => return Err(Box::from("no default scene"))
-        };
-
+impl Model {
+    pub fn from_file(path: &str) -> Result<Model, Box<dyn Error>> {
         let mut meshes = Vec::new();
 
-        for node in default_scene.nodes() {
-            meshes.extend(model_loader.process_node(node)?);
+        let mut importer = assimp::Importer::new();
+        importer.flip_uvs(true);
+        importer.triangulate(true);
+
+        let mut scene = importer.read_file(path)?;
+
+        if scene.is_incomplete() {
+            return Err(Box::from(
+                format!("model at {} is incomplete", path)
+            ));
         }
+
+        process_node(&scene.root_node(), &scene, &mut meshes);
 
         Ok(Model {
             meshes,
         })
     }
+}
 
-    fn process_node(&self, node: gltf::Node) -> Result<Vec<Mesh>, Box<dyn Error>> {
-        let mut meshes = Vec::new();
-
-        if let Some(mesh) = node.mesh() {
-            meshes.push(self.read_mesh(mesh)?);
-        }
-
-        for node in node.children() {
-            meshes.extend(self.process_node(node)?);
-        }
-
-        Ok(meshes)
+fn process_node(node: &assimp::Node, scene: &assimp::Scene, meshes: &mut Vec<Mesh>) {
+    for mesh_idx in node.meshes() {
+        let mesh = &scene.mesh(*mesh_idx as _).expect(&format!("mesh with id {} not found in scene", mesh_idx));
+        meshes.push(process_mesh(mesh, scene));
     }
 
-    fn read_mesh(&self, mesh: gltf::Mesh) -> Result<Mesh, Box<dyn Error>> {
-        for primitive in mesh.primitives() {
-            let reader = primitive.reader(
-                |buffer| Some(&self.buffers[buffer.index()])
-            );
+    for child in node.child_iter() {
+        process_node(&child, scene, meshes);
+    }
+}
 
-            let positions_iter = reader.read_positions().ok_or(
-                Box::from("no positions in primitive")
-            )?;
-
-            let normals_iter = reader.read_normals().ok_or(
-                Box::from("no normals in primitive")
-            )?;
-
-            let tex_coords_iter = reader.read_tex_coords(0).ok_or(
-                Box::from("no text coords in primitive")
-            )?;
-
-            for (position, normal, tex_coords) in izip!(
-                positions_iter,
-                normals_iter,
-                tex_coords_iter,
-            ) {
-                let x: () = position;
+fn process_mesh(mesh: &assimp::Mesh, scene: &assimp::Scene) -> Mesh {
+    let vertices: Vec<_> = mesh
+        .vertex_iter()
+        .zip(mesh.normal_iter())
+        .zip(mesh.texture_coords_iter(0))
+        .map(|((position, normal), tex_coords)| {
+            Vertex {
+                position: Vec3::new(position.x, position.y, position.z),
+                normal: Vec3::new(normal.x, normal.y, normal.z),
+                tex_coords: Vec2::new(tex_coords.x, tex_coords.y),
             }
-        }
+        })
+        .collect();
 
-        todo!()
+    let indices: Vec<_> = mesh.face_iter().flat_map(|face| {
+        // Should always be true because we told Assimp to triangulate
+        assert_eq!(face.num_indices, 3);
+        (0..face.num_indices).map(move |i| face[i as _])
+    }).collect();
+
+    dbg!(&scene.materials);
+
+    if mesh.material_index > 0 {
+        let mat = scene.material_iter().nth(mesh.material_index as _).unwrap();
+        assimp::get_material_texture(mat, )
+    }
+
+    Mesh {
+        vertices,
+        indices,
     }
 }
