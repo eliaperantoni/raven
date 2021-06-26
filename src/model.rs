@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use glam::{Vec2, Vec3};
 use itertools::izip;
 
-use super::material::{Material, MaterialLoader};
+use super::material::{self, Material};
 
 mod russimp {
     pub use russimp::mesh::Mesh;
@@ -120,7 +120,7 @@ impl ModelLoader {
 
         if mesh.material_index >= 0 {
             let mat = &self.scene.materials[mesh.material_index as usize];
-            MaterialLoader::from_russimp(mat, &self.base_dir);
+            material::from_russimp(mat, &self.base_dir);
         }
 
         Mesh {

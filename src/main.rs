@@ -13,6 +13,7 @@ mod shader;
 mod shader_program;
 mod model;
 mod material;
+mod texture;
 
 use shader::{Shader, ShaderType};
 use shader_program::{ShaderProgram};
