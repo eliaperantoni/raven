@@ -12,10 +12,11 @@ use std::error::Error;
 mod shader;
 mod shader_program;
 mod model;
+mod material;
 
 use shader::{Shader, ShaderType};
 use shader_program::{ShaderProgram};
-use model::Model;
+use model::{Model, ModelLoader};
 
 fn main() {
     match main_err() {
@@ -46,7 +47,7 @@ fn main_err() -> Result<(), Box<dyn Error>> {
 
     shader_program.enable();
 
-    let backpack = Model::from_file("models/backpack/backpack.obj")?;
+    let cube = ModelLoader::from_file("models/cube/cube.obj")?;
 
     el.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

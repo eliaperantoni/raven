@@ -1,21 +1,31 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::error::Error;
+use std::iter;
 use std::mem;
+use std::ptr;
+use std::path::PathBuf;
 
 use glam::{Vec2, Vec3};
+use itertools::izip;
 
-mod assimp {
-    pub use assimp::import::Importer;
-    pub use assimp::math::Vector3D;
-    pub use assimp::scene::{Mesh, Node, Scene};
-    pub use assimp_sys::aiGetMaterialTexture as get_material_texture;
+use super::material::{Material, MaterialLoader};
+
+mod russimp {
+    pub use russimp::mesh::Mesh;
+    pub use russimp::node::Node;
+    pub use russimp::scene::{PostProcess, Scene};
+    pub use russimp::texture::TextureType;
+    pub use russimp::Vector3D;
 }
 
-pub struct Vertex {
-    position: Vec3,
-    normal: Vec3,
-    tex_coords: Vec2,
+pub struct ModelLoader {
+    scene: russimp::Scene,
+    base_dir: PathBuf,
+}
+
+pub struct Model {
+    meshes: Vec<Mesh>,
 }
 
 pub struct Mesh {
@@ -23,74 +33,99 @@ pub struct Mesh {
     indices: Vec<u32>,
 }
 
-pub struct Model {
-    meshes: Vec<Mesh>,
+pub struct Vertex {
+    position: Vec3,
+    normal: Vec3,
+    uv: Vec2,
 }
 
-impl Model {
+impl ModelLoader {
     pub fn from_file(path: &str) -> Result<Model, Box<dyn Error>> {
-        let mut meshes = Vec::new();
+        let scene = russimp::Scene::from_file(path, vec![
+            russimp::PostProcess::Triangulate,
+            russimp::PostProcess::FlipUVs,
+        ])?;
 
-        let mut importer = assimp::Importer::new();
-        importer.flip_uvs(true);
-        importer.triangulate(true);
+        let mut loader = ModelLoader {
+            scene,
+            base_dir: {
+                let mut base_dir = PathBuf::from(path);
+                base_dir.pop();
+                base_dir
+            },
+        };
 
-        let mut scene = importer.read_file(path)?;
+        let root = loader.scene.root.clone().ok_or(
+            Box::<dyn Error>::from("no root node")
+        )?;
 
-        if scene.is_incomplete() {
-            return Err(Box::from(
-                format!("model at {} is incomplete", path)
-            ));
-        }
+        let root = RefCell::borrow(&root);
 
-        process_node(&scene.root_node(), &scene, &mut meshes);
+        let meshes = loader.process_node(&root);
 
         Ok(Model {
             meshes,
         })
     }
-}
 
-fn process_node(node: &assimp::Node, scene: &assimp::Scene, meshes: &mut Vec<Mesh>) {
-    for mesh_idx in node.meshes() {
-        let mesh = &scene.mesh(*mesh_idx as _).expect(&format!("mesh with id {} not found in scene", mesh_idx));
-        meshes.push(process_mesh(mesh, scene));
+    fn process_node(&self, node: &russimp::Node) -> Vec<Mesh> {
+        let mut meshes = Vec::new();
+
+        for mesh_idx in &node.meshes {
+            let mesh = &self.scene.meshes[*mesh_idx as usize];
+            let mesh = self.process_mesh(mesh);
+
+            meshes.push(mesh);
+        }
+
+        for child in &node.children {
+            let child = RefCell::borrow(child);
+            meshes.extend(self.process_node(&child));
+        }
+
+        meshes
     }
 
-    for child in node.child_iter() {
-        process_node(&child, scene, meshes);
-    }
-}
+    fn process_mesh(&self, mesh: &russimp::Mesh) -> Mesh {
+        // Iterator over the UV coordinates. If no UVs are present, it is an infinite iterator that keeps returning None
+        let uvs_iter: Box<dyn Iterator<Item=_>> =
+            match &mesh.texture_coords[0] {
+                Some(uvs) => Box::new(uvs.iter().map(|uv| Some(uv))),
+                None => Box::new(iter::repeat(None)),
+            };
 
-fn process_mesh(mesh: &assimp::Mesh, scene: &assimp::Scene) -> Mesh {
-    let vertices: Vec<_> = mesh
-        .vertex_iter()
-        .zip(mesh.normal_iter())
-        .zip(mesh.texture_coords_iter(0))
-        .map(|((position, normal), tex_coords)| {
+        let iter = izip!(
+            mesh.vertices.iter(),
+            mesh.normals.iter(),
+            uvs_iter,
+        );
+
+        let vertices: Vec<_> = iter.map(|(position, normal, uv)| {
             Vertex {
                 position: Vec3::new(position.x, position.y, position.z),
                 normal: Vec3::new(normal.x, normal.y, normal.z),
-                tex_coords: Vec2::new(tex_coords.x, tex_coords.y),
+                uv: if let Some(uv) = uv {
+                    Vec2::new(uv.x, uv.y)
+                } else {
+                    Vec2::new(0.0, 0.0)
+                },
             }
-        })
-        .collect();
+        }).collect();
 
-    let indices: Vec<_> = mesh.face_iter().flat_map(|face| {
-        // Should always be true because we told Assimp to triangulate
-        assert_eq!(face.num_indices, 3);
-        (0..face.num_indices).map(move |i| face[i as _])
-    }).collect();
+        let indices: Vec<_> = mesh.faces.iter().map(|face| {
+            // Should be true, we told Assimp to triangulate
+            assert_eq!(face.0.len(), 3);
+            face.0.iter().copied()
+        }).flatten().collect();
 
-    dbg!(&scene.materials);
+        if mesh.material_index >= 0 {
+            let mat = &self.scene.materials[mesh.material_index as usize];
+            MaterialLoader::from_russimp(mat, &self.base_dir);
+        }
 
-    if mesh.material_index > 0 {
-        let mat = scene.material_iter().nth(mesh.material_index as _).unwrap();
-        assimp::get_material_texture(mat, )
-    }
-
-    Mesh {
-        vertices,
-        indices,
+        Mesh {
+            vertices,
+            indices,
+        }
     }
 }
