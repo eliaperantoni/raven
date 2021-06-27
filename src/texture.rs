@@ -16,7 +16,6 @@ impl Into<russimp::TextureType> for TextureType {
         match self {
             TextureType::Diffuse => russimp::TextureType::Diffuse,
             TextureType::Specular => russimp::TextureType::Specular,
-            _ => todo!()
         }
     }
 }
@@ -27,7 +26,10 @@ pub struct Texture {
 }
 
 pub fn from_path(path: &Path, t: TextureType) -> Result<Texture, Box<dyn Error>> {
-    let tex = image::open(path)?.into_rgba8();
+    let tex = image::open(path)?;
+    let tex = tex.flipv();
+    let tex = tex.into_rgba8();
+
     Ok(Texture {
         t,
         data: tex.into_raw(),

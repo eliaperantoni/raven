@@ -11,13 +11,16 @@ use std::error::Error;
 
 mod shader;
 mod shader_program;
+mod mesh;
 mod model;
 mod material;
 mod texture;
+mod entity;
+mod component;
 
 use shader::{Shader, ShaderType};
 use shader_program::{ShaderProgram};
-use model::{Model, ModelLoader};
+use model::ModelLoader;
 
 fn main() {
     match main_err() {
