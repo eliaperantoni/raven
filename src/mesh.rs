@@ -14,7 +14,7 @@ mod russimp {
 pub struct Mesh {
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
-    material: Option<Material>,
+    material: Material,
 }
 
 pub struct Vertex {
@@ -55,12 +55,10 @@ pub fn from_assimp(mesh: &russimp::Mesh, loader: &ModelLoader) -> Result<Mesh, B
         face.0.iter().copied()
     }).flatten().collect();
 
-    let material = if mesh.material_index >= 0 {
+    let material = {
         let mat = &loader.get_scene().materials[mesh.material_index as usize];
         let mat = material::from_assimp(mat, loader.get_base_dir())?;
-        Some(mat)
-    } else {
-        None
+        mat
     };
 
     Ok(Mesh {
