@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::iter;
 use std::mem;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::ptr;
 
 use glam::{Vec2, Vec3};
@@ -49,15 +49,15 @@ impl ModelLoader {
 
         let root = RefCell::borrow(&root);
 
-        Ok(loader.process_node(&root))
+        loader.process_node(&root)
     }
 
-    fn process_node(&self, node: &russimp::Node) -> Entity {
+    fn process_node(&self, node: &russimp::Node) -> Result<Entity, Box<dyn Error>> {
         let mut entity = Entity::default();
 
         for mesh_idx in &node.meshes {
             let mesh = &self.scene.meshes[*mesh_idx as usize];
-            let mesh = mesh::from_assimp(mesh);
+            let mesh = mesh::from_assimp(mesh, &self)?;
 
             entity.add_component(Component::MeshComponent(mesh));
         }
@@ -65,12 +65,19 @@ impl ModelLoader {
         for child in &node.children {
             let child = RefCell::borrow(child);
             // TODO Apply node transform to child entity
-            let child = self.process_node(&child);
+            let child = self.process_node(&child)?;
 
             entity.add_child(child);
         }
 
-        println!("ciao");
-        entity
+        Ok(entity)
+    }
+
+    pub fn get_scene(&self) -> &russimp::Scene {
+        &self.scene
+    }
+
+    pub fn get_base_dir(&self) -> &Path {
+        &self.base_dir
     }
 }

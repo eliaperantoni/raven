@@ -1,7 +1,11 @@
+use std::error::Error;
 use std::iter;
 
 use glam::{Vec2, Vec3};
 use itertools::izip;
+
+use crate::material::{self, Material};
+use crate::model::ModelLoader;
 
 mod russimp {
     pub use russimp::mesh::Mesh;
@@ -10,6 +14,7 @@ mod russimp {
 pub struct Mesh {
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
+    material: Option<Material>,
 }
 
 pub struct Vertex {
@@ -18,7 +23,7 @@ pub struct Vertex {
     uv: Vec2,
 }
 
-pub fn from_assimp(mesh: &russimp::Mesh) -> Mesh {
+pub fn from_assimp(mesh: &russimp::Mesh, loader: &ModelLoader) -> Result<Mesh, Box<dyn Error>> {
     // Iterator over the UV coordinates. If no UVs are present, it is an infinite iterator that keeps returning None
     let uvs_iter: Box<dyn Iterator<Item=_>> =
         match &mesh.texture_coords[0] {
@@ -50,8 +55,17 @@ pub fn from_assimp(mesh: &russimp::Mesh) -> Mesh {
         face.0.iter().copied()
     }).flatten().collect();
 
-    Mesh {
+    let material = if mesh.material_index >= 0 {
+        let mat = &loader.get_scene().materials[mesh.material_index as usize];
+        let mat = material::from_assimp(mat, loader.get_base_dir())?;
+        Some(mat)
+    } else {
+        None
+    };
+
+    Ok(Mesh {
         vertices,
         indices,
-    }
+        material,
+    })
 }
