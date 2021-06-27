@@ -1,9 +1,8 @@
+use std::error::Error;
+use std::ffi::CString;
 use std::fs;
 use std::ptr;
 use std::str;
-
-use std::error::Error;
-use std::ffi::CString;
 
 use gl::{self, types::*};
 

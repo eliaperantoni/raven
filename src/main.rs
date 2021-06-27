@@ -17,6 +17,9 @@ mod model;
 mod entity;
 mod component;
 mod system;
+mod material;
+mod texture;
+mod mesh;
 
 fn main() {
     match main_err() {
