@@ -3,7 +3,7 @@ use std::path::Path;
 
 use image;
 
-use crate::texture::{self, Texture, TextureType};
+use super::texture::{self, Texture, TextureType};
 
 mod russimp {
     pub use russimp::material::Material;

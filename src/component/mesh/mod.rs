@@ -4,8 +4,12 @@ use std::iter;
 use glam::{Vec2, Vec3};
 use itertools::izip;
 
-use crate::material::{self, Material};
+use material::Material;
+
 use crate::model::ModelLoader;
+
+pub mod texture;
+pub mod material;
 
 mod russimp {
     pub use russimp::mesh::Mesh;

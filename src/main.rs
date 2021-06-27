@@ -1,5 +1,4 @@
-#![feature(try_blocks)]
-
+use std::error::Error;
 use std::mem;
 
 use gl::{self, types::*};
@@ -7,20 +6,17 @@ use glutin::ContextBuilder;
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
-use std::error::Error;
+
+use model::ModelLoader;
+use shader::{Shader, ShaderType};
+use shader_program::ShaderProgram;
 
 mod shader;
 mod shader_program;
-mod mesh;
 mod model;
-mod material;
-mod texture;
 mod entity;
 mod component;
-
-use shader::{Shader, ShaderType};
-use shader_program::{ShaderProgram};
-use model::ModelLoader;
+mod system;
 
 fn main() {
     match main_err() {
@@ -64,7 +60,7 @@ fn main_err() -> Result<(), Box<dyn Error>> {
                     unsafe {
                         gl::Viewport(0, 0, physical_size.width as i32, physical_size.height as i32)
                     };
-                },
+                }
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 _ => (),
             },

@@ -9,10 +9,10 @@ use std::ptr;
 use glam::{Vec2, Vec3};
 use itertools::izip;
 
-use crate::material::{self, Material};
-use crate::mesh::{self, Mesh, Vertex};
-use crate::entity::Entity;
 use crate::component::Component;
+use crate::component::mesh::{self, Mesh, Vertex};
+use crate::component::mesh::material::{self, Material};
+use crate::entity::Entity;
 
 mod russimp {
     pub use russimp::mesh::Mesh;
@@ -59,7 +59,7 @@ impl ModelLoader {
             let mesh = &self.scene.meshes[*mesh_idx as usize];
             let mesh = mesh::from_assimp(mesh, &self)?;
 
-            entity.add_component(Component::MeshComponent(mesh));
+            entity.add_component(Component::Mesh(mesh));
         }
 
         for child in &node.children {
