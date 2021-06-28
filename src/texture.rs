@@ -5,7 +5,7 @@ mod russimp {
     pub use russimp::texture::TextureType;
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TextureType {
     Diffuse,
     Specular,
@@ -20,6 +20,7 @@ impl Into<russimp::TextureType> for TextureType {
     }
 }
 
+// TODO Impl Debug trait without printing `data`
 pub struct Texture {
     pub t: TextureType,
     data: Vec<u8>,

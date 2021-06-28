@@ -8,11 +8,13 @@ mod russimp {
     pub use russimp::mesh::Mesh;
 }
 
+#[derive(Debug)]
 pub struct Mesh {
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
 }
 
+#[derive(Debug)]
 pub struct Vertex {
     position: Vec3,
     normal: Vec3,

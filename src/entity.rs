@@ -2,12 +2,14 @@ use glam::Vec3;
 
 use crate::component::Component;
 
+#[derive(Debug)]
 pub struct Transform {
     position: Vec3,
     rotation: Vec3,
     scale: Vec3,
 }
 
+#[derive(Debug)]
 pub struct Entity {
     transform: Transform,
     children: Vec<Entity>,

@@ -10,7 +10,7 @@ use glam::{Vec2, Vec3};
 use itertools::izip;
 
 use crate::entity::Entity;
-use crate::component::Component;
+use crate::component::{Component, MeshComponent};
 use crate::mesh::{self, Mesh, Vertex};
 use crate::material::{self, Material};
 
@@ -62,10 +62,10 @@ impl ModelLoader {
             let mesh = mesh::from_assimp(mesh)?;
             let material = material::from_assimp(material, &self.base_dir)?;
 
-            entity.add_component(Component::Mesh {
+            entity.add_component(Component::Mesh(MeshComponent {
                 mesh,
                 material,
-            });
+            }));
         }
 
         for child in &node.children {

@@ -10,6 +10,7 @@ mod russimp {
     pub use russimp::texture::TextureType;
 }
 
+#[derive(Debug)]
 pub struct Material {
     diffuse_tex: Option<Texture>,
     specular_tex: Option<Texture>,
