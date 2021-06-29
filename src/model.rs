@@ -62,10 +62,10 @@ impl ModelLoader {
             let mesh = mesh::from_assimp(mesh)?;
             let material = material::from_assimp(material, &self.base_dir)?;
 
-            entity.add_component(Component::Mesh(MeshComponent {
+            entity.add_component(MeshComponent {
                 mesh,
                 material,
-            }));
+            }.into());
         }
 
         for child in &node.children {
