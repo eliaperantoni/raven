@@ -1157,6 +1157,7 @@ dependencies = [
 name = "raven"
 version = "0.1.0"
 dependencies = [
+ "derivative",
  "gl",
  "glam",
  "glutin",
