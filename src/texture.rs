@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::path::Path;
 
+use derivative::Derivative;
+
 mod russimp {
     pub use russimp::texture::TextureType;
 }
@@ -21,8 +23,11 @@ impl Into<russimp::TextureType> for TextureType {
 }
 
 // TODO Impl Debug trait without printing `data`
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct Texture {
     pub t: TextureType,
+    #[derivative(Debug="ignore")]
     data: Vec<u8>,
 }
 
