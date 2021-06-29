@@ -7,6 +7,8 @@ use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 
+use entity::Entity;
+use component::CameraComponent;
 use model::ModelLoader;
 use shader::{Shader, ShaderType};
 use shader_program::ShaderProgram;
@@ -50,7 +52,19 @@ fn main_err() -> Result<(), Box<dyn Error>> {
 
     shader_program.enable();
 
-    let cube = ModelLoader::from_file("models/cube/cube.obj")?;
+    let mut scene = Entity::default();
+    scene.add_child(
+        {
+            let mut camera_entity = Entity::default();
+            camera_entity.add_component(
+                CameraComponent::default().into()
+            );
+            camera_entity
+        },
+    );
+    scene.add_child(
+        ModelLoader::from_file("models/cube/cube.obj")?
+    );
 
     el.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

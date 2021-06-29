@@ -13,6 +13,14 @@ pub struct CameraComponent {
     pub fov: f64,
 }
 
+impl Default for CameraComponent {
+    fn default() -> Self {
+        CameraComponent {
+            fov: 90.0,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Component {
     Mesh (MeshComponent),
