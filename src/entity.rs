@@ -1,4 +1,6 @@
+use derivative::Derivative;
 use glam::Vec3;
+use std::any::Any;
 
 use crate::component::Component;
 
@@ -9,10 +11,12 @@ pub struct Transform {
     scale: Vec3,
 }
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct Entity {
     transform: Transform,
     children: Vec<Entity>,
+    #[derivative(Debug = "ignore")]
     components: Vec<Component>,
 }
 
@@ -37,5 +41,23 @@ impl Entity {
 
     pub fn add_child(&mut self, child: Entity) {
         self.children.push(child);
+    }
+
+    pub fn get_component<T: 'static>(&self) -> Option<&T> {
+        for ele in &self.components {
+            if let Some(ele) = ele.as_any().downcast_ref::<T>() {
+                return Some(ele)
+            }
+        }
+        None
+    }
+
+    pub fn get_component_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        for ele in &mut self.components {
+            if let Some(ele) = ele.as_any_mut().downcast_mut::<T>() {
+                return Some(ele)
+            }
+        }
+        None
     }
 }

@@ -10,7 +10,7 @@ use glam::{Vec2, Vec3};
 use itertools::izip;
 
 use crate::entity::Entity;
-use crate::component::{Component, MeshComponent};
+use crate::component::MeshComponent;
 use crate::mesh::{self, Mesh, Vertex};
 use crate::material::{self, Material};
 
