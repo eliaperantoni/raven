@@ -10,8 +10,9 @@ pub struct CameraSystem {
     cam_pos: Vec3,
     cam_target: Vec3,
     cam_up: Vec3,
-
     cam_fov: f32,
+
+    pub aspect_ratio: f32,
 }
 
 impl CameraSystem {
@@ -19,8 +20,8 @@ impl CameraSystem {
         Mat4::look_at_rh(self.cam_pos, self.cam_target, self.cam_up)
     }
 
-    pub fn get_proj_mat(&self, aspect_ratio: f32) -> Mat4 {
-        Mat4::perspective_rh_gl(self.cam_fov, aspect_ratio, 0.1, 100.0)
+    pub fn get_proj_mat(&self) -> Mat4 {
+        Mat4::perspective_rh_gl(self.cam_fov, self.aspect_ratio, 0.1, 100.0)
     }
 }
 
@@ -30,7 +31,9 @@ impl Default for CameraSystem {
             cam_pos: Vec3::default(),
             cam_target: Vec3::default(),
             cam_up: Vec3::default(),
-            cam_fov: 0.0,
+            cam_fov: 90.0,
+
+            aspect_ratio: 1.0,
         }
     }
 }

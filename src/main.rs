@@ -57,6 +57,7 @@ fn main_err() -> Result<(), Box<dyn Error>> {
     scene.add_child(
         {
             let mut camera_entity = Entity::default();
+            camera_entity.transform.position.x += 5.0;
             camera_entity.add_component(
                 CameraComponent::default().into()
             );
@@ -67,8 +68,16 @@ fn main_err() -> Result<(), Box<dyn Error>> {
         ModelLoader::from_file("models/cube/cube.obj")?
     );
 
-    let mut sys = CameraSystem::default();
-    scene.accept(&mut sys);
+    let mut camera_sys = CameraSystem::default();
+    camera_sys.aspect_ratio = {
+        let physical_size = windowed_context.window().inner_size();
+        physical_size.width as f32 / physical_size.height as f32
+    };
+
+    scene.accept(&mut camera_sys);
+
+    dbg!("View", camera_sys.get_view_mat());
+    dbg!("Proj", camera_sys.get_proj_mat());
 
     el.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
