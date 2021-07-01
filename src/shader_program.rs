@@ -1,8 +1,10 @@
 use std::error::Error;
+use std::ffi::CString;
 use std::ptr;
 use std::str;
 
 use gl::{self, types::*};
+use glam::Mat4;
 
 use super::shader::Shader;
 
@@ -59,6 +61,14 @@ impl ShaderProgram {
     pub fn enable(&self) {
         unsafe {
             gl::UseProgram(self.id);
+        }
+    }
+
+    pub fn set_mat4(&self, name: &str, mat: Mat4) {
+        unsafe {
+            let s = CString::new(name).unwrap();
+            let loc = gl::GetUniformLocation(self.id, s.as_ptr());
+            gl::UniformMatrix4fv(loc, 1, gl::FALSE, mat.as_ref() as _);
         }
     }
 }

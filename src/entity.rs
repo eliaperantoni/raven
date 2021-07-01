@@ -1,5 +1,5 @@
 use derivative::Derivative;
-use glam::{EulerRot, Quat, Vec3};
+use glam::{self, EulerRot, Quat, Vec3};
 
 use crate::component::Component;
 use crate::system::System;
@@ -25,7 +25,7 @@ impl Default for Entity {
         Entity {
             transform: Transform {
                 position: Vec3::default(),
-                rotation: Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, -1.0),
+                rotation: Quat::from_euler(EulerRot::XYZ, 0.0, -180_f32.to_radians(), 0.0),
                 scale: Vec3::default(),
             },
             children: Vec::default(),

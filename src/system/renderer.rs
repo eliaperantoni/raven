@@ -47,20 +47,21 @@ impl RendererSystem {
         })
     }
 
+    // Updates the view and projection matrices
     pub fn update_matrices(&mut self, cs: &CameraSystem) {
         self.view_mat = cs.get_view_mat();
         self.proj_mat = cs.get_proj_mat();
     }
-}
 
-impl System for RendererSystem {
-    fn each_frame(&mut self) {
+    pub fn each_frame(&mut self) {
         unsafe {
-            gl::ClearColor(1.0, 0.1, 0.1, 1.0);
+            gl::ClearColor(0.1, 0.1, 0.1, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
     }
+}
 
+impl System for RendererSystem {
     fn visit_entity(&mut self, entity: &mut Entity) {
         if let Some(mesh_c) = entity.get_component::<MeshComponent>() {
             let vao = if let Some(vao) = self.vao {
@@ -72,6 +73,9 @@ impl System for RendererSystem {
             };
 
             self.shader_program.enable();
+            self.shader_program.set_mat4("model", Mat4::IDENTITY);
+            self.shader_program.set_mat4("view", self.view_mat);
+            self.shader_program.set_mat4("projection", self.proj_mat);
             draw_vao(vao);
         }
     }

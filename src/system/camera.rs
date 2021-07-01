@@ -10,6 +10,7 @@ pub struct CameraSystem {
     cam_pos: Vec3,
     cam_target: Vec3,
     cam_up: Vec3,
+
     cam_fov: f32,
 
     pub aspect_ratio: f32,

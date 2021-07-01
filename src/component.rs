@@ -18,7 +18,7 @@ pub struct CameraComponent {
 impl Default for CameraComponent {
     fn default() -> Self {
         CameraComponent {
-            fov: 90.0,
+            fov: 60.0,
         }
     }
 }

@@ -4,6 +4,7 @@ use std::mem;
 use std::ops::DerefMut;
 
 use gl::{self, types::*};
+use glam::{EulerRot, Quat};
 use glutin::ContextBuilder;
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
@@ -71,6 +72,8 @@ fn main_err() -> Result<(), Box<dyn Error>> {
                 _ => (),
             },
             Event::RedrawRequested(_) => {
+                renderer_sys.each_frame();
+
                 scene.accept(&mut camera_sys);
 
                 renderer_sys.update_matrices(&camera_sys);
@@ -88,7 +91,13 @@ fn build_demo_scene() -> Result<Entity, Box<dyn Error>> {
     scene.add_child(
         {
             let mut camera_entity = Entity::default();
-            camera_entity.transform.position.x += 5.0;
+
+            // camera_entity.transform.position.x += 3.0;
+            // camera_entity.transform.position.y += 3.0;
+            camera_entity.transform.position.z += 3.0;
+
+            //  camera_entity.transform.rotation = Quat::from_euler(EulerRot::XYZ, 5.0, 0.0, -180_f32.to_radians());
+
             camera_entity.add_component(
                 CameraComponent::default().into()
             );
