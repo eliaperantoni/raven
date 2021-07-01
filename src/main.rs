@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::error::Error;
 use std::mem;
+use std::ops::DerefMut;
 
 use gl::{self, types::*};
 use glutin::ContextBuilder;
@@ -14,6 +16,8 @@ use shader::{Shader, ShaderType};
 use shader_program::ShaderProgram;
 use system::camera::CameraSystem;
 use system::renderer::RendererSystem;
+
+use crate::system::System;
 
 mod shader;
 mod shader_program;
@@ -49,7 +53,7 @@ fn main_err() -> Result<(), Box<dyn Error>> {
         physical_size.width as f32 / physical_size.height as f32
     };
 
-    let mut renderer_sys = RendererSystem::new(&camera_sys)?;
+    let mut renderer_sys = RendererSystem::new()?;
 
     el.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -68,6 +72,8 @@ fn main_err() -> Result<(), Box<dyn Error>> {
             },
             Event::RedrawRequested(_) => {
                 scene.accept(&mut camera_sys);
+
+                renderer_sys.update_matrices(&camera_sys);
                 scene.accept(&mut renderer_sys);
 
                 windowed_context.swap_buffers().unwrap();

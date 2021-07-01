@@ -1232,11 +1232,11 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dc6e1bc6b59b8efd8132e5b708ccb50a03d1eb5b8bdef6bf0f3166d18226803"
 dependencies = [
-    "derivative",
-    "num-derive",
-    "num-traits",
-    "num_enum",
-    "russimp-sys",
+ "derivative",
+ "num-derive",
+ "num-traits",
+ "num_enum",
+ "russimp-sys",
 ]
 
 [[package]]

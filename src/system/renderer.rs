@@ -2,6 +2,7 @@ use std::error::Error;
 use std::mem;
 
 use gl::{self, types::*};
+use glam::Mat4;
 
 use crate::component::MeshComponent;
 use crate::entity::Entity;
@@ -18,15 +19,16 @@ struct Vao {
     indices_n: usize,
 }
 
-pub struct RendererSystem<'a> {
+pub struct RendererSystem {
     vao: Option<Vao>,
     shader_program: ShaderProgram,
 
-    camera_sys: &'a CameraSystem,
+    view_mat: Mat4,
+    proj_mat: Mat4,
 }
 
-impl RendererSystem<'_> {
-    pub fn new<'a, 'b>(camera_sys: &'a CameraSystem) -> Result<RendererSystem<'b>, Box<dyn Error>> {
+impl RendererSystem {
+    pub fn new() -> Result<RendererSystem, Box<dyn Error>> {
         let mut vertex_shader = Shader::new(ShaderType::VERTEX, "shaders/default/vertex.s");
         vertex_shader.load()?;
 
@@ -39,12 +41,19 @@ impl RendererSystem<'_> {
         Ok(RendererSystem {
             vao: None,
             shader_program,
-            camera_sys,
+
+            view_mat: Mat4::default(),
+            proj_mat: Mat4::default(),
         })
+    }
+
+    pub fn update_matrices(&mut self, cs: &CameraSystem) {
+        self.view_mat = cs.get_view_mat();
+        self.proj_mat = cs.get_proj_mat();
     }
 }
 
-impl System for RendererSystem<'_> {
+impl System for RendererSystem {
     fn each_frame(&mut self) {
         unsafe {
             gl::ClearColor(1.0, 0.1, 0.1, 1.0);
