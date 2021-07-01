@@ -6,18 +6,18 @@ use crate::system::System;
 
 #[derive(Debug)]
 pub struct Transform {
-    position: Vec3,
-    rotation: Vec3,
-    scale: Vec3,
+    pub position: Vec3,
+    pub rotation: Vec3,
+    pub scale: Vec3,
 }
 
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Entity {
-    transform: Transform,
-    children: Vec<Entity>,
+    pub transform: Transform,
+    pub children: Vec<Entity>,
     #[derivative(Debug = "ignore")]
-    components: Vec<Component>,
+    pub components: Vec<Component>,
 }
 
 impl Default for Entity {
