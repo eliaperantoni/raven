@@ -13,6 +13,7 @@ use model::ModelLoader;
 use shader::{Shader, ShaderType};
 use shader_program::ShaderProgram;
 use system::camera::CameraSystem;
+use system::renderer::RendererSystem;
 
 mod shader;
 mod shader_program;
@@ -40,33 +41,7 @@ fn main_err() -> Result<(), Box<dyn Error>> {
 
     gl::load_with(|s| windowed_context.get_proc_address(s));
 
-    let vao = setup();
-
-    let mut vertex_shader = Shader::new(ShaderType::VERTEX, "shaders/triangle/vertex.s");
-    vertex_shader.load()?;
-
-    let mut fragment_shader = Shader::new(ShaderType::FRAGMENT, "shaders/triangle/fragment.s");
-    fragment_shader.load()?;
-
-    let mut shader_program = ShaderProgram::new(vertex_shader, fragment_shader);
-    shader_program.link()?;
-
-    shader_program.enable();
-
-    let mut scene = Entity::default();
-    scene.add_child(
-        {
-            let mut camera_entity = Entity::default();
-            camera_entity.transform.position.x += 5.0;
-            camera_entity.add_component(
-                CameraComponent::default().into()
-            );
-            camera_entity
-        },
-    );
-    scene.add_child(
-        ModelLoader::from_file("models/cube/cube.obj")?
-    );
+    let mut scene = build_demo_scene()?;
 
     let mut camera_sys = CameraSystem::default();
     camera_sys.aspect_ratio = {
@@ -74,10 +49,7 @@ fn main_err() -> Result<(), Box<dyn Error>> {
         physical_size.width as f32 / physical_size.height as f32
     };
 
-    scene.accept(&mut camera_sys);
-
-    dbg!("View", camera_sys.get_view_mat());
-    dbg!("Proj", camera_sys.get_proj_mat());
+    let mut renderer_sys = RendererSystem::new(&camera_sys)?;
 
     el.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -95,12 +67,33 @@ fn main_err() -> Result<(), Box<dyn Error>> {
                 _ => (),
             },
             Event::RedrawRequested(_) => {
-                draw_frame(vao);
+                scene.accept(&mut camera_sys);
+                scene.accept(&mut renderer_sys);
+
                 windowed_context.swap_buffers().unwrap();
             }
             _ => (),
         }
     });
+}
+
+fn build_demo_scene() -> Result<Entity, Box<dyn Error>> {
+    let mut scene = Entity::default();
+    scene.add_child(
+        {
+            let mut camera_entity = Entity::default();
+            camera_entity.transform.position.x += 5.0;
+            camera_entity.add_component(
+                CameraComponent::default().into()
+            );
+            camera_entity
+        },
+    );
+    scene.add_child(
+        ModelLoader::from_file("models/cube/cube.obj")?
+    );
+
+    Ok(scene)
 }
 
 const VERTEX_DATA: [GLfloat; 3 * (2 + 3)] = [

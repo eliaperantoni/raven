@@ -10,15 +10,15 @@ mod russimp {
 
 #[derive(Debug)]
 pub struct Mesh {
-    vertices: Vec<Vertex>,
-    indices: Vec<u32>,
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
 }
 
 #[derive(Debug)]
 pub struct Vertex {
-    position: Vec3,
-    normal: Vec3,
-    uv: Vec2,
+    pub position: Vec3,
+    pub normal: Vec3,
+    pub uv: Vec2,
 }
 
 pub fn from_assimp(mesh: &russimp::Mesh) -> Result<Mesh, Box<dyn Error>> {
