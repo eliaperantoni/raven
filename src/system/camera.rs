@@ -1,11 +1,20 @@
+use crate::component::CameraComponent;
 use crate::entity::Entity;
 
 use super::System;
 
-pub struct Camera {}
+pub struct CameraSystem {}
 
-impl System for Camera {
+impl Default for CameraSystem {
+    fn default() -> Self {
+        CameraSystem {}
+    }
+}
+
+impl System for CameraSystem {
     fn visit_entity(&mut self, entity: &mut Entity) {
-        dbg!(entity);
+        if let Some(camera) = entity.get_component::<CameraComponent>() {
+            println!("Found camera! FOV: {}", camera.fov);
+        }
     }
 }

@@ -12,6 +12,7 @@ use entity::Entity;
 use model::ModelLoader;
 use shader::{Shader, ShaderType};
 use shader_program::ShaderProgram;
+use system::camera::CameraSystem;
 
 mod shader;
 mod shader_program;
@@ -65,6 +66,9 @@ fn main_err() -> Result<(), Box<dyn Error>> {
     scene.add_child(
         ModelLoader::from_file("models/cube/cube.obj")?
     );
+
+    let mut sys = CameraSystem::default();
+    scene.accept(&mut sys);
 
     el.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

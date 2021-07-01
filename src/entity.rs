@@ -2,6 +2,7 @@ use derivative::Derivative;
 use glam::Vec3;
 
 use crate::component::Component;
+use crate::system::System;
 
 #[derive(Debug)]
 pub struct Transform {
@@ -58,5 +59,12 @@ impl Entity {
             }
         }
         None
+    }
+
+    pub fn accept(&mut self, sys: &mut dyn System) {
+        sys.visit_entity(self);
+        for child in &mut self.children {
+            child.accept(sys);
+        }
     }
 }
