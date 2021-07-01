@@ -1,5 +1,5 @@
 use derivative::Derivative;
-use glam::Vec3;
+use glam::{EulerRot, Quat, Vec3};
 
 use crate::component::Component;
 use crate::system::System;
@@ -7,7 +7,7 @@ use crate::system::System;
 #[derive(Debug)]
 pub struct Transform {
     pub position: Vec3,
-    pub rotation: Vec3,
+    pub rotation: Quat,
     pub scale: Vec3,
 }
 
@@ -24,12 +24,12 @@ impl Default for Entity {
     fn default() -> Self {
         Entity {
             transform: Transform {
-                position: Vec3::new(0.0, 0.0, 0.0),
-                rotation: Vec3::new(0.0, 0.0, 0.0),
-                scale: Vec3::new(0.0, 0.0, 0.0),
+                position: Vec3::default(),
+                rotation: Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, -1.0),
+                scale: Vec3::default(),
             },
-            children: Vec::new(),
-            components: Vec::new(),
+            children: Vec::default(),
+            components: Vec::default(),
         }
     }
 }

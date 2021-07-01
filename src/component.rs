@@ -12,7 +12,7 @@ pub struct MeshComponent {
 
 #[derive(Debug)]
 pub struct CameraComponent {
-    pub fov: f64,
+    pub fov: f32,
 }
 
 impl Default for CameraComponent {
