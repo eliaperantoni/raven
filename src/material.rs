@@ -1,8 +1,6 @@
 use std::error::Error;
 use std::path::Path;
 
-use image;
-
 use crate::texture::{self, Texture, TextureType};
 
 mod russimp {

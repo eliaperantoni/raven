@@ -1,6 +1,7 @@
+use std::any::Any;
+
 use crate::material::Material;
 use crate::mesh::Mesh;
-use std::any::Any;
 
 #[derive(Debug)]
 pub struct MeshComponent {

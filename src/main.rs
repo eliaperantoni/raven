@@ -7,8 +7,8 @@ use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 
-use entity::Entity;
 use component::CameraComponent;
+use entity::Entity;
 use model::ModelLoader;
 use shader::{Shader, ShaderType};
 use shader_program::ShaderProgram;

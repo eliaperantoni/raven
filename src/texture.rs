@@ -27,7 +27,7 @@ impl Into<russimp::TextureType> for TextureType {
 #[derivative(Debug)]
 pub struct Texture {
     pub t: TextureType,
-    #[derivative(Debug="ignore")]
+    #[derivative(Debug = "ignore")]
     data: Vec<u8>,
 }
 

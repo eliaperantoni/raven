@@ -1,18 +1,11 @@
-use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::error::Error;
-use std::iter;
-use std::mem;
-use std::path::{Path, PathBuf};
-use std::ptr;
+use std::path::PathBuf;
 
-use glam::{Vec2, Vec3};
-use itertools::izip;
-
-use crate::entity::Entity;
 use crate::component::MeshComponent;
-use crate::mesh::{self, Mesh, Vertex};
-use crate::material::{self, Material};
+use crate::entity::Entity;
+use crate::material;
+use crate::mesh;
 
 mod russimp {
     pub use russimp::mesh::Mesh;
@@ -34,7 +27,7 @@ impl ModelLoader {
             russimp::PostProcess::FlipUVs,
         ])?;
 
-        let mut loader = ModelLoader {
+        let loader = ModelLoader {
             scene,
             base_dir: {
                 let mut base_dir = PathBuf::from(path);
