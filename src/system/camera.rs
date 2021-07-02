@@ -22,7 +22,7 @@ impl CameraSystem {
     }
 
     pub fn get_proj_mat(&self) -> Mat4 {
-        Mat4::perspective_rh_gl(self.cam_fov, self.aspect_ratio, 0.1, 100.0)
+        Mat4::perspective_rh_gl(45_f32.to_radians(), self.aspect_ratio, 0.1, 100.0)
     }
 }
 

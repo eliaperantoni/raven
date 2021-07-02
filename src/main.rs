@@ -40,7 +40,7 @@ fn main() {
     }
 }
 
-const CAMERA_SPEED: f32 = 1.0;
+const CAMERA_SPEED: f32 = 10.0;
 
 fn main_err() -> Result<(), Box<dyn Error>> {
     let el = EventLoop::new();
@@ -76,6 +76,7 @@ fn main_err() -> Result<(), Box<dyn Error>> {
                     unsafe {
                         gl::Viewport(0, 0, physical_size.width as i32, physical_size.height as i32)
                     };
+                    camera_sys.aspect_ratio = physical_size.width as f32 / physical_size.height as f32;
                 }
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 WindowEvent::KeyboardInput { input, .. } => {
