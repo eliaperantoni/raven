@@ -66,6 +66,9 @@ fn main_err() -> Result<(), Box<dyn Error>> {
 
     let mut last_frame = time::Instant::now();
 
+    let mut yaw = 0f32;
+    let mut pitch = 0f32;
+
     el.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
@@ -120,12 +123,6 @@ fn main_err() -> Result<(), Box<dyn Error>> {
         if input_manager.is_key_pressed(VirtualKeyCode::D) {
             input_vec.x += 1.0;
         }
-        if input_manager.is_key_pressed(VirtualKeyCode::Q) {
-            input_vec.y -= 1.0;
-        }
-        if input_manager.is_key_pressed(VirtualKeyCode::E) {
-            input_vec.y += 1.0;
-        }
 
         let mut cam_entity = &mut scene.children[0];
 
@@ -133,12 +130,25 @@ fn main_err() -> Result<(), Box<dyn Error>> {
             input_vec.normalize_or_zero() * CAMERA_MOVE_SPEED * time_delta.as_secs_f32()
         );
 
-        let motion = input_manager.get_mouse_motion();
-        if motion != (0.0, 0.0) {
-            let (mut dx, mut dy) = motion;
+        input_vec = Vec3::ZERO;
+
+        if input_manager.is_key_pressed(VirtualKeyCode::Q) {
+            input_vec.y -= 1.0;
+        }
+        if input_manager.is_key_pressed(VirtualKeyCode::E) {
+            input_vec.y += 1.0;
+        }
+
+        cam_entity.transform.position += input_vec.normalize_or_zero() * CAMERA_MOVE_SPEED * time_delta.as_secs_f32();
+
+        {
+            let (mut dx, mut dy) = input_manager.get_mouse_motion();
             dx *= time_delta.as_secs_f32() * CAMERA_LOOK_SPEED * -1_f32;
             dy *= time_delta.as_secs_f32() * CAMERA_LOOK_SPEED * -1_f32;
-            cam_entity.transform.rotation *= Quat::from_euler(EulerRot::XYZ, dy, dx, 0.0);
+            yaw += dx;
+            pitch += dy;
+
+            cam_entity.transform.rotation = Quat::from_rotation_y(yaw) * Quat::from_rotation_x(pitch);
         }
 
         renderer_sys.each_frame();
@@ -173,7 +183,7 @@ fn build_demo_scene() -> Result<Entity, Box<dyn Error>> {
         },
     );
     scene.add_child(
-        ModelLoader::from_file("models/cube/cube.obj")?
+        ModelLoader::from_file("models/backpack/backpack.obj")?
     );
 
     Ok(scene)
