@@ -2,9 +2,10 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::mem;
 use std::ops::DerefMut;
+use std::time;
 
 use gl::{self, types::*};
-use glam::{EulerRot, Quat};
+use glam::{EulerRot, Quat, Vec3};
 use glutin::ContextBuilder;
 use glutin::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
@@ -39,6 +40,8 @@ fn main() {
     }
 }
 
+const CAMERA_SPEED: f32 = 1.0;
+
 fn main_err() -> Result<(), Box<dyn Error>> {
     let el = EventLoop::new();
     let wb = WindowBuilder::new().with_title("Raven");
@@ -59,6 +62,8 @@ fn main_err() -> Result<(), Box<dyn Error>> {
     let mut renderer_sys = RendererSystem::new()?;
 
     let mut input_manager = InputManager::default();
+
+    let mut last_frame = time::Instant::now();
 
     el.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -90,11 +95,32 @@ fn main_err() -> Result<(), Box<dyn Error>> {
             _ => (),
         }
 
+        let now = time::Instant::now();
+        let time_delta = now - last_frame;
+        last_frame = now;
+
+        let mut input_vec = Vec3::default();
+
         if input_manager.is_pressed(VirtualKeyCode::W) {
-            scene.children[0].transform.position.z -= 0.0001;
-        } else if input_manager.is_pressed(VirtualKeyCode::S) {
-            scene.children[0].transform.position.z += 0.0001;
+            input_vec.z -= 1.0;
         }
+        if input_manager.is_pressed(VirtualKeyCode::A) {
+            input_vec.x -= 1.0;
+        }
+        if input_manager.is_pressed(VirtualKeyCode::S) {
+            input_vec.z += 1.0;
+        }
+        if input_manager.is_pressed(VirtualKeyCode::D) {
+            input_vec.x += 1.0;
+        }
+        if input_manager.is_pressed(VirtualKeyCode::Q) {
+            input_vec.y -= 1.0;
+        }
+        if input_manager.is_pressed(VirtualKeyCode::E) {
+            input_vec.y += 1.0;
+        }
+
+        scene.children[0].transform.position += input_vec.normalize_or_zero() * CAMERA_SPEED * time_delta.as_secs_f32();
 
         renderer_sys.each_frame();
 
