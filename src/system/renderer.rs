@@ -82,8 +82,6 @@ impl System for RendererSystem {
 }
 
 fn load_mesh(mesh: &Mesh) -> Vao {
-    dbg!("Loading mesh");
-
     let mut vao = 0;
 
     // Setup VAO
@@ -207,8 +205,6 @@ fn load_mesh(mesh: &Mesh) -> Vao {
 }
 
 fn draw_vao(vao: Vao) {
-    dbg!("Drawing object");
-
     unsafe {
         gl::BindVertexArray(vao.vao as _);
         gl::DrawElements(

@@ -6,12 +6,13 @@ use std::ops::DerefMut;
 use gl::{self, types::*};
 use glam::{EulerRot, Quat};
 use glutin::ContextBuilder;
-use glutin::event::{Event, WindowEvent};
+use glutin::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 
 use component::CameraComponent;
 use entity::Entity;
+use input::InputManager;
 use model::ModelLoader;
 use shader::{Shader, ShaderType};
 use shader_program::ShaderProgram;
@@ -29,6 +30,7 @@ mod system;
 mod material;
 mod texture;
 mod mesh;
+mod input;
 
 fn main() {
     match main_err() {
@@ -56,8 +58,10 @@ fn main_err() -> Result<(), Box<dyn Error>> {
 
     let mut renderer_sys = RendererSystem::new()?;
 
+    let mut input_manager = InputManager::default();
+
     el.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        *control_flow = ControlFlow::Poll;
 
         match event {
             Event::LoopDestroyed => return,
@@ -69,20 +73,37 @@ fn main_err() -> Result<(), Box<dyn Error>> {
                     };
                 }
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::KeyboardInput { input, .. } => {
+                    match input {
+                        KeyboardInput {
+                            virtual_keycode: Some(virtual_keycode),
+                            state,
+                            ..
+                        } => {
+                            input_manager.set_pressed(virtual_keycode, state == ElementState::Pressed);
+                        }
+                        _ => ()
+                    }
+                }
                 _ => (),
             },
-            Event::RedrawRequested(_) => {
-                renderer_sys.each_frame();
-
-                scene.accept(&mut camera_sys);
-
-                renderer_sys.update_matrices(&camera_sys);
-                scene.accept(&mut renderer_sys);
-
-                windowed_context.swap_buffers().unwrap();
-            }
             _ => (),
         }
+
+        if input_manager.is_pressed(VirtualKeyCode::W) {
+            scene.children[0].transform.position.z -= 0.0001;
+        } else if input_manager.is_pressed(VirtualKeyCode::S) {
+            scene.children[0].transform.position.z += 0.0001;
+        }
+
+        renderer_sys.each_frame();
+
+        scene.accept(&mut camera_sys);
+
+        renderer_sys.update_matrices(&camera_sys);
+        scene.accept(&mut renderer_sys);
+
+        windowed_context.swap_buffers().unwrap();
     });
 }
 
