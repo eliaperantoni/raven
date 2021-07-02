@@ -7,7 +7,7 @@ use std::time;
 use gl::{self, types::*};
 use glam::{EulerRot, Quat, Vec3};
 use glutin::ContextBuilder;
-use glutin::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
+use glutin::event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 
@@ -40,7 +40,8 @@ fn main() {
     }
 }
 
-const CAMERA_SPEED: f32 = 10.0;
+const CAMERA_MOVE_SPEED: f32 = 10.0;
+const CAMERA_LOOK_SPEED: f32 = 40.0;
 
 fn main_err() -> Result<(), Box<dyn Error>> {
     let el = EventLoop::new();
@@ -79,20 +80,21 @@ fn main_err() -> Result<(), Box<dyn Error>> {
                     camera_sys.aspect_ratio = physical_size.width as f32 / physical_size.height as f32;
                 }
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::KeyboardInput { input, .. } => {
-                    match input {
-                        KeyboardInput {
-                            virtual_keycode: Some(virtual_keycode),
-                            state,
-                            ..
-                        } => {
-                            input_manager.set_pressed(virtual_keycode, state == ElementState::Pressed);
-                        }
-                        _ => ()
-                    }
-                }
                 _ => (),
             },
+            Event::DeviceEvent { event, .. } => {
+                match event {
+                    DeviceEvent::Key(input) => {
+                        if let Some(v_key) = input.virtual_keycode {
+                            input_manager.set_key_pressed(v_key, input.state == ElementState::Pressed);
+                        }
+                    }
+                    DeviceEvent::MouseMotion { delta: (dx, dy) } => {
+                        input_manager.set_mouse_motion((dx as f32, dy as f32));
+                    }
+                    _ => ()
+                }
+            }
             _ => (),
         }
 
@@ -100,28 +102,44 @@ fn main_err() -> Result<(), Box<dyn Error>> {
         let time_delta = now - last_frame;
         last_frame = now;
 
+        if input_manager.is_key_pressed(VirtualKeyCode::Escape) {
+            *control_flow = ControlFlow::Exit;
+        }
+
         let mut input_vec = Vec3::default();
 
-        if input_manager.is_pressed(VirtualKeyCode::W) {
+        if input_manager.is_key_pressed(VirtualKeyCode::W) {
             input_vec.z -= 1.0;
         }
-        if input_manager.is_pressed(VirtualKeyCode::A) {
+        if input_manager.is_key_pressed(VirtualKeyCode::A) {
             input_vec.x -= 1.0;
         }
-        if input_manager.is_pressed(VirtualKeyCode::S) {
+        if input_manager.is_key_pressed(VirtualKeyCode::S) {
             input_vec.z += 1.0;
         }
-        if input_manager.is_pressed(VirtualKeyCode::D) {
+        if input_manager.is_key_pressed(VirtualKeyCode::D) {
             input_vec.x += 1.0;
         }
-        if input_manager.is_pressed(VirtualKeyCode::Q) {
+        if input_manager.is_key_pressed(VirtualKeyCode::Q) {
             input_vec.y -= 1.0;
         }
-        if input_manager.is_pressed(VirtualKeyCode::E) {
+        if input_manager.is_key_pressed(VirtualKeyCode::E) {
             input_vec.y += 1.0;
         }
 
-        scene.children[0].transform.position += input_vec.normalize_or_zero() * CAMERA_SPEED * time_delta.as_secs_f32();
+        let mut cam_entity = &mut scene.children[0];
+
+        cam_entity.transform.position += cam_entity.transform.rotation.mul_vec3(
+            input_vec.normalize_or_zero() * CAMERA_MOVE_SPEED * time_delta.as_secs_f32()
+        );
+
+        let motion = input_manager.get_mouse_motion();
+        if motion != (0.0, 0.0) {
+            let (mut dx, mut dy) = motion;
+            dx *= time_delta.as_secs_f32() * CAMERA_LOOK_SPEED * -1_f32;
+            dy *= time_delta.as_secs_f32() * CAMERA_LOOK_SPEED * -1_f32;
+            cam_entity.transform.rotation *= Quat::from_euler(EulerRot::XYZ, dy, dx, 0.0);
+        }
 
         renderer_sys.each_frame();
 
@@ -131,6 +149,8 @@ fn main_err() -> Result<(), Box<dyn Error>> {
         scene.accept(&mut renderer_sys);
 
         windowed_context.swap_buffers().unwrap();
+
+        input_manager.set_mouse_motion((0.0, 0.0));
     });
 }
 

@@ -3,27 +3,37 @@ use std::collections::HashSet;
 use glutin::event::VirtualKeyCode;
 
 pub struct InputManager {
-    state: HashSet<VirtualKeyCode>,
+    keyboard_state: HashSet<VirtualKeyCode>,
+    mouse_state: (f32, f32),
 }
 
 impl Default for InputManager {
     fn default() -> Self {
         InputManager {
-            state: HashSet::default()
+            keyboard_state: HashSet::default(),
+            mouse_state: (0.0, 0.0),
         }
     }
 }
 
 impl InputManager {
-    pub fn is_pressed(&self, key: VirtualKeyCode) -> bool {
-        self.state.contains(&key)
+    pub fn is_key_pressed(&self, key: VirtualKeyCode) -> bool {
+        self.keyboard_state.contains(&key)
     }
 
-    pub fn set_pressed(&mut self, key: VirtualKeyCode, pressed: bool) {
+    pub fn get_mouse_motion(&self) -> (f32, f32) {
+        self.mouse_state
+    }
+
+    pub fn set_key_pressed(&mut self, key: VirtualKeyCode, pressed: bool) {
         if pressed {
-            self.state.insert(key);
+            self.keyboard_state.insert(key);
         } else {
-            self.state.remove(&key);
+            self.keyboard_state.remove(&key);
         }
+    }
+
+    pub fn set_mouse_motion(&mut self, motion: (f32, f32)) {
+        self.mouse_state = motion;
     }
 }
