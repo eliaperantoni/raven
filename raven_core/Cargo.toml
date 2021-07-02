@@ -1,0 +1,14 @@
+[package]
+name = "raven_core"
+version = "0.1.0"
+authors = ["Elia Perantoni <perantonielia0@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+gl = "0.14.0"
+glutin = "0.27.0"
+glam = "0.16.0"
+russimp = "0.2.2"
+itertools = "0.10.1"
+image = "0.23.14"
+derivative = "2.2.0"

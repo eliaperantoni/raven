@@ -1,16 +1,6 @@
-[package]
-name = "raven"
-version = "0.1.0"
-authors = ["elia"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-gl = "0.14.0"
-glutin = "0.27.0"
-glam = "0.16.0"
-russimp = "0.2.2"
-itertools = "0.10.1"
-image = "0.23.14"
-derivative = "2.2.0"
+[workspace]
+members = [
+    "raven_core",
+    "raven_editor",
+    "raven_runtime",
+]
