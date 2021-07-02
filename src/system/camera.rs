@@ -30,7 +30,7 @@ impl Default for CameraSystem {
     fn default() -> Self {
         CameraSystem {
             cam_pos: Vec3::ZERO,
-            cam_target: Vec3::Z,
+            cam_target: -Vec3::Z,
             cam_up: Vec3::Y,
             cam_fov: 90.0,
 
