@@ -24,9 +24,9 @@ impl Default for Entity {
     fn default() -> Self {
         Entity {
             transform: Transform {
-                position: Vec3::default(),
-                rotation: Quat::from_euler(EulerRot::XYZ, 0.0, -180_f32.to_radians(), 0.0),
-                scale: Vec3::default(),
+                position: Vec3::ZERO,
+                rotation: Quat::IDENTITY,
+                scale: Vec3::ONE,
             },
             children: Vec::default(),
             components: Vec::default(),

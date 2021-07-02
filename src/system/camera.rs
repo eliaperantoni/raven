@@ -29,9 +29,9 @@ impl CameraSystem {
 impl Default for CameraSystem {
     fn default() -> Self {
         CameraSystem {
-            cam_pos: Vec3::default(),
-            cam_target: Vec3::default(),
-            cam_up: Vec3::default(),
+            cam_pos: Vec3::ZERO,
+            cam_target: Vec3::Z,
+            cam_up: Vec3::Y,
             cam_fov: 90.0,
 
             aspect_ratio: 1.0,
@@ -44,10 +44,7 @@ impl System for CameraSystem {
         if let Some(camera) = entity.get_component::<CameraComponent>() {
             self.cam_pos = entity.transform.position;
 
-            let forward = {
-                let (x, y, z) = entity.transform.rotation.to_euler(EulerRot::XYZ);
-                Vec3::new(x, y, z).normalize()
-            };
+            let forward = entity.transform.rotation.mul_vec3(-Vec3::Z).normalize();
 
             self.cam_target = self.cam_pos + forward;
 
