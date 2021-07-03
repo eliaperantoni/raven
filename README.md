@@ -4,7 +4,5 @@ Raven is a graphics engine for 3D interactive applications.
 
 ## Building
 
-To build Raven you will need to have the Assimp model loading library installed. Installing it on Arch Linux
-is `paru -S assimp`.
-
-Once you have Assimp installed, Raven can be built with `cargo build`.
+Raven depends on Assimp and Dear ImGui. Once you have them installed, you can build raven
+with `cargo build -p raven_editor`.

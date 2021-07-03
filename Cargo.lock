@@ -164,8 +164,14 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ced0551234e87afee12411d535648dd89d2e7f34c78b753395567aff3d447ff"
 dependencies = [
- "libc",
+    "libc",
 ]
+
+[[package]]
+name = "chlorine"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd650552110e39b7c5058986cf177decd3365841836578ac50a286094eac0be6"
 
 [[package]]
 name = "clang-sys"
@@ -173,9 +179,9 @@ version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "853eda514c284c2287f4bf20ae614f8781f40a81d32ecda6e91449304dfe077c"
 dependencies = [
- "glob",
- "libc",
- "libloading 0.7.0",
+    "glob",
+    "libc",
+    "libloading 0.7.0",
 ]
 
 [[package]]
@@ -659,14 +665,55 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "color_quant",
- "gif",
- "jpeg-decoder",
- "num-iter",
- "num-rational",
- "num-traits",
- "png",
- "scoped_threadpool",
- "tiff",
+    "gif",
+    "jpeg-decoder",
+    "num-iter",
+    "num-rational",
+    "num-traits",
+    "png",
+    "scoped_threadpool",
+    "tiff",
+]
+
+[[package]]
+name = "imgui"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24cfcf6e3326886321c5d637caf1ce217006651059015fae372b1c49c0e722b2"
+dependencies = [
+    "bitflags",
+    "imgui-sys",
+    "parking_lot",
+]
+
+[[package]]
+name = "imgui-opengl-renderer"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "562c7be8f6c93a0846b68535b53b4ede180d82860f7b656354f9ce07d4994992"
+dependencies = [
+    "gl_generator",
+    "imgui",
+]
+
+[[package]]
+name = "imgui-sys"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85ca00be6b78bf02b57e91468cf19d08dfcc11d0fb3c2f3dc491c29404d8d330"
+dependencies = [
+    "cc",
+    "chlorine",
+]
+
+[[package]]
+name = "imgui-winit-support"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22ae881a42852470216c77fba5835b9701815adac24dfaa8d4ebf3a368376756"
+dependencies = [
+    "imgui",
+    "winit",
 ]
 
 [[package]]
@@ -675,7 +722,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61124eeebbd69b8190558df225adf7e4caafce0d743919e5d6b19652314ec5ec"
 dependencies = [
- "cfg-if 1.0.0",
+    "cfg-if 1.0.0",
 ]
 
 [[package]]
@@ -1169,6 +1216,13 @@ dependencies = [
 [[package]]
 name = "raven_editor"
 version = "0.1.0"
+dependencies = [
+    "gl",
+    "glutin",
+    "imgui",
+    "imgui-opengl-renderer",
+    "imgui-winit-support",
+]
 
 [[package]]
 name = "raven_runtime"
