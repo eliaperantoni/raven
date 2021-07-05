@@ -164,7 +164,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ced0551234e87afee12411d535648dd89d2e7f34c78b753395567aff3d447ff"
 dependencies = [
-    "libc",
+ "libc",
 ]
 
 [[package]]
@@ -179,9 +179,9 @@ version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "853eda514c284c2287f4bf20ae614f8781f40a81d32ecda6e91449304dfe077c"
 dependencies = [
-    "glob",
-    "libc",
-    "libloading 0.7.0",
+ "glob",
+ "libc",
+ "libloading 0.7.0",
 ]
 
 [[package]]
@@ -665,14 +665,14 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "color_quant",
-    "gif",
-    "jpeg-decoder",
-    "num-iter",
-    "num-rational",
-    "num-traits",
-    "png",
-    "scoped_threadpool",
-    "tiff",
+ "gif",
+ "jpeg-decoder",
+ "num-iter",
+ "num-rational",
+ "num-traits",
+ "png",
+ "scoped_threadpool",
+ "tiff",
 ]
 
 [[package]]
@@ -681,9 +681,9 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24cfcf6e3326886321c5d637caf1ce217006651059015fae372b1c49c0e722b2"
 dependencies = [
-    "bitflags",
-    "imgui-sys",
-    "parking_lot",
+ "bitflags",
+ "imgui-sys",
+ "parking_lot",
 ]
 
 [[package]]
@@ -692,8 +692,8 @@ version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "562c7be8f6c93a0846b68535b53b4ede180d82860f7b656354f9ce07d4994992"
 dependencies = [
-    "gl_generator",
-    "imgui",
+ "gl_generator",
+ "imgui",
 ]
 
 [[package]]
@@ -702,8 +702,8 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85ca00be6b78bf02b57e91468cf19d08dfcc11d0fb3c2f3dc491c29404d8d330"
 dependencies = [
-    "cc",
-    "chlorine",
+ "cc",
+ "chlorine",
 ]
 
 [[package]]
@@ -712,8 +712,8 @@ version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22ae881a42852470216c77fba5835b9701815adac24dfaa8d4ebf3a368376756"
 dependencies = [
-    "imgui",
-    "winit",
+ "imgui",
+ "winit",
 ]
 
 [[package]]
@@ -722,7 +722,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61124eeebbd69b8190558df225adf7e4caafce0d743919e5d6b19652314ec5ec"
 dependencies = [
-    "cfg-if 1.0.0",
+ "cfg-if 1.0.0",
 ]
 
 [[package]]
@@ -1204,24 +1204,25 @@ dependencies = [
 name = "raven_core"
 version = "0.1.0"
 dependencies = [
-    "derivative",
-    "gl",
-    "glam",
-    "glutin",
-    "image",
-    "itertools",
-    "russimp",
+ "derivative",
+ "gl",
+ "glam",
+ "glutin",
+ "image",
+ "itertools",
+ "russimp",
 ]
 
 [[package]]
 name = "raven_editor"
 version = "0.1.0"
 dependencies = [
-    "gl",
-    "glutin",
-    "imgui",
-    "imgui-opengl-renderer",
-    "imgui-winit-support",
+ "gl",
+ "glutin",
+ "imgui",
+ "imgui-opengl-renderer",
+ "imgui-winit-support",
+ "raven_core",
 ]
 
 [[package]]
@@ -1234,7 +1235,7 @@ version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0a441a7a6c80ad6473bd4b74ec1c9a4c951794285bf941c2126f607c72e48211"
 dependencies = [
-    "libc",
+ "libc",
 ]
 
 [[package]]
@@ -1535,14 +1536,14 @@ version = "0.28.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3ab332350e502f159382201394a78e3cc12d0f04db863429260164ea40e0355"
 dependencies = [
-    "bitflags",
-    "downcast-rs",
-    "libc",
-    "nix 0.20.0",
-    "scoped-tls",
-    "wayland-commons",
-    "wayland-scanner",
-    "wayland-sys",
+ "bitflags",
+ "downcast-rs",
+ "libc",
+ "nix 0.20.0",
+ "scoped-tls",
+ "wayland-commons",
+ "wayland-scanner",
+ "wayland-sys",
 ]
 
 [[package]]
@@ -1551,10 +1552,10 @@ version = "0.28.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a21817947c7011bbd0a27e11b17b337bfd022e8544b071a2641232047966fbda"
 dependencies = [
-    "nix 0.20.0",
-    "once_cell",
-    "smallvec",
-    "wayland-sys",
+ "nix 0.20.0",
+ "once_cell",
+ "smallvec",
+ "wayland-sys",
 ]
 
 [[package]]
@@ -1563,9 +1564,9 @@ version = "0.28.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be610084edd1586d45e7bdd275fe345c7c1873598caa464c4fb835dee70fa65a"
 dependencies = [
-    "nix 0.20.0",
-    "wayland-client",
-    "xcursor",
+ "nix 0.20.0",
+ "wayland-client",
+ "xcursor",
 ]
 
 [[package]]
@@ -1574,8 +1575,8 @@ version = "0.28.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99ba1ab1e18756b23982d36f08856d521d7df45015f404a2d7c4f0b2d2f66956"
 dependencies = [
-    "wayland-client",
-    "wayland-sys",
+ "wayland-client",
+ "wayland-sys",
 ]
 
 [[package]]
@@ -1584,10 +1585,10 @@ version = "0.28.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "286620ea4d803bacf61fa087a4242ee316693099ee5a140796aaba02b29f861f"
 dependencies = [
-    "bitflags",
-    "wayland-client",
-    "wayland-commons",
-    "wayland-scanner",
+ "bitflags",
+ "wayland-client",
+ "wayland-commons",
+ "wayland-scanner",
 ]
 
 [[package]]
@@ -1596,9 +1597,9 @@ version = "0.28.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce923eb2deb61de332d1f356ec7b6bf37094dc5573952e1c8936db03b54c03f1"
 dependencies = [
-    "proc-macro2",
-    "quote",
-    "xml-rs",
+ "proc-macro2",
+ "quote",
+ "xml-rs",
 ]
 
 [[package]]
@@ -1607,9 +1608,9 @@ version = "0.28.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d841fca9aed7febf9bed2e9796c49bf58d4152ceda8ac949ebe00868d8f0feb8"
 dependencies = [
-    "dlib 0.5.0",
-    "lazy_static",
-    "pkg-config",
+ "dlib 0.5.0",
+ "lazy_static",
+ "pkg-config",
 ]
 
 [[package]]

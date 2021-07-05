@@ -12,3 +12,4 @@ glutin = "0.27.0"
 gl = "0.14.0"
 imgui-opengl-renderer = "0.11.0"
 imgui-winit-support = { version = "0.7.1", default-features = false, features = ["winit-25"] }
+raven_core = { path = "../raven_core" }
