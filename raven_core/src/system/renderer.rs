@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::mem;
 
-use gl::{self, types::*};
+use gl;
 use glam::Mat4;
 
 use crate::component::MeshComponent;
@@ -53,7 +53,7 @@ impl RendererSystem {
         self.proj_mat = cs.get_proj_mat();
     }
 
-    pub fn each_frame(&mut self) {
+    pub fn clear(&mut self) {
         unsafe {
             gl::ClearColor(0.1, 0.1, 0.1, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);

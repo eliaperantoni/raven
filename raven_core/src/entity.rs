@@ -1,5 +1,5 @@
 use derivative::Derivative;
-use glam::{self, EulerRot, Quat, Vec3};
+use glam::{self, Quat, Vec3};
 
 use crate::component::Component;
 use crate::system::System;

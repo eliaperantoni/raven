@@ -7,11 +7,15 @@ use glutin::dpi::{LogicalSize, Size};
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
-use imgui::{Context, im_str, Image, Window};
+use imgui::{Context, im_str, Window};
 use imgui_opengl_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
-use raven_core::{component::CameraComponent, entity::Entity, model::ModelLoader, Raven};
+use raven_core::Raven;
+use raven_core::component::CameraComponent;
+use raven_core::entity::Entity;
+use raven_core::model::ModelLoader;
+use raven_core::framebuffer::Framebuffer;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let el = EventLoop::new();
@@ -44,6 +48,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let scene = build_demo_scene()?;
     let mut raven = Raven::from_scene(scene)?;
 
+    let framebuffer = Framebuffer::new((800, 600));
+
     el.run(move |event, _, control_flow| {
         match event {
             Event::NewEvents(_) => {
@@ -71,9 +77,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                     gl::Clear(gl::COLOR_BUFFER_BIT);
                 }
 
-                // TODO Bind framebuffer
-                // raven.do_frame();
-                // TODO Unbind framebuffer
+                framebuffer.bind();
+                raven.do_frame();
+                framebuffer.unbind();
 
                 platform.prepare_render(&ui, windowed_context.window());
                 renderer.render(ui);

@@ -1,4 +1,4 @@
-use glam::{EulerRot, Mat4, Vec3};
+use glam::{Mat4, Vec3};
 
 use crate::component::CameraComponent;
 use crate::entity::Entity;

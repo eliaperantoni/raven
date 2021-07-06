@@ -1,26 +1,8 @@
-use std::cell::RefCell;
 use std::error::Error;
-use std::mem;
-use std::ops::DerefMut;
-use std::time;
 
-use gl::{self, types::*};
-use glam::{EulerRot, Quat, Vec3};
-use glutin::ContextBuilder;
-use glutin::event::{DeviceEvent, ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::window::WindowBuilder;
-
-use component::CameraComponent;
 use entity::Entity;
-use input::InputManager;
-use model::ModelLoader;
-use shader::{Shader, ShaderType};
-use shader_program::ShaderProgram;
 use system::camera::CameraSystem;
 use system::renderer::RendererSystem;
-
-use crate::system::System;
 
 pub mod shader;
 pub mod shader_program;
@@ -32,6 +14,7 @@ pub mod material;
 pub mod texture;
 pub mod mesh;
 pub mod input;
+pub mod framebuffer;
 
 pub struct Raven {
     scene: Entity,
@@ -44,15 +27,12 @@ impl Raven {
         Ok(Raven {
             scene,
             renderer_sys: RendererSystem::new()?,
-            camera_sys: {
-                let mut camera_sys = CameraSystem::default();
-                camera_sys
-            },
+            camera_sys: CameraSystem::default(),
         })
     }
 
     pub fn do_frame(&mut self) {
-        self.renderer_sys.each_frame();
+        self.renderer_sys.clear();
 
         self.scene.accept(&mut self.camera_sys);
 
