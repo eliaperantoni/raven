@@ -43,12 +43,22 @@ impl Framebuffer {
         }
     }
 
-    pub fn bind(&self) {
+    fn bind(&self) {
         unsafe { gl::BindFramebuffer(gl::FRAMEBUFFER, self.framebuffer_id); }
     }
 
-    pub fn unbind(&self) {
-        unsafe { gl::BindFramebuffer(gl::FRAMEBUFFER, self.framebuffer_id); }
+    fn unbind(&self) {
+        unsafe { gl::BindFramebuffer(gl::FRAMEBUFFER, 0); }
+    }
+
+    pub fn with<F: FnOnce()>(&self, mut do_fn: F) {
+        self.bind();
+        do_fn();
+        self.unbind()
+    }
+
+    pub fn get_tex_id(&self) -> u32 {
+        self.texture_id
     }
 }
 

@@ -11,11 +11,11 @@ use imgui::{Context, im_str, Window};
 use imgui_opengl_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
-use raven_core::Raven;
 use raven_core::component::CameraComponent;
 use raven_core::entity::Entity;
-use raven_core::model::ModelLoader;
 use raven_core::framebuffer::Framebuffer;
+use raven_core::model::ModelLoader;
+use raven_core::Raven;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let el = EventLoop::new();
@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let scene = build_demo_scene()?;
     let mut raven = Raven::from_scene(scene)?;
 
-    let framebuffer = Framebuffer::new((800, 600));
+    let mut framebuffer = Framebuffer::new((800, 600));
 
     el.run(move |event, _, control_flow| {
         match event {
@@ -64,10 +64,18 @@ fn main() -> Result<(), Box<dyn Error>> {
                 windowed_context.window().request_redraw();
             }
             Event::RedrawRequested(_) => {
+                framebuffer.with(|| {
+                    raven.do_frame();
+                });
+
                 let ui = imgui.frame();
 
                 let mut run = true;
-                Window::new(im_str!("Raven")).build(&ui, || {});
+                Window::new(im_str!("Raven")).build(&ui, || {
+                    ui.text("Hello World!");
+                    let image = imgui::Image::new(imgui::TextureId::new(framebuffer.get_tex_id() as _), [800_f32, 600_f32]);
+                    image.build(&ui);
+                });
                 if !run {
                     *control_flow = ControlFlow::Exit;
                 }
@@ -76,10 +84,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                     gl::ClearColor(0.1, 0.1, 0.1, 1.0);
                     gl::Clear(gl::COLOR_BUFFER_BIT);
                 }
-
-                framebuffer.bind();
-                raven.do_frame();
-                framebuffer.unbind();
 
                 platform.prepare_render(&ui, windowed_context.window());
                 renderer.render(ui);
@@ -101,7 +105,7 @@ fn build_demo_scene() -> Result<Entity, Box<dyn Error>> {
         {
             let mut camera_entity = Entity::default();
 
-            camera_entity.transform.position.z += 3.0;
+            camera_entity.transform.position.z += 9.0;
 
             camera_entity.add_component(
                 CameraComponent::default().into()
