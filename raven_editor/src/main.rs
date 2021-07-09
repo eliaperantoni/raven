@@ -1,7 +1,5 @@
-#![feature(option_insert)]
-
 use std::error::Error;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::time::Instant;
 
 use gl;
@@ -120,7 +118,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                         if match &framebuffer {
                             Some(([curr_width, curr_height], _)) => *curr_width != width || *curr_height != height,
                             None => true,
-                            _ => false,
                         } {
                             framebuffer.insert(
                                 ([width, height], Framebuffer::new((width as _, height as _)))

@@ -51,7 +51,7 @@ impl Framebuffer {
         unsafe { gl::BindFramebuffer(gl::FRAMEBUFFER, 0); }
     }
 
-    pub fn with<F: FnOnce()>(&self, mut do_fn: F) {
+    pub fn with<F: FnOnce()>(&self, do_fn: F) {
         self.bind();
         do_fn();
         self.unbind()
