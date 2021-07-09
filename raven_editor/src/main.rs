@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::ffi::{CStr, CString};
 use std::time::Instant;
 
 use gl;
@@ -9,6 +10,7 @@ use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 use imgui::{Context, im_str, Window};
 use imgui_opengl_renderer::Renderer;
+use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
 use raven_core::component::CameraComponent;
@@ -36,6 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut imgui = Context::create();
     imgui.set_ini_filename(None);
+    imgui.io_mut().config_flags |= imgui::ConfigFlags::DOCKING_ENABLE;
 
     let mut platform = WinitPlatform::init(&mut imgui);
     platform.attach_window(imgui.io_mut(), windowed_context.window(), HiDpiMode::Rounded);
@@ -69,19 +72,63 @@ fn main() -> Result<(), Box<dyn Error>> {
                 });
 
                 let ui = imgui.frame();
-
                 let mut run = true;
-                Window::new(im_str!("Raven")).build(&ui, || {
-                    ui.text("Hello World!");
-                    let image = imgui::Image::new(imgui::TextureId::new(framebuffer.get_tex_id() as _), [800_f32, 600_f32]);
-                    image.build(&ui);
+
+                let viewport = unsafe { imgui_sys::igGetMainViewport() };
+
+                unsafe {
+                    imgui_sys::igSetNextWindowPos((*viewport).Pos, imgui_sys::ImGuiCond_Always as _, imgui_sys::ImVec2::default());
+                    imgui_sys::igSetNextWindowSize((*viewport).Size, imgui_sys::ImGuiCond_Always as _);
+                    imgui_sys::igSetNextWindowViewport((*viewport).ID);
+                }
+
+                let w_flags = {
+                    use imgui::WindowFlags;
+                    let mut w_flags = WindowFlags::empty();
+                    for w_flag in vec![
+                        WindowFlags::NO_TITLE_BAR,
+                        WindowFlags::NO_COLLAPSE,
+                        WindowFlags::NO_RESIZE,
+                        WindowFlags::NO_MOVE,
+                        WindowFlags::NO_BRING_TO_FRONT_ON_FOCUS,
+                        WindowFlags::NO_NAV_FOCUS,
+                        WindowFlags::NO_BACKGROUND,
+                    ] {
+                        w_flags.insert(w_flag);
+                    }
+                    w_flags
+                };
+
+                let style_stack = {
+                    use imgui::StyleVar::*;
+                    ui.push_style_vars(vec![
+                        &WindowRounding(0.0),
+                        &WindowBorderSize(0.0),
+                        &WindowPadding([0.0, 0.0]),
+                    ])
+                };
+
+                Window::new(im_str!("Raven")).flags(w_flags).build(&ui, || {
+                    unsafe {
+                        let dock_name = CString::new("dock_space").unwrap();
+                        let id = imgui_sys::igGetIDStr(dock_name.as_ptr());
+
+                        imgui_sys::igDockSpace(id, imgui_sys::ImVec2::new(0.0, 0.0), imgui_sys::ImGuiDockNodeFlags_PassthruCentralNode as _, 0 as _);
+                    }
+
+                    Window::new(im_str!("Viewport")).build(&ui, || {
+                        imgui::Image::new(imgui::TextureId::new(framebuffer.get_tex_id() as _), [800.0, 600.0]).build(&ui);
+                    });
                 });
+
+                style_stack.pop(&ui);
+
                 if !run {
                     *control_flow = ControlFlow::Exit;
                 }
 
                 unsafe {
-                    gl::ClearColor(0.1, 0.1, 0.1, 1.0);
+                    gl::ClearColor(215.0 / 255.0, 235.0 / 255.0, 245.0 / 255.0, 1.0);
                     gl::Clear(gl::COLOR_BUFFER_BIT);
                 }
 
