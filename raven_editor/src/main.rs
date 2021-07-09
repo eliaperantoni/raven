@@ -117,8 +117,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     Window::new(im_str!("Viewport")).build(&ui, || {
                         let [width, height] = ui.window_size();
 
-                        if match framebuffer {
-                            Some(([curr_width, curr_height], _)) => curr_width != width || curr_height != height,
+                        if match &framebuffer {
+                            Some(([curr_width, curr_height], _)) => *curr_width != width || *curr_height != height,
                             None => true,
                             _ => false,
                         } {
@@ -127,7 +127,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             );
                         }
 
-                        let framebuffer = framebuffer.unwrap().1;
+                        let (_, framebuffer) = framebuffer.as_ref().unwrap();
 
                         framebuffer.with(|| {
                             raven.do_frame();
