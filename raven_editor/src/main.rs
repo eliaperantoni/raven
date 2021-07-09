@@ -1,3 +1,5 @@
+#![feature(option_insert)]
+
 use std::error::Error;
 use std::ffi::{CStr, CString};
 use std::time::Instant;
@@ -51,7 +53,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let scene = build_demo_scene()?;
     let mut raven = Raven::from_scene(scene)?;
 
-    let mut framebuffer = Framebuffer::new((800, 600));
+    let mut framebuffer: Option<([f32; 2], Framebuffer)> = None;
 
     el.run(move |event, _, control_flow| {
         match event {
@@ -67,10 +69,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 windowed_context.window().request_redraw();
             }
             Event::RedrawRequested(_) => {
-                framebuffer.with(|| {
-                    raven.do_frame();
-                });
-
                 let ui = imgui.frame();
                 let mut run = true;
 
@@ -117,7 +115,25 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }
 
                     Window::new(im_str!("Viewport")).build(&ui, || {
-                        imgui::Image::new(imgui::TextureId::new(framebuffer.get_tex_id() as _), [800.0, 600.0]).build(&ui);
+                        let [width, height] = ui.window_size();
+
+                        if match framebuffer {
+                            Some(([curr_width, curr_height], _)) => curr_width != width || curr_height != height,
+                            None => true,
+                            _ => false,
+                        } {
+                            framebuffer.insert(
+                                ([width, height], Framebuffer::new((width as _, height as _)))
+                            );
+                        }
+
+                        let framebuffer = framebuffer.unwrap().1;
+
+                        framebuffer.with(|| {
+                            raven.do_frame();
+                        });
+
+                        imgui::Image::new(imgui::TextureId::new(framebuffer.get_tex_id() as _), [width, height]).build(&ui);
                     });
                 });
 
