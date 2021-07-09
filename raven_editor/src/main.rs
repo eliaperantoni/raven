@@ -112,7 +112,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         imgui_sys::igDockSpace(id, imgui_sys::ImVec2::new(0.0, 0.0), imgui_sys::ImGuiDockNodeFlags_PassthruCentralNode as _, 0 as _);
                     }
 
-                    Window::new(im_str!("Viewport")).build(&ui, || {
+                    Window::new(im_str!("Viewport")).size([800.0, 600.0], imgui::Condition::Once).build(&ui, || {
                         let [width, height] = ui.window_size();
 
                         if match &framebuffer {
