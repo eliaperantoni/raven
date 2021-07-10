@@ -155,7 +155,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 unsafe {
-                    gl::ClearColor(215.0 / 255.0, 235.0 / 255.0, 245.0 / 255.0, 1.0);
+                    gl::ClearColor(14.0 / 255.0, 12.0 / 255.0, 16.0 / 255.0, 1.0);
                     gl::Clear(gl::COLOR_BUFFER_BIT);
                 }
 
