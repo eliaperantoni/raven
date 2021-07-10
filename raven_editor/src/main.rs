@@ -118,8 +118,21 @@ fn main() -> Result<(), Box<dyn Error>> {
                             );
                             imgui_sys::igDockBuilderSetNodeSize(id, (*viewport).Size);
 
+                            let mut hierarchy_id = 0;
+                            let mut viewport_id = 0;
+                            let mut cbrowser_id = 0;
+
+                            imgui_sys::igDockBuilderSplitNode(id, imgui_sys::ImGuiDir_Left, 0.2, &mut hierarchy_id, &mut viewport_id);
+                            imgui_sys::igDockBuilderSplitNode(viewport_id, imgui_sys::ImGuiDir_Down, 0.2, &mut cbrowser_id, &mut viewport_id);
+
                             let window_name = CString::new("Viewport").unwrap();
-                            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), id);
+                            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), viewport_id);
+
+                            let window_name = CString::new("Hierarchy").unwrap();
+                            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), hierarchy_id);
+
+                            let window_name = CString::new("Content browser").unwrap();
+                            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), cbrowser_id);
 
                             imgui_sys::igDockBuilderFinish(id);
                         }
@@ -161,6 +174,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                         // Display it
                         imgui::Image::new(imgui::TextureId::new(framebuffer.get_tex_id() as _), [width, height]).build(&ui);
+                    });
+
+                    Window::new(im_str!("Content browser")).build(&ui, || {
+                        ui.text("Hello I'm the content browser");
+                    });
+
+                    Window::new(im_str!("Hierarchy")).build(&ui, || {
+                        ui.text("Hello I'm the hierarchy");
                     });
                 });
 
