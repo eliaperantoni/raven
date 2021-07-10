@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut imgui = Context::create();
     imgui.set_ini_filename(None);
-    imgui.io_mut().config_flags |= imgui::ConfigFlags::DOCKING_ENABLE;
+    imgui.io_mut().config_flags |= imgui::ConfigFlags::DOCKING_ENABLE | imgui::ConfigFlags::VIEWPORTS_ENABLE;
 
     let mut platform = WinitPlatform::init(&mut imgui);
     platform.attach_window(imgui.io_mut(), windowed_context.window(), HiDpiMode::Rounded);
@@ -105,6 +105,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 };
 
                 Window::new(im_str!("Raven")).flags(w_flags).build(&ui, || {
+                    style_stack.pop(&ui);
+
                     unsafe {
                         let dock_name = CString::new("dock_space").unwrap();
                         let id = imgui_sys::igGetIDStr(dock_name.as_ptr());
@@ -112,11 +114,22 @@ fn main() -> Result<(), Box<dyn Error>> {
                         imgui_sys::igDockSpace(id, imgui_sys::ImVec2::new(0.0, 0.0), imgui_sys::ImGuiDockNodeFlags_PassthruCentralNode as _, 0 as _);
                     }
 
+                    let style_stack = {
+                        use imgui::StyleVar::*;
+                        ui.push_style_vars(vec![
+                            &WindowPadding([0.0, 0.0]),
+                        ])
+                    };
                     Window::new(im_str!("Viewport")).size([800.0, 600.0], imgui::Condition::Once).build(&ui, || {
-                        let [width, height] = ui.window_size();
+                        style_stack.pop(&ui);
 
+                        let [width, height] = ui.content_region_avail();
+
+                        raven.set_size([width, height]);
+
+                        // If no framebuffer is present or the panel's size has changed
                         if match &framebuffer {
-                            Some(([curr_width, curr_height], _)) => *curr_width != width || *curr_height != height,
+                            Some((current_size, _)) => current_size != &[width, height],
                             None => true,
                         } {
                             framebuffer.insert(
@@ -124,17 +137,18 @@ fn main() -> Result<(), Box<dyn Error>> {
                             );
                         }
 
+                        // Get a reference to the framebuffer contained in the Option
                         let (_, framebuffer) = framebuffer.as_ref().unwrap();
 
+                        // Render a frame inside the framebuffer
                         framebuffer.with(|| {
                             raven.do_frame();
                         });
 
+                        // Display it
                         imgui::Image::new(imgui::TextureId::new(framebuffer.get_tex_id() as _), [width, height]).build(&ui);
                     });
                 });
-
-                style_stack.pop(&ui);
 
                 if !run {
                     *control_flow = ControlFlow::Exit;

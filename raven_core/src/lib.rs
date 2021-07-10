@@ -39,4 +39,14 @@ impl Raven {
         self.renderer_sys.update_matrices(&self.camera_sys);
         self.scene.accept(&mut self.renderer_sys);
     }
+
+    pub fn set_size(&mut self, size: [f32; 2]) {
+        let [width, height] = size;
+
+        unsafe {
+            gl::Viewport(0, 0, width as _, height as _);
+        }
+
+        self.camera_sys.aspect_ratio = width / height;
+    }
 }

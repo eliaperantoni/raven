@@ -55,7 +55,7 @@ impl RendererSystem {
 
     pub fn clear(&mut self) {
         unsafe {
-            gl::ClearColor(0.1, 0.1, 0.1, 1.0);
+            gl::ClearColor(0.1, 0.1, 0.4, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
     }
