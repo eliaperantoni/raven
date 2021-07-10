@@ -111,7 +111,20 @@ fn main() -> Result<(), Box<dyn Error>> {
                         let dock_name = CString::new("dock_space").unwrap();
                         let id = imgui_sys::igGetIDStr(dock_name.as_ptr());
 
-                        imgui_sys::igDockSpace(id, imgui_sys::ImVec2::new(0.0, 0.0), imgui_sys::ImGuiDockNodeFlags_PassthruCentralNode as _, 0 as _);
+                        if imgui_sys::igDockBuilderGetNode(id).is_null() {
+                            imgui_sys::igDockBuilderAddNode(
+                                id,
+                                imgui_sys::ImGuiDockNodeFlags_DockSpace | imgui_sys::ImGuiDockNodeFlags_PassthruCentralNode as i32,
+                            );
+                            imgui_sys::igDockBuilderSetNodeSize(id, (*viewport).Size);
+
+                            let window_name = CString::new("Viewport").unwrap();
+                            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), id);
+
+                            imgui_sys::igDockBuilderFinish(id);
+                        }
+
+                        imgui_sys::igDockSpace(id, imgui_sys::ImVec2::new(0.0, 0.0), 0 as _, 0 as _);
                     }
 
                     let style_stack = {
