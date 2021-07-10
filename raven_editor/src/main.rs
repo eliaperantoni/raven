@@ -104,86 +104,93 @@ fn main() -> Result<(), Box<dyn Error>> {
                     ])
                 };
 
-                Window::new(im_str!("Raven")).flags(w_flags).build(&ui, || {
-                    style_stack.pop(&ui);
+                // Don't check if `begin` was successful because we always want to pop the style
+                let main_window = Window::new(im_str!("Raven")).flags(w_flags).begin(&ui);
+                style_stack.pop(&ui);
 
-                    unsafe {
-                        let dock_name = CString::new("dock_space").unwrap();
-                        let id = imgui_sys::igGetIDStr(dock_name.as_ptr());
+                // Setup docking and dock windows
+                unsafe {
+                    let dock_name = CString::new("dock_space").unwrap();
+                    let id = imgui_sys::igGetIDStr(dock_name.as_ptr());
 
-                        if imgui_sys::igDockBuilderGetNode(id).is_null() {
-                            imgui_sys::igDockBuilderAddNode(
-                                id,
-                                imgui_sys::ImGuiDockNodeFlags_DockSpace,
-                            );
-                            imgui_sys::igDockBuilderSetNodeSize(id, (*viewport).Size);
+                    if imgui_sys::igDockBuilderGetNode(id).is_null() {
+                        imgui_sys::igDockBuilderAddNode(
+                            id,
+                            imgui_sys::ImGuiDockNodeFlags_DockSpace,
+                        );
+                        imgui_sys::igDockBuilderSetNodeSize(id, (*viewport).Size);
 
-                            let mut hierarchy_id = 0;
-                            let mut viewport_id = 0;
-                            let mut cbrowser_id = 0;
+                        let mut hierarchy_id = 0;
+                        let mut viewport_id = 0;
+                        let mut cbrowser_id = 0;
 
-                            imgui_sys::igDockBuilderSplitNode(id, imgui_sys::ImGuiDir_Left, 0.2, &mut hierarchy_id, &mut viewport_id);
-                            imgui_sys::igDockBuilderSplitNode(viewport_id, imgui_sys::ImGuiDir_Down, 0.2, &mut cbrowser_id, &mut viewport_id);
+                        imgui_sys::igDockBuilderSplitNode(id, imgui_sys::ImGuiDir_Left, 0.2, &mut hierarchy_id, &mut viewport_id);
+                        imgui_sys::igDockBuilderSplitNode(viewport_id, imgui_sys::ImGuiDir_Down, 0.2, &mut cbrowser_id, &mut viewport_id);
 
-                            let window_name = CString::new("Viewport").unwrap();
-                            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), viewport_id);
+                        let window_name = CString::new("Viewport").unwrap();
+                        imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), viewport_id);
 
-                            let window_name = CString::new("Hierarchy").unwrap();
-                            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), hierarchy_id);
+                        let window_name = CString::new("Hierarchy").unwrap();
+                        imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), hierarchy_id);
 
-                            let window_name = CString::new("Content browser").unwrap();
-                            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), cbrowser_id);
+                        let window_name = CString::new("Content browser").unwrap();
+                        imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), cbrowser_id);
 
-                            imgui_sys::igDockBuilderFinish(id);
-                        }
-
-                        imgui_sys::igDockSpace(id, imgui_sys::ImVec2::new(0.0, 0.0), imgui_sys::ImGuiDockNodeFlags_PassthruCentralNode as _, 0 as _);
+                        imgui_sys::igDockBuilderFinish(id);
                     }
 
-                    let style_stack = {
-                        use imgui::StyleVar::*;
-                        ui.push_style_vars(vec![
-                            &WindowPadding([0.0, 0.0]),
-                        ])
-                    };
-                    Window::new(im_str!("Viewport")).size([800.0, 600.0], imgui::Condition::Once).build(&ui, || {
-                        style_stack.pop(&ui);
+                    imgui_sys::igDockSpace(id, imgui_sys::ImVec2::new(0.0, 0.0), imgui_sys::ImGuiDockNodeFlags_PassthruCentralNode as _, 0 as _);
+                }
 
-                        let [width, height] = ui.content_region_avail();
+                let style_stack = {
+                    use imgui::StyleVar::*;
+                    ui.push_style_vars(vec![
+                        &WindowPadding([0.0, 0.0]),
+                    ])
+                };
 
-                        // Resizes OpenGL viewport and sets camera aspect ratio
-                        raven.set_size([width, height]);
+                Window::new(im_str!("Viewport")).size([800.0, 600.0], imgui::Condition::Once).build(&ui, || {
+                    let [width, height] = ui.content_region_avail();
 
-                        // If no framebuffer is present or the panel's size has changed
-                        if match &framebuffer {
-                            Some((current_size, _)) => current_size != &[width, height],
-                            None => true,
-                        } {
-                            framebuffer.insert(
-                                ([width, height], Framebuffer::new((width as _, height as _)))
-                            );
-                        }
+                    // Resizes OpenGL viewport and sets camera aspect ratio
+                    raven.set_size([width, height]);
 
-                        // Get a reference to the framebuffer contained in the Option
-                        let (_, framebuffer) = framebuffer.as_ref().unwrap();
+                    // If no framebuffer is present or the panel's size has changed
+                    if match &framebuffer {
+                        Some((current_size, _)) => current_size != &[width, height],
+                        None => true,
+                    } {
+                        framebuffer.insert(
+                            ([width, height], Framebuffer::new((width as _, height as _)))
+                        );
+                    }
 
-                        // Render a frame inside the framebuffer
-                        framebuffer.with(|| {
-                            raven.do_frame();
-                        });
+                    // Get a reference to the framebuffer contained in the Option
+                    let (_, framebuffer) = framebuffer.as_ref().unwrap();
 
-                        // Display it
-                        imgui::Image::new(imgui::TextureId::new(framebuffer.get_tex_id() as _), [width, height]).build(&ui);
+                    // Render a frame inside the framebuffer
+                    framebuffer.with(|| {
+                        raven.do_frame();
                     });
 
-                    Window::new(im_str!("Content browser")).build(&ui, || {
-                        ui.text("Hello I'm the content browser");
-                    });
-
-                    Window::new(im_str!("Hierarchy")).build(&ui, || {
-                        ui.text("Hello I'm the hierarchy");
-                    });
+                    // Display it
+                    imgui::Image::new(imgui::TextureId::new(framebuffer.get_tex_id() as _), [width, height]).build(&ui);
                 });
+
+                style_stack.pop(&ui);
+
+                Window::new(im_str!("Content browser")).build(&ui, || {
+                    ui.text("Hello I'm the content browser");
+                });
+
+                Window::new(im_str!("Hierarchy")).build(&ui, || {
+                    ui.text("Hello I'm the hierarchy");
+                });
+
+                // If window was created (should always be the case) then end it
+                if let Some(main_window) = main_window {
+                    main_window.end(&ui);
+                }
 
                 if !run {
                     *control_flow = ControlFlow::Exit;
