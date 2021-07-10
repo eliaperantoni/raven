@@ -114,7 +114,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         if imgui_sys::igDockBuilderGetNode(id).is_null() {
                             imgui_sys::igDockBuilderAddNode(
                                 id,
-                                imgui_sys::ImGuiDockNodeFlags_DockSpace | imgui_sys::ImGuiDockNodeFlags_PassthruCentralNode as i32,
+                                imgui_sys::ImGuiDockNodeFlags_DockSpace,
                             );
                             imgui_sys::igDockBuilderSetNodeSize(id, (*viewport).Size);
 
@@ -137,7 +137,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             imgui_sys::igDockBuilderFinish(id);
                         }
 
-                        imgui_sys::igDockSpace(id, imgui_sys::ImVec2::new(0.0, 0.0), 0 as _, 0 as _);
+                        imgui_sys::igDockSpace(id, imgui_sys::ImVec2::new(0.0, 0.0), imgui_sys::ImGuiDockNodeFlags_PassthruCentralNode as _, 0 as _);
                     }
 
                     let style_stack = {
