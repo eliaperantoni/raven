@@ -17,27 +17,25 @@ pub mod input;
 pub mod framebuffer;
 
 pub struct Raven {
-    scene: Entity,
     renderer_sys: RendererSystem,
     camera_sys: CameraSystem,
 }
 
 impl Raven {
-    pub fn from_scene(scene: Entity) -> Result<Raven, Box<dyn Error>> {
+    pub fn new() -> Result<Raven, Box<dyn Error>> {
         Ok(Raven {
-            scene,
             renderer_sys: RendererSystem::new()?,
             camera_sys: CameraSystem::default(),
         })
     }
 
-    pub fn do_frame(&mut self) {
+    pub fn do_frame(&mut self, scene: &mut Entity) {
         self.renderer_sys.clear();
 
-        self.scene.accept(&mut self.camera_sys);
+        scene.accept(&mut self.camera_sys);
 
         self.renderer_sys.update_matrices(&self.camera_sys);
-        self.scene.accept(&mut self.renderer_sys);
+        scene.accept(&mut self.renderer_sys);
     }
 
     pub fn set_size(&mut self, size: [f32; 2]) {

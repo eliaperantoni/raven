@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::ffi::CString;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use gl;
 use glutin::ContextBuilder;
@@ -47,9 +47,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     gl::load_with(|symbol| windowed_context.get_proc_address(symbol));
 
     let mut last_frame = Instant::now();
+    let mut delta_time = Duration::ZERO;
 
-    let scene = build_demo_scene()?;
-    let mut raven = Raven::from_scene(scene)?;
+    let mut raven = Raven::new()?;
+    let mut scene = build_demo_scene()?;
 
     let mut framebuffer: Option<([f32; 2], Framebuffer)> = None;
 
@@ -57,7 +58,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         match event {
             Event::NewEvents(_) => {
                 let now = Instant::now();
-                imgui.io_mut().update_delta_time(now - last_frame);
+
+                delta_time = now - last_frame;
+                imgui.io_mut().update_delta_time(delta_time);
+
                 last_frame = now;
             }
             Event::MainEventsCleared => {
@@ -170,7 +174,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                     // Render a frame inside the framebuffer
                     framebuffer.with(|| {
-                        raven.do_frame();
+                        raven.do_frame(&mut scene);
                     });
 
                     // Display it
