@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut imgui = Context::create();
     imgui.set_ini_filename(None);
-    imgui.io_mut().config_flags |= imgui::ConfigFlags::DOCKING_ENABLE | imgui::ConfigFlags::VIEWPORTS_ENABLE;
+    imgui.io_mut().config_flags |= imgui::ConfigFlags::DOCKING_ENABLE;
 
     let mut platform = WinitPlatform::init(&mut imgui);
     platform.attach_window(imgui.io_mut(), windowed_context.window(), HiDpiMode::Rounded);
@@ -125,6 +125,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                         let [width, height] = ui.content_region_avail();
 
+                        // Resizes OpenGL viewport and sets camera aspect ratio
                         raven.set_size([width, height]);
 
                         // If no framebuffer is present or the panel's size has changed
