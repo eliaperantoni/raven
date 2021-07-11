@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "raven_core",
+    "raven_ecs",
     "raven_editor",
     "raven_runtime",
 ]

@@ -1212,6 +1212,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "raven_ecs"
+version = "0.1.0"
+
+[[package]]
 name = "raven_editor"
 version = "0.1.0"
 dependencies = [
