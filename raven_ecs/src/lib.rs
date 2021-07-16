@@ -57,10 +57,10 @@ impl<T: 'static> Pool<T> {
         self.packed.pop();
 
         self.components.swap(packed_idx, last_packed_idx);
-        self.packed.pop();
+        self.components.pop();
 
         self.sparse[entity_id] = None;
-        while self.sparse.last() == None {
+        while matches!(self.sparse.last(), Some(None)) {
             self.sparse.pop();
         }
     }
@@ -85,18 +85,31 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_ecs() {
-        let mut p = Pool::new();
-        p.add(0, 50);
-        p.add(2, 10);
-        p.add(5, 20);
+    fn resizing() {
+        let mut p: Pool<i32> = Pool::new();
 
+        let sparse_size = |p: &Pool<_>| {
+            p.sparse.len()
+        };
+
+        let packed_size = |p: &Pool<_>| {
+            assert_eq!(p.packed.len(), p.components.len());
+            p.packed.len()
+        };
+
+        assert_eq!(sparse_size(&p), 0);
+        assert_eq!(packed_size(&p), 0);
+        p.add(1, 1);
+        assert_eq!(sparse_size(&p), 2);
+        assert_eq!(packed_size(&p), 1);
+        p.add(2, 2);
+        assert_eq!(sparse_size(&p), 3);
+        assert_eq!(packed_size(&p), 2);
+        p.remove(1);
+        assert_eq!(sparse_size(&p), 3);
+        assert_eq!(packed_size(&p), 1);
         p.remove(2);
-
-        *p.get_mut(5).unwrap() = 22;
-
-        assert_eq!(p.get(5), Some(&22));
-        assert_eq!(p.get(2), None);
-        assert_eq!(p.get(888), None);
+        assert_eq!(sparse_size(&p), 0);
+        assert_eq!(packed_size(&p), 0);
     }
 }
