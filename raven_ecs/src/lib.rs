@@ -66,7 +66,17 @@ impl<T: 'static> Pool<T> {
     }
 
     fn get(&self, entity_id: ID) -> Option<&T> {
-        self.sparse.get(entity_id).and_then(|&packed_idx| Some(&self.components[packed_idx?]))
+        self.sparse
+            .get(entity_id)
+            .copied()
+            .and_then(move |packed_idx| Some(&self.components[packed_idx?]))
+    }
+
+    fn get_mut(&mut self, entity_id: ID) -> Option<&mut T> {
+        self.sparse
+            .get(entity_id)
+            .copied()
+            .and_then(move |packed_idx| Some(&mut self.components[packed_idx?]))
     }
 }
 
@@ -83,7 +93,9 @@ mod test {
 
         p.remove(2);
 
-        assert_eq!(p.get(5), Some(&20));
+        *p.get_mut(5).unwrap() = 22;
+
+        assert_eq!(p.get(5), Some(&22));
         assert_eq!(p.get(2), None);
         assert_eq!(p.get(888), None);
     }
