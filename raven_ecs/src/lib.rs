@@ -123,11 +123,50 @@ mod pool {
             self.packed.pop();
             Some(self.components.pop().unwrap())
         }
+
+        fn get(&self, entity_id: ID) -> Option<&T> {
+            let idx_to_page = Self::idx_to_page(entity_id);
+            let idx_into_page = Self::idx_into_page(entity_id);
+
+            // We don't need to check if `idx_into_page` is small enough because it always will. If it was greater or
+            // equal to the length of the page, it would've been placed in the next page.
+            let packed_idx = self.sparse.get(idx_to_page)?.as_ref()?[idx_into_page]?;
+
+            Some(&self.components[packed_idx])
+        }
+
+        fn get_mut(&mut self, entity_id: ID) -> Option<&mut T> {
+            let idx_to_page = Self::idx_to_page(entity_id);
+            let idx_into_page = Self::idx_into_page(entity_id);
+
+            // We don't need to check if `idx_into_page` is small enough because it always will. If it was greater or
+            // equal to the length of the page, it would've been placed in the next page.
+            let packed_idx = self.sparse.get(idx_to_page)?.as_ref()?[idx_into_page]?;
+
+            Some(&mut self.components[packed_idx])
+        }
     }
 
     #[cfg(test)]
     mod test {
         use super::*;
+
+        #[test]
+        fn get() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.add(0, "A");
+            assert_eq!(p.get(0), Some(&"A"));
+        }
+
+        #[test]
+        fn get_mut() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.add(0, "A");
+            *p.get_mut(0).unwrap() = "B";
+            assert_eq!(p.get(0), Some(&"B"));
+        }
 
         #[test]
         fn sparse_grows() {
