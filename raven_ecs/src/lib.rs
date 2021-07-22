@@ -150,6 +150,7 @@ mod pool {
     #[cfg(test)]
     mod test {
         use super::*;
+        use rand::Rng;
 
         #[test]
         fn get() {
@@ -239,26 +240,55 @@ mod pool {
             assert_eq!(p.remove(0), None);
         }
 
-        use rand::{self, distributions::Uniform, distributions::Distribution, Rng};
-
         #[test]
         fn rand_io() {
-            let mut rng = rand::thread_rng();
-            let dist = Uniform::from(0..PAGE_SIZE);
+            use rand;
+            use rand::Rng;
+            use rand::distributions::{Distribution, Uniform};
+            use rand::seq::SliceRandom;
 
-            // Generate a random number of random entities and give each one a component (equal to the id +1, for simplicity)
-            let mut entities: Vec<(ID, i32)> = Vec::new();
-            for _ in 0..dist.sample(&mut rng) {
+            const N_TARGET_ENTITIES_PER_PAGE: usize = PAGE_SIZE / 10;
+            const N_TARGET_PAGES: usize = 10;
+
+            let mut rng = rand::thread_rng();
+            let dist = Uniform::from(0..PAGE_SIZE * N_TARGET_PAGES);
+
+            // Generate a random number of random entities and give each one a component (equal to the id +1, for simplicity).
+            // The bool tracks whether that entity should still be present in the pool (we will delete them).
+            let mut entities: Vec<(ID, i32, bool)> = Vec::new();
+            for _ in 0..rng.gen_range(0..PAGE_SIZE * N_TARGET_ENTITIES_PER_PAGE) {
                 let id: ID = dist.sample(&mut rng);
-                entities.push((id, id as i32 + 1));
+                entities.push((id, id as i32 + 1, true));
             }
 
             let mut p: Pool<i32> = Pool::new();
-            for (entity_id, component) in entities {
+            for (entity_id, component, _) in entities.iter().copied() {
                 p.add(entity_id, component);
             }
 
-            // Check with get
+            entities.shuffle(&mut rng);
+
+            loop {
+                for (entity_id, component, alive) in entities.iter().copied() {
+                    if alive {
+                        assert_eq!(p.get(entity_id), Some(&component));
+                    } else {
+                        assert_eq!(p.get(entity_id), None);
+                    }
+                }
+
+                // Delete the first entity still alive
+                if let Some((entity_id, _, alive)) = entities.iter_mut().find(|(_, _, alive)| *alive) {
+                    *alive = false;
+                    p.remove(*entity_id);
+                } else {
+                    break;
+                }
+            }
+
+            assert_eq!(p.sparse.len(), 0);
+            assert_eq!(p.packed.len(), 0);
+            assert_eq!(p.components.len(), 0);
         }
     }
 }
