@@ -105,8 +105,9 @@ mod pool {
             }
 
             // Adjust the packed index for the last element of the packed arrays since we will be swapping it with the
-            // deleted element
-            {
+            // deleted element. But only if the element we're deleting and the last one are different. Otherwise we
+            // may have already deleted the page that we wish to now update.
+            if entity_id != entity_id_of_last {
                 let idx_to_page_of_last = Self::idx_to_page(entity_id_of_last);
                 let idx_into_page_of_last = Self::idx_into_page(entity_id_of_last);
 
@@ -126,5 +127,76 @@ mod pool {
     #[cfg(test)]
     mod test {
         use super::*;
+
+        #[test]
+        fn sparse_grows() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            assert_eq!(p.sparse.len(), 0);
+            p.add(0, "A");
+            assert_eq!(p.sparse.len(), 1);
+            p.add(99, "B"); // Still in the first page
+            assert_eq!(p.sparse.len(), 1);
+            p.add(100, "C"); // Goes to the second page
+            assert_eq!(p.sparse.len(), 2);
+        }
+
+        #[test]
+        fn sparse_shrinks() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.add(0, "A");
+            p.add(99, "B");
+            p.add(100, "C");
+
+            assert_eq!(p.sparse.len(), 2);
+            p.remove(0);
+            assert_eq!(p.sparse.len(), 2);
+            p.remove(99);
+            assert_eq!(p.sparse.len(), 2);
+            p.remove(100);
+            assert_eq!(p.sparse.len(), 0);
+        }
+
+        #[test]
+        fn packed_arrays_len() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            let assert_len_is = |p: &Pool<_>, len: usize| {
+                assert_eq!(p.packed.len(), len);
+                assert_eq!(p.components.len(), len);
+            };
+
+            assert_len_is(&p, 0);
+            p.add(0, "A");
+            assert_len_is(&p, 1);
+            p.add(99, "B");
+            assert_len_is(&p, 2);
+            p.add(100, "C");
+            assert_len_is(&p, 3);
+            p.remove(0);
+            assert_len_is(&p, 2);
+            p.remove(99);
+            assert_len_is(&p, 1);
+            p.remove(100);
+            assert_len_is(&p, 0);
+        }
+
+        #[test]
+        fn remove_returns_component() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.add(0, "A");
+            assert_eq!(p.remove(0), Some("A"));
+        }
+
+        #[test]
+        fn remove_non_repeatable() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.add(0, "A");
+            p.remove(0); // Should be Some("A")
+            assert_eq!(p.remove(0), None);
+        }
     }
 }
