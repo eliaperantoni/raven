@@ -13,6 +13,7 @@ mod pool {
     use super::*;
 
     const PAGE_SIZE: usize = 100;
+
     /// A `Page` is either null or a pointer to an array of optional indices
     type Page = Option<Box<[Option<usize>; PAGE_SIZE]>>;
 
@@ -146,15 +147,15 @@ mod pool {
             let mut p: Pool<&'static str> = Pool::new();
 
             p.add(0, "A");
-            p.add(99, "B");
-            p.add(100, "C");
+            p.add(PAGE_SIZE - 1, "B");
+            p.add(PAGE_SIZE, "C");
 
             assert_eq!(p.sparse.len(), 2);
             p.remove(0);
             assert_eq!(p.sparse.len(), 2);
-            p.remove(99);
+            p.remove(PAGE_SIZE - 1);
             assert_eq!(p.sparse.len(), 2);
-            p.remove(100);
+            p.remove(PAGE_SIZE);
             assert_eq!(p.sparse.len(), 0);
         }
 
@@ -170,15 +171,15 @@ mod pool {
             assert_len_is(&p, 0);
             p.add(0, "A");
             assert_len_is(&p, 1);
-            p.add(99, "B");
+            p.add(PAGE_SIZE - 1, "B");
             assert_len_is(&p, 2);
-            p.add(100, "C");
+            p.add(PAGE_SIZE, "C");
             assert_len_is(&p, 3);
             p.remove(0);
             assert_len_is(&p, 2);
-            p.remove(99);
+            p.remove(PAGE_SIZE - 1);
             assert_len_is(&p, 1);
-            p.remove(100);
+            p.remove(PAGE_SIZE);
             assert_len_is(&p, 0);
         }
 
@@ -197,6 +198,28 @@ mod pool {
             p.add(0, "A");
             p.remove(0); // Should be Some("A")
             assert_eq!(p.remove(0), None);
+        }
+
+        use rand::{self, distributions::Uniform, distributions::Distribution, Rng};
+
+        #[test]
+        fn rand_io() {
+            let mut rng = rand::thread_rng();
+            let dist = Uniform::from(0..PAGE_SIZE);
+
+            // Generate a random number of random entities and give each one a component (equal to the id +1, for simplicity)
+            let mut entities: Vec<(ID, i32)> = Vec::new();
+            for _ in 0..dist.sample(&mut rng) {
+                let id: ID = dist.sample(&mut rng);
+                entities.push((id, id as i32 + 1));
+            }
+
+            let mut p: Pool<i32> = Pool::new();
+            for (entity_id, component) in entities {
+                p.add(entity_id, component);
+            }
+
+            // Check with get
         }
     }
 }
