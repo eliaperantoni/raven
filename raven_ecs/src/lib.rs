@@ -386,7 +386,14 @@ mod pool {
             // The bool tracks whether that entity should still be present in the pool (we will delete them).
             let mut entities: Vec<(ID, i32, bool)> = Vec::new();
             for _ in 0..rng.gen_range(0..PAGE_SIZE * N_TARGET_ENTITIES_PER_PAGE) {
-                let id: ID = dist.sample(&mut rng);
+                // Find a new ID never used before
+                let id: ID = loop {
+                    let new_id = dist.sample(&mut rng);
+                    if entities.iter().find(|(id, _, _)| *id == new_id).is_none() {
+                        break new_id;
+                    }
+                };
+
                 entities.push((id, id as i32 + 1, true));
             }
 
