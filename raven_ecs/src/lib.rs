@@ -238,6 +238,138 @@ mod pool {
         }
 
         #[test]
+        fn simple_add() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.add(0, "A");
+            p.add(1, "B");
+
+            assert_eq!(p.sparse, vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[0] = Some(0); // Point to first element in packed arrays
+                arr[1] = Some(1); // Point to second element in packed arrays
+                arr
+            }))]);
+
+            assert_eq!(p.packed, vec![0, 1]);
+            assert_eq!(p.components, vec!["A", "B"]);
+
+            assert_eq!(p.get(0), Some(&"A"));
+            assert_eq!(p.get(1), Some(&"B"));
+        }
+
+        #[test]
+        fn add_not_adjacent() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.add(0, "A");
+            p.add(2, "B");
+
+            assert_eq!(p.sparse, vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[0] = Some(0); // Point to first element in packed arrays
+                arr[2] = Some(1); // Point to second element in packed arrays
+                arr
+            }))]);
+
+            assert_eq!(p.packed, vec![0, 2]);
+            assert_eq!(p.components, vec!["A", "B"]);
+
+            assert_eq!(p.get(0), Some(&"A"));
+            assert_eq!(p.get(2), Some(&"B"));
+        }
+
+        #[test]
+        fn simple_remove_left() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.add(0, "A");
+            p.add(1, "B");
+
+            p.remove(0);
+
+            assert_eq!(p.sparse, vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[1] = Some(0); // Point to first element in packed arrays
+                arr
+            }))]);
+
+            assert_eq!(p.packed, vec![1]);
+            assert_eq!(p.components, vec!["B"]);
+
+            assert_eq!(p.get(0), None);
+            assert_eq!(p.get(1), Some(&"B"));
+        }
+
+        #[test]
+        fn simple_remove_right() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.add(0, "A");
+            p.add(1, "B");
+
+            p.remove(1);
+
+            assert_eq!(p.sparse, vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[0] = Some(0); // Point to first element in packed arrays
+                arr
+            }))]);
+
+            assert_eq!(p.packed, vec![0]);
+            assert_eq!(p.components, vec!["A"]);
+
+            assert_eq!(p.get(0), Some(&"A"));
+            assert_eq!(p.get(1), None);
+        }
+
+        #[test]
+        fn remove_not_adjacent_left() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.add(0, "A");
+            p.add(2, "B");
+
+            p.remove(0);
+
+            assert_eq!(p.sparse, vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[2] = Some(0); // Point to first element in packed arrays
+                arr
+            }))]);
+
+            assert_eq!(p.packed, vec![2]);
+            assert_eq!(p.components, vec!["B"]);
+
+            assert_eq!(p.get(0), None);
+            assert_eq!(p.get(1), None);
+            assert_eq!(p.get(2), Some(&"B"));
+        }
+
+        #[test]
+        fn remove_not_adjacent_right() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.add(0, "A");
+            p.add(2, "B");
+
+            p.remove(2);
+
+            assert_eq!(p.sparse, vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[0] = Some(0); // Point to first element in packed arrays
+                arr
+            }))]);
+
+            assert_eq!(p.packed, vec![0]);
+            assert_eq!(p.components, vec!["A"]);
+
+            assert_eq!(p.get(0), Some(&"A"));
+            assert_eq!(p.get(1), None);
+            assert_eq!(p.get(2), None);
+        }
+
+        #[test]
         fn rand_io() {
             use rand;
             use rand::Rng;
