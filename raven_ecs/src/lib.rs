@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::iter::Empty;
 
 type ID = usize;
 type Version = u32;
@@ -583,6 +584,14 @@ impl World {
         let pool = self.pool_mut::<T>()?;
         pool.get_mut(entity.id)
     }
+
+    pub fn iter<T: 'static>(&self) -> &dyn ExactSizeIterator<Item=T> {
+        if let Some(pool) = self.pool::<T>() {
+            pool.compo
+        } else {
+            Empty::<T>
+        }
+    }
 }
 
 mod test {
@@ -663,4 +672,12 @@ mod test {
         assert_eq!(w.create(), Entity{ id: 9, version: 1 });
         assert_eq!(w.create(), Entity{ id: 8, version: 1 });
     }
+}
+
+trait MyTrait {
+
+}
+
+impl<A> MyTrait for (A,) {
+
 }
