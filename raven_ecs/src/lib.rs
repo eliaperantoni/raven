@@ -457,73 +457,210 @@ use std::any::TypeId;
 use std::collections::HashMap;
 
 struct World {
-    entities: Vec<Entity>,
+    entities: Vec<(Option<ID>, Version)>,
     destroyed_head: Option<usize>,
 
     pools: HashMap<TypeId, Box<dyn AnyPool>>,
 }
 
 impl World {
+    pub fn new() -> World {
+        World {
+            entities: Vec::new(),
+            destroyed_head: None,
+            pools: HashMap::new(),
+        }
+    }
+
     pub fn create(&mut self) -> Entity {
         if let Some(destroyed_next) = self.destroyed_head {
-            let entity = {
-                let (entity, destroyed_next) = &mut self.entities[destroyed_next];
-                *destroyed_next = None;
-                *entity
-            };
+            // Move destroyed_head to the next destroyed entity (or None)
+            self.destroyed_head = self.entities[destroyed_next].0;
 
+            let (entity_id, version) = &mut self.entities[destroyed_next];
 
-            entity
+            // Set entity id to its own index
+            *entity_id = Some(destroyed_next);
+
+            Entity {
+                id: destroyed_next,
+                version: *version,
+            }
         } else {
             let entity = Entity {
                 id: self.entities.len(),
                 version: 0,
             };
 
-            self.entities.push((entity, None));
+            self.entities.push((Some(entity.id), entity.version));
 
             entity
         }
     }
 
     pub fn destroy(&mut self, entity: Entity) {
+        if self.entities.get(entity.id) != Some(&(Some(entity.id), entity.version)) {
+            // Entity that should be deleted never existed or got recycled or is destroyed, return and this is a NOOP
+            return;
+        }
+
         // Remove all components from this entity
         for pool in self.pools.values_mut() {
             pool.clear_entity(entity.id);
         }
 
-        if let Some(entity) = self.entities.get_mut(entity.id) {
-            entity.version += 1;
+        let (entity_id, version) = self.entities.get_mut(entity.id).unwrap();
 
-            entity.id = if let Some(destroyed_head) = self.destroyed_head {
-                Some(destroyed_head)
-            } else {
-                None
-            };
+        // Bump version
+        *version += 1;
 
-            self.destroyed_head = Some(entity.id);
-        };
+        // Link to what destroyed_head is currently pointing at
+        *entity_id = self.destroyed_head;
+
+        // Point destroyed_head to newly destroyed entity
+        self.destroyed_head = Some(entity.id);
+    }
+
+    fn entity_exists(&self, entity: Entity) -> bool {
+        if let Some((entity_id, version)) = self.entities.get(entity.id) {
+            *entity_id == Some(entity.id) && *version == entity.version
+        } else {
+            false
+        }
+    }
+
+    fn pool<T: 'static>(&self) -> Option<&Pool<T>> {
+        let t_id = TypeId::of::<T>();
+
+        self.pools.get(&t_id)?.as_any().downcast_ref::<Pool<T>>()
+    }
+
+    fn pool_mut<T: 'static>(&mut self) -> Option<&mut Pool<T>> {
+        let t_id = TypeId::of::<T>();
+
+        self.pools.get_mut(&t_id)?.as_any_mut().downcast_mut::<Pool<T>>()
     }
 
     pub fn attach<T: 'static>(&mut self, entity: Entity, component: T) {
+        if !self.entity_exists(entity) {
+            return
+        }
+
         let t_id = TypeId::of::<T>();
 
-        let mut pool = self.pools.entry(t_id).or_insert(Box::new(Pool::<T>::new()));
-        let mut pool = pool.as_any_mut().downcast_mut::<Pool<T>>().unwrap();
+        // Does a pool for this component T exist already? If not, create an empty one
+        if !self.pools.contains_key(&t_id) {
+            self.pools.insert(t_id, Box::new(Pool::<T>::new()));
+        }
 
+        let mut pool = self.pool_mut::<T>().unwrap();
         pool.attach(entity.id, component);
     }
 
     pub fn detach<T: 'static>(&mut self, entity: Entity) -> Option<T> {
-        let t_id = TypeId::of::<T>();
+        if !self.entity_exists(entity) {
+            return None;
+        }
 
-        let mut pool = self.pools.get_mut(&t_id)?;
-        let mut pool = pool.as_any_mut().downcast_mut::<Pool<T>>().unwrap();
-
+        let mut pool = self.pool_mut::<T>()?;
         pool.detach(entity.id)
+    }
+
+    pub fn get_component<T: 'static>(&self, entity: Entity) -> Option<&T> {
+        if !self.entity_exists(entity) {
+            return None;
+        }
+
+        let pool = self.pool::<T>()?;
+        pool.get(entity.id)
+    }
+
+    pub fn get_component_mut<T: 'static>(&mut self, entity: Entity) -> Option<&mut T> {
+        if !self.entity_exists(entity) {
+            return None;
+        }
+
+        let pool = self.pool_mut::<T>()?;
+        pool.get_mut(entity.id)
     }
 }
 
 mod test {
     use super::*;
+
+    #[test]
+    fn create_entity() {
+        let mut w = World::new();
+
+        assert_eq!(w.create(), Entity { id: 0, version: 0 });
+        assert_eq!(w.create(), Entity { id: 1, version: 0 });
+    }
+
+    #[test]
+    fn recycle() {
+        let mut w = World::new();
+
+        let e = w.create();
+        w.destroy(e);
+        assert_eq!(w.create(), Entity { id: 0, version: 1 });
+    }
+
+    #[test]
+    fn attach() {
+        let mut w = World::new();
+
+        let e = w.create();
+        w.attach(e, "A");
+
+        assert_eq!(w.get_component::<&'static str>(e), Some(&"A"));
+    }
+
+    #[test]
+    fn detach() {
+        let mut w = World::new();
+
+        let e = w.create();
+        w.attach(e, "A");
+        w.detach::<&'static str>(e);
+
+        assert_eq!(w.get_component::<&'static str>(e), None);
+    }
+
+    #[test]
+    fn destroy_clears_components() {
+        let mut w = World::new();
+
+        let e = w.create();
+        w.attach(e, "A");
+        w.destroy(e);
+
+        assert_eq!(w.get_component::<&'static str>(e), None);
+    }
+
+    #[test]
+    fn recycled_is_fresh() {
+        let mut w = World::new();
+
+        let e1 = w.create();
+        w.attach(e1, "A");
+        w.destroy(e1);
+
+        let e2 = w.create();
+
+        assert_eq!(w.get_component::<&'static str>(e2), None);
+    }
+
+    #[test]
+    fn longer_destroyed_list() {
+        let mut w = World::new();
+
+        let entities: Vec<_> = (0..10).map(|_| w.create()).collect();
+
+        for entity in entities {
+            w.destroy(entity);
+        }
+
+        assert_eq!(w.create(), Entity{ id: 9, version: 1 });
+        assert_eq!(w.create(), Entity{ id: 8, version: 1 });
+    }
 }
