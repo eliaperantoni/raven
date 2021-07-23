@@ -1,3 +1,5 @@
+use std::any::Any;
+
 type ID = usize;
 type Version = u32;
 
@@ -15,14 +17,14 @@ mod pool {
     /// A `Page` is either null or a pointer to an array of optional indices
     type Page = Option<Box<[Option<usize>; PAGE_SIZE]>>;
 
-    struct Pool<T: 'static> {
+    pub struct Pool<T: 'static> {
         sparse: Vec<Page>,
         packed: Vec<ID>,
         components: Vec<T>,
     }
 
     impl<T: 'static> Pool<T> {
-        fn new() -> Self {
+        pub fn new() -> Self {
             Self {
                 sparse: Vec::new(),
                 packed: Vec::new(),
@@ -40,7 +42,7 @@ mod pool {
             entity_id % PAGE_SIZE
         }
 
-        fn add(&mut self, entity_id: ID, component: T) {
+        pub fn attach(&mut self, entity_id: ID, component: T) {
             let idx_to_page = Self::idx_to_page(entity_id);
             let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -60,7 +62,7 @@ mod pool {
             self.components.push(component);
         }
 
-        fn remove(&mut self, entity_id: ID) -> Option<T> {
+        pub fn detach(&mut self, entity_id: ID) -> Option<T> {
             let idx_to_page = Self::idx_to_page(entity_id);
             let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -122,7 +124,7 @@ mod pool {
             Some(self.components.pop().unwrap())
         }
 
-        fn get(&self, entity_id: ID) -> Option<&T> {
+        pub fn get(&self, entity_id: ID) -> Option<&T> {
             let idx_to_page = Self::idx_to_page(entity_id);
             let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -133,7 +135,7 @@ mod pool {
             Some(&self.components[packed_idx])
         }
 
-        fn get_mut(&mut self, entity_id: ID) -> Option<&mut T> {
+        pub fn get_mut(&mut self, entity_id: ID) -> Option<&mut T> {
             let idx_to_page = Self::idx_to_page(entity_id);
             let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -145,6 +147,26 @@ mod pool {
         }
     }
 
+    pub trait AnyPool {
+        fn as_any(&self) -> &dyn Any;
+        fn as_any_mut(&mut self) -> &mut dyn Any;
+        fn clear_entity(&mut self, entity_id: ID);
+    }
+
+    impl<T> AnyPool for Pool<T> {
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn Any {
+            self
+        }
+
+        fn clear_entity(&mut self, entity_id: ID) {
+            self.detach(entity_id);
+        }
+    }
+
     #[cfg(test)]
     mod test {
         use super::*;
@@ -153,7 +175,7 @@ mod pool {
         fn get() {
             let mut p: Pool<&'static str> = Pool::new();
 
-            p.add(0, "A");
+            p.attach(0, "A");
             assert_eq!(p.get(0), Some(&"A"));
         }
 
@@ -161,7 +183,7 @@ mod pool {
         fn get_mut() {
             let mut p: Pool<&'static str> = Pool::new();
 
-            p.add(0, "A");
+            p.attach(0, "A");
             *p.get_mut(0).unwrap() = "B";
             assert_eq!(p.get(0), Some(&"B"));
         }
@@ -171,11 +193,11 @@ mod pool {
             let mut p: Pool<&'static str> = Pool::new();
 
             assert_eq!(p.sparse.len(), 0);
-            p.add(0, "A");
+            p.attach(0, "A");
             assert_eq!(p.sparse.len(), 1);
-            p.add(99, "B"); // Still in the first page
+            p.attach(99, "B"); // Still in the first page
             assert_eq!(p.sparse.len(), 1);
-            p.add(100, "C"); // Goes to the second page
+            p.attach(100, "C"); // Goes to the second page
             assert_eq!(p.sparse.len(), 2);
         }
 
@@ -183,16 +205,16 @@ mod pool {
         fn sparse_shrinks() {
             let mut p: Pool<&'static str> = Pool::new();
 
-            p.add(0, "A");
-            p.add(PAGE_SIZE - 1, "B");
-            p.add(PAGE_SIZE, "C");
+            p.attach(0, "A");
+            p.attach(PAGE_SIZE - 1, "B");
+            p.attach(PAGE_SIZE, "C");
 
             assert_eq!(p.sparse.len(), 2);
-            p.remove(0);
+            p.detach(0);
             assert_eq!(p.sparse.len(), 2);
-            p.remove(PAGE_SIZE - 1);
+            p.detach(PAGE_SIZE - 1);
             assert_eq!(p.sparse.len(), 2);
-            p.remove(PAGE_SIZE);
+            p.detach(PAGE_SIZE);
             assert_eq!(p.sparse.len(), 0);
         }
 
@@ -206,17 +228,17 @@ mod pool {
             };
 
             assert_len_is(&p, 0);
-            p.add(0, "A");
+            p.attach(0, "A");
             assert_len_is(&p, 1);
-            p.add(PAGE_SIZE - 1, "B");
+            p.attach(PAGE_SIZE - 1, "B");
             assert_len_is(&p, 2);
-            p.add(PAGE_SIZE, "C");
+            p.attach(PAGE_SIZE, "C");
             assert_len_is(&p, 3);
-            p.remove(0);
+            p.detach(0);
             assert_len_is(&p, 2);
-            p.remove(PAGE_SIZE - 1);
+            p.detach(PAGE_SIZE - 1);
             assert_len_is(&p, 1);
-            p.remove(PAGE_SIZE);
+            p.detach(PAGE_SIZE);
             assert_len_is(&p, 0);
         }
 
@@ -224,25 +246,25 @@ mod pool {
         fn remove_returns_component() {
             let mut p: Pool<&'static str> = Pool::new();
 
-            p.add(0, "A");
-            assert_eq!(p.remove(0), Some("A"));
+            p.attach(0, "A");
+            assert_eq!(p.detach(0), Some("A"));
         }
 
         #[test]
         fn remove_non_repeatable() {
             let mut p: Pool<&'static str> = Pool::new();
 
-            p.add(0, "A");
-            p.remove(0); // Should be Some("A")
-            assert_eq!(p.remove(0), None);
+            p.attach(0, "A");
+            p.detach(0); // Should be Some("A")
+            assert_eq!(p.detach(0), None);
         }
 
         #[test]
         fn simple_add() {
             let mut p: Pool<&'static str> = Pool::new();
 
-            p.add(0, "A");
-            p.add(1, "B");
+            p.attach(0, "A");
+            p.attach(1, "B");
 
             assert_eq!(p.sparse, vec![Some(Box::new({
                 let mut arr = [None; PAGE_SIZE];
@@ -262,8 +284,8 @@ mod pool {
         fn add_not_adjacent() {
             let mut p: Pool<&'static str> = Pool::new();
 
-            p.add(0, "A");
-            p.add(2, "B");
+            p.attach(0, "A");
+            p.attach(2, "B");
 
             assert_eq!(p.sparse, vec![Some(Box::new({
                 let mut arr = [None; PAGE_SIZE];
@@ -283,10 +305,10 @@ mod pool {
         fn simple_remove_left() {
             let mut p: Pool<&'static str> = Pool::new();
 
-            p.add(0, "A");
-            p.add(1, "B");
+            p.attach(0, "A");
+            p.attach(1, "B");
 
-            p.remove(0);
+            p.detach(0);
 
             assert_eq!(p.sparse, vec![Some(Box::new({
                 let mut arr = [None; PAGE_SIZE];
@@ -305,10 +327,10 @@ mod pool {
         fn simple_remove_right() {
             let mut p: Pool<&'static str> = Pool::new();
 
-            p.add(0, "A");
-            p.add(1, "B");
+            p.attach(0, "A");
+            p.attach(1, "B");
 
-            p.remove(1);
+            p.detach(1);
 
             assert_eq!(p.sparse, vec![Some(Box::new({
                 let mut arr = [None; PAGE_SIZE];
@@ -327,10 +349,10 @@ mod pool {
         fn remove_not_adjacent_left() {
             let mut p: Pool<&'static str> = Pool::new();
 
-            p.add(0, "A");
-            p.add(2, "B");
+            p.attach(0, "A");
+            p.attach(2, "B");
 
-            p.remove(0);
+            p.detach(0);
 
             assert_eq!(p.sparse, vec![Some(Box::new({
                 let mut arr = [None; PAGE_SIZE];
@@ -350,10 +372,10 @@ mod pool {
         fn remove_not_adjacent_right() {
             let mut p: Pool<&'static str> = Pool::new();
 
-            p.add(0, "A");
-            p.add(2, "B");
+            p.attach(0, "A");
+            p.attach(2, "B");
 
-            p.remove(2);
+            p.detach(2);
 
             assert_eq!(p.sparse, vec![Some(Box::new({
                 let mut arr = [None; PAGE_SIZE];
@@ -399,7 +421,7 @@ mod pool {
 
             let mut p: Pool<i32> = Pool::new();
             for (entity_id, component, _) in entities.iter().copied() {
-                p.add(entity_id, component);
+                p.attach(entity_id, component);
             }
 
             entities.shuffle(&mut rng);
@@ -416,7 +438,7 @@ mod pool {
                 // Delete the first entity still alive
                 if let Some((entity_id, _, alive)) = entities.iter_mut().find(|(_, _, alive)| *alive) {
                     *alive = false;
-                    p.remove(*entity_id);
+                    p.detach(*entity_id);
                 } else {
                     break;
                 }
@@ -427,4 +449,81 @@ mod pool {
             assert_eq!(p.components.len(), 0);
         }
     }
+}
+
+use pool::{Pool, AnyPool};
+
+use std::any::TypeId;
+use std::collections::HashMap;
+
+struct World {
+    entities: Vec<Entity>,
+    destroyed_head: Option<usize>,
+
+    pools: HashMap<TypeId, Box<dyn AnyPool>>,
+}
+
+impl World {
+    pub fn create(&mut self) -> Entity {
+        if let Some(destroyed_next) = self.destroyed_head {
+            let entity = {
+                let (entity, destroyed_next) = &mut self.entities[destroyed_next];
+                *destroyed_next = None;
+                *entity
+            };
+
+
+            entity
+        } else {
+            let entity = Entity {
+                id: self.entities.len(),
+                version: 0,
+            };
+
+            self.entities.push((entity, None));
+
+            entity
+        }
+    }
+
+    pub fn destroy(&mut self, entity: Entity) {
+        // Remove all components from this entity
+        for pool in self.pools.values_mut() {
+            pool.clear_entity(entity.id);
+        }
+
+        if let Some(entity) = self.entities.get_mut(entity.id) {
+            entity.version += 1;
+
+            entity.id = if let Some(destroyed_head) = self.destroyed_head {
+                Some(destroyed_head)
+            } else {
+                None
+            };
+
+            self.destroyed_head = Some(entity.id);
+        };
+    }
+
+    pub fn attach<T: 'static>(&mut self, entity: Entity, component: T) {
+        let t_id = TypeId::of::<T>();
+
+        let mut pool = self.pools.entry(t_id).or_insert(Box::new(Pool::<T>::new()));
+        let mut pool = pool.as_any_mut().downcast_mut::<Pool<T>>().unwrap();
+
+        pool.attach(entity.id, component);
+    }
+
+    pub fn detach<T: 'static>(&mut self, entity: Entity) -> Option<T> {
+        let t_id = TypeId::of::<T>();
+
+        let mut pool = self.pools.get_mut(&t_id)?;
+        let mut pool = pool.as_any_mut().downcast_mut::<Pool<T>>().unwrap();
+
+        pool.detach(entity.id)
+    }
+}
+
+mod test {
+    use super::*;
 }
