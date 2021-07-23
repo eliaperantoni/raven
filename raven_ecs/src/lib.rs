@@ -1,5 +1,3 @@
-use std::mem;
-
 type ID = usize;
 type Version = u32;
 
@@ -53,7 +51,7 @@ mod pool {
             }
 
             // Get a mut ref to the page (which is just a pointer to an array or null). If it is null, insert an empty page
-            let mut page = self.sparse[idx_to_page].get_or_insert(Box::new([None; PAGE_SIZE]));
+            let page = self.sparse[idx_to_page].get_or_insert(Box::new([None; PAGE_SIZE]));
 
             // The new component will be pushed to the end of the packed arrays so that's the index that we should store
             page[idx_into_page] = Some(self.packed.len());
@@ -80,7 +78,7 @@ mod pool {
 
             // Get a mut ref to the page. If the array is too small for the page to be there, then this entity does not
             // have a component in this pool and we can return.
-            let mut page = self.sparse.get_mut(idx_to_page)?;
+            let page = self.sparse.get_mut(idx_to_page)?;
 
             // Get a mut ref to the inner array. If the page is `None`, then this entity does not have a component in this
             // pool and we can return.
@@ -150,7 +148,6 @@ mod pool {
     #[cfg(test)]
     mod test {
         use super::*;
-        use rand::Rng;
 
         #[test]
         fn get() {
