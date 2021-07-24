@@ -627,16 +627,9 @@ impl World {
         let pool = self.pool_mut::<T>()?;
         pool.get_mut(entity.id)
     }
-
-    pub fn iter<T: 'static>(&self) -> &dyn ExactSizeIterator<Item=T> {
-        if let Some(pool) = self.pool::<T>() {
-            pool.compo
-        } else {
-            Empty::<T>
-        }
-    }
 }
 
+#[cfg(test)]
 mod test {
     use super::*;
 
