@@ -710,10 +710,46 @@ mod test {
     }
 }
 
-trait MyTrait {
-
+trait Query<T: 'static> {
+    fn query(w: &World) -> &dyn Iterator<Item=T>;
 }
 
-impl<A> MyTrait for (A,) {
+struct View<'a, T: 'a> {
+    leader: Box<dyn ExactSizeIterator<Item=&'a T>>,
+    others: Vec<Box<dyn ExactSizeIterator<Item=&'a T>>>,
+}
 
+impl<'a, T: 'a> Iterator for View<'a, T> {
+    type Item = &'a T;
+
+    fn next(&'a mut self) -> Option<&'a Self::Item> {
+        todo!()
+    }
+}
+
+impl<T: 'static> Query<(T,)> for (T,) {
+    fn query(w: &World) -> &dyn Iterator<Item=(T,)> {
+        &w.pool::<T>().iter()
+    }
+}
+
+impl<T: 'static, U: 'static> Query<(T,U)> for (T,U) {
+    fn query(w: &World) -> &dyn Iterator<Item=(T,U)> {
+        todo!()
+    }
+}
+
+#[cfg(test)]
+mod test_query {
+    use super::*;
+
+    #[test]
+    fn query() {
+        let mut w = World::new();
+
+        let e = w.create();
+        w.attach::<i32>(e, 10);
+
+        <(i32,)>::query(&w);
+    }
 }
