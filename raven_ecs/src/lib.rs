@@ -146,6 +146,14 @@ mod pool {
 
             Some(&mut self.components[packed_idx])
         }
+
+        pub fn iter(&self) -> impl ExactSizeIterator<Item=&T> {
+            self.components.iter()
+        }
+
+        pub fn iter_mut(&mut self) -> impl ExactSizeIterator<Item=&mut T> {
+            self.components.iter_mut()
+        }
     }
 
     pub trait AnyPool {
@@ -171,6 +179,41 @@ mod pool {
     #[cfg(test)]
     mod test {
         use super::*;
+
+        #[test]
+        fn iter() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.attach(0, "A");
+            p.attach(1, "B");
+            p.attach(2, "C");
+
+            let mut it = p.iter();
+            assert_eq!(it.next(), Some(&"A"));
+            assert_eq!(it.next(), Some(&"B"));
+            assert_eq!(it.next(), Some(&"C"));
+            assert_eq!(it.next(), None);
+        }
+
+        #[test]
+        fn iter_mut() {
+            let mut p: Pool<&'static str> = Pool::new();
+
+            p.attach(0, "A");
+            p.attach(1, "B");
+            p.attach(2, "C");
+
+            {
+                let mut it = p.iter_mut();
+                *it.next().unwrap() = "Z";
+            }
+
+            let mut it = p.iter();
+            assert_eq!(it.next(), Some(&"Z"));
+            assert_eq!(it.next(), Some(&"B"));
+            assert_eq!(it.next(), Some(&"C"));
+            assert_eq!(it.next(), None);
+        }
 
         #[test]
         fn get() {
