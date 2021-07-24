@@ -661,6 +661,18 @@ mod test {
     }
 
     #[test]
+    fn different_components() {
+        let mut w = World::new();
+
+        let e = w.create();
+        w.attach::<&'static str>(e, "A");
+        w.attach::<i32>(e, 10);
+
+        assert_eq!(w.get_component::<&'static str>(e), Some(&"A"));
+        assert_eq!(w.get_component::<i32>(e), Some(&10));
+    }
+
+    #[test]
     fn detach() {
         let mut w = World::new();
 
