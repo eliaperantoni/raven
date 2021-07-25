@@ -1,5 +1,9 @@
 use std::any::Any;
+use std::any::TypeId;
+use std::collections::HashMap;
 use std::iter::empty;
+
+use pool::{AnyPool, Pool};
 
 type ID = usize;
 type Version = u32;
@@ -10,7 +14,9 @@ struct Entity {
     version: Version,
 }
 
-pub trait Component: 'static + Sized {}
+pub trait Component: 'static + Sized {
+
+}
 
 impl<T: 'static> Component for T {}
 
@@ -501,11 +507,6 @@ mod pool {
     }
 }
 
-use pool::{Pool, AnyPool};
-
-use std::any::TypeId;
-use std::collections::HashMap;
-
 struct World {
     entities: Vec<(Option<ID>, Version)>,
     destroyed_head: Option<usize>,
@@ -633,6 +634,65 @@ impl World {
         let pool = self.pool_mut::<T>()?;
         pool.get_mut(entity.id)
     }
+
+    fn with_version(&self, entity_id: ID) -> Option<Entity> {
+        let &(_, version) = self.entities.get(entity_id)?;
+        Some(Entity {
+            id: entity_id,
+            version,
+        })
+    }
+}
+
+trait Query<'a>: Sized + 'a {
+    fn query(w: &'a World) -> Vec<(Entity, Self)>;
+}
+
+impl<'a, T, U> Query<'a> for (&'a T, &'a U)
+    where
+        T: Component,
+        U: Component
+{
+    fn query(w: &'a World) -> Vec<(Entity, Self)> {
+        let pool_t = if let Some(pool) = w.pool::<T>() { pool } else { return Vec::new() };
+        let pool_u = if let Some(pool) = w.pool::<U>() { pool } else { return Vec::new() };
+
+        let mut min_len = 0;
+
+        if pool_t.iter().len() < min_len {
+            min_len = pool_t.iter().len();
+        }
+
+        if pool_u.iter().len() < min_len {
+            min_len = pool_u.iter().len();
+        }
+
+        let mut out = Vec::new();
+
+        if pool_t.iter().len() == min_len {
+            for (id, t) in pool_t.iter() {
+                let u = pool_u.get(*id);
+
+                if let (t, Some(u)) = (t, u) {
+                    let e = w.with_version(*id).unwrap();
+                    out.push((e, (t, u)));
+                }
+            }
+        }
+
+        if pool_u.iter().len() == min_len {
+            for (id, u) in pool_u.iter() {
+                let t = pool_t.get(*id);
+
+                if let (Some(t), u) = (t, u) {
+                    let e = w.with_version(*id).unwrap();
+                    out.push((e, (t, u)));
+                }
+            }
+        }
+
+        out
+    }
 }
 
 #[cfg(test)]
@@ -740,5 +800,10 @@ mod test_query {
         w.attach::<i32>(e, 10);
         w.attach::<&'static str>(e, "A");
 
+        for (_e, (&n, &s)) in <(&i32, &&'static str)>::query(&w) {
+            assert_eq!(_e, e);
+            assert_eq!(n, 10);
+            assert_eq!(s, "A");
+        }
     }
 }
