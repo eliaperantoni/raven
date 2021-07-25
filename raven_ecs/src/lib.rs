@@ -657,7 +657,7 @@ impl<'a, T, U> Query<'a> for (&'a T, &'a U)
         let pool_t = if let Some(pool) = w.pool::<T>() { pool } else { return Vec::new() };
         let pool_u = if let Some(pool) = w.pool::<U>() { pool } else { return Vec::new() };
 
-        let mut min_len = 0;
+        let mut min_len = usize::MAX;
 
         if pool_t.iter().len() < min_len {
             min_len = pool_t.iter().len();
@@ -796,14 +796,25 @@ mod test_query {
     fn query() {
         let mut w = World::new();
 
-        let e = w.create();
-        w.attach::<i32>(e, 10);
-        w.attach::<&'static str>(e, "A");
+        let e1 = w.create();
+        w.attach::<i32>(e1, 10);
+        w.attach::<&'static str>(e1, "A");
+        w.attach::<char>(e1, 'a');
 
-        for (_e, (&n, &s)) in <(&i32, &&'static str)>::query(&w) {
-            assert_eq!(_e, e);
-            assert_eq!(n, 10);
-            assert_eq!(s, "A");
-        }
+        let e2 = w.create();
+        w.attach::<&'static str>(e2, "B");
+        w.attach::<char>(e2, 'b');
+
+        let e3 = w.create();
+        w.attach::<&'static str>(e3, "C");
+
+        assert_eq!(<(&i32, &&'static str)>::query(&w), vec![
+            (e1, (&10, &"A")),
+        ]);
+
+        assert_eq!(<(&&'static str, &char)>::query(&w), vec![
+            (e1, (&"A", &'a')),
+            (e2, (&"B", &'b')),
+        ]);
     }
 }
