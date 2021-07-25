@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::iter::Empty;
+use std::iter::empty;
 
 type ID = usize;
 type Version = u32;
@@ -10,6 +10,10 @@ struct Entity {
     version: Version,
 }
 
+pub trait Component: 'static + Sized {}
+
+impl<T: 'static> Component for T {}
+
 mod pool {
     use super::*;
 
@@ -18,13 +22,13 @@ mod pool {
     /// A `Page` is either null or a pointer to an array of optional indices
     type Page = Option<Box<[Option<usize>; PAGE_SIZE]>>;
 
-    pub struct Pool<T: 'static> {
+    pub struct Pool<T: Component> {
         sparse: Vec<Page>,
         packed: Vec<ID>,
         components: Vec<T>,
     }
 
-    impl<T: 'static> Pool<T> {
+    impl<T: Component> Pool<T> {
         pub fn new() -> Self {
             Self {
                 sparse: Vec::new(),
@@ -147,12 +151,12 @@ mod pool {
             Some(&mut self.components[packed_idx])
         }
 
-        pub fn iter(&self) -> impl ExactSizeIterator<Item=&T> {
-            self.components.iter()
+        pub fn iter(&self) -> impl ExactSizeIterator<Item=(&ID, &T)> {
+            self.packed.iter().zip(self.components.iter())
         }
 
-        pub fn iter_mut(&mut self) -> impl ExactSizeIterator<Item=&mut T> {
-            self.components.iter_mut()
+        pub fn iter_mut(&mut self) -> impl ExactSizeIterator<Item=(&ID, &mut T)> {
+            self.packed.iter().zip(self.components.iter_mut())
         }
     }
 
@@ -162,7 +166,7 @@ mod pool {
         fn clear_entity(&mut self, entity_id: ID);
     }
 
-    impl<T> AnyPool for Pool<T> {
+    impl<T: Component> AnyPool for Pool<T> {
         fn as_any(&self) -> &dyn Any {
             self
         }
@@ -189,9 +193,9 @@ mod pool {
             p.attach(2, "C");
 
             let mut it = p.iter();
-            assert_eq!(it.next(), Some(&"A"));
-            assert_eq!(it.next(), Some(&"B"));
-            assert_eq!(it.next(), Some(&"C"));
+            assert_eq!(it.next(), Some((&0, &"A")));
+            assert_eq!(it.next(), Some((&1, &"B")));
+            assert_eq!(it.next(), Some((&2, &"C")));
             assert_eq!(it.next(), None);
         }
 
@@ -205,13 +209,15 @@ mod pool {
 
             {
                 let mut it = p.iter_mut();
-                *it.next().unwrap() = "Z";
+
+                let (_, component) = it.next().unwrap();
+                *component = "Z";
             }
 
             let mut it = p.iter();
-            assert_eq!(it.next(), Some(&"Z"));
-            assert_eq!(it.next(), Some(&"B"));
-            assert_eq!(it.next(), Some(&"C"));
+            assert_eq!(it.next(), Some((&0, &"Z")));
+            assert_eq!(it.next(), Some((&1, &"B")));
+            assert_eq!(it.next(), Some((&2, &"C")));
             assert_eq!(it.next(), None);
         }
 
@@ -573,19 +579,19 @@ impl World {
         }
     }
 
-    fn pool<T: 'static>(&self) -> Option<&Pool<T>> {
+    fn pool<T: Component>(&self) -> Option<&Pool<T>> {
         let t_id = TypeId::of::<T>();
 
         self.pools.get(&t_id)?.as_any().downcast_ref::<Pool<T>>()
     }
 
-    fn pool_mut<T: 'static>(&mut self) -> Option<&mut Pool<T>> {
+    fn pool_mut<T: Component>(&mut self) -> Option<&mut Pool<T>> {
         let t_id = TypeId::of::<T>();
 
         self.pools.get_mut(&t_id)?.as_any_mut().downcast_mut::<Pool<T>>()
     }
 
-    pub fn attach<T: 'static>(&mut self, entity: Entity, component: T) {
+    pub fn attach<T: Component>(&mut self, entity: Entity, component: T) {
         if !self.entity_exists(entity) {
             return
         }
@@ -601,7 +607,7 @@ impl World {
         pool.attach(entity.id, component);
     }
 
-    pub fn detach<T: 'static>(&mut self, entity: Entity) -> Option<T> {
+    pub fn detach<T: Component>(&mut self, entity: Entity) -> Option<T> {
         if !self.entity_exists(entity) {
             return None;
         }
@@ -610,7 +616,7 @@ impl World {
         pool.detach(entity.id)
     }
 
-    pub fn get_component<T: 'static>(&self, entity: Entity) -> Option<&T> {
+    pub fn get_component<T: Component>(&self, entity: Entity) -> Option<&T> {
         if !self.entity_exists(entity) {
             return None;
         }
@@ -619,7 +625,7 @@ impl World {
         pool.get(entity.id)
     }
 
-    pub fn get_component_mut<T: 'static>(&mut self, entity: Entity) -> Option<&mut T> {
+    pub fn get_component_mut<T: Component>(&mut self, entity: Entity) -> Option<&mut T> {
         if !self.entity_exists(entity) {
             return None;
         }
