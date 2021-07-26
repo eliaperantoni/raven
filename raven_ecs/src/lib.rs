@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::iter::empty;
 
 use pool::{AnyPool, Pool};
+use std::cell::{Ref, RefMut, RefCell};
 
 type ID = usize;
 type Version = u32;
@@ -511,7 +512,7 @@ struct World {
     entities: Vec<(Option<ID>, Version)>,
     destroyed_head: Option<usize>,
 
-    pools: HashMap<TypeId, Box<dyn AnyPool>>,
+    pools: HashMap<TypeId, Box<RefCell<dyn AnyPool>>>,
 }
 
 impl World {
@@ -556,8 +557,8 @@ impl World {
         }
 
         // Remove all components from this entity
-        for pool in self.pools.values_mut() {
-            pool.clear_entity(entity.id);
+        for pool in self.pools.values() {
+            pool.borrow_mut().clear_entity(entity.id);
         }
 
         let (entity_id, version) = self.entities.get_mut(entity.id).unwrap();
@@ -580,16 +581,18 @@ impl World {
         }
     }
 
-    fn pool<T: Component>(&self) -> Option<&Pool<T>> {
+    fn pool<T: Component>(&self) -> Option<Ref<Pool<T>>> {
         let t_id = TypeId::of::<T>();
 
-        self.pools.get(&t_id)?.as_any().downcast_ref::<Pool<T>>()
+        let p = self.pools.get(&t_id)?.borrow();
+        Some(Ref::map(p, |p| p.as_any().downcast_ref::<Pool<T>>().unwrap()))
     }
 
-    fn pool_mut<T: Component>(&mut self) -> Option<&mut Pool<T>> {
+    fn pool_mut<T: Component>(&mut self) -> Option<RefMut<Pool<T>>> {
         let t_id = TypeId::of::<T>();
 
-        self.pools.get_mut(&t_id)?.as_any_mut().downcast_mut::<Pool<T>>()
+        let p = self.pools.get(&t_id)?.borrow_mut();
+        Some(RefMut::map(p, |p| p.as_any_mut().downcast_mut::<Pool<T>>().unwrap()))
     }
 
     pub fn attach<T: Component>(&mut self, entity: Entity, component: T) {
@@ -601,7 +604,7 @@ impl World {
 
         // Does a pool for this component T exist already? If not, create an empty one
         if !self.pools.contains_key(&t_id) {
-            self.pools.insert(t_id, Box::new(Pool::<T>::new()));
+            self.pools.insert(t_id, Box::new(RefCell::new(Pool::<T>::new())));
         }
 
         let mut pool = self.pool_mut::<T>().unwrap();
@@ -631,7 +634,7 @@ impl World {
             return None;
         }
 
-        let pool = self.pool_mut::<T>()?;
+        let mut pool = self.pool_mut::<T>()?;
         pool.get_mut(entity.id)
     }
 
