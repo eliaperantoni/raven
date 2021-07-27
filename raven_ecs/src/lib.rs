@@ -1,4 +1,5 @@
 #![feature(try_blocks)]
+#![feature(cell_filter_map)]
 
 use std::any::Any;
 use std::any::TypeId;
@@ -7,8 +8,6 @@ use std::iter::empty;
 
 use pool::{AnyPool, Pool};
 use std::cell::{Ref, RefMut, RefCell};
-
-use ref_filter_map::*;
 
 type ID = usize;
 type Version = u32;
@@ -630,7 +629,7 @@ impl World {
         }
 
         let p = self.pool::<T>()?;
-        ref_filter_map(p, |p| Some(p.get(entity.id)?))
+        Ref::filter_map(p, |p| Some(p.get(entity.id)?)).ok()
     }
 
     pub fn get_component_mut<T: Component>(&mut self, entity: Entity) -> Option<RefMut<T>> {
@@ -639,7 +638,7 @@ impl World {
         }
 
         let mut p = self.pool_mut::<T>()?;
-        ref_mut_filter_map(p, |p| Some(p.get_mut(entity.id)?))
+        RefMut::filter_map(p, |p| Some(p.get_mut(entity.id)?)).ok()
     }
 
     fn with_version(&self, entity_id: ID) -> Option<Entity> {
@@ -655,7 +654,7 @@ trait Query<'a>: Sized + 'a {
     fn query(w: &'a World) -> Vec<(Entity, Self)>;
 }
 
-impl<'a, T, U> Query<'a> for (&'a T, &'a U)
+impl<'a, T, U> Query<'a> for (Ref<'a, T>, Ref<'a, U>)
     where
         T: Component,
         U: Component
@@ -730,7 +729,7 @@ mod test {
         let e = w.create();
         w.attach(e, "A");
 
-        assert_eq!(w.get_component::<&'static str>(e), Some(&"A"));
+        assert_eq!(w.get_component::<&'static str>(e).as_deref(), Some(&"A"));
     }
 
     #[test]
@@ -741,8 +740,8 @@ mod test {
         w.attach::<&'static str>(e, "A");
         w.attach::<i32>(e, 10);
 
-        assert_eq!(w.get_component::<&'static str>(e), Some(&"A"));
-        assert_eq!(w.get_component::<i32>(e), Some(&10));
+        assert_eq!(w.get_component::<&'static str>(e).as_deref(), Some(&"A"));
+        assert_eq!(w.get_component::<i32>(e).as_deref(), Some(&10));
     }
 
     #[test]
@@ -753,7 +752,7 @@ mod test {
         w.attach(e, "A");
         w.detach::<&'static str>(e);
 
-        assert_eq!(w.get_component::<&'static str>(e), None);
+        assert_eq!(w.get_component::<&'static str>(e).as_deref(), None);
     }
 
     #[test]
@@ -764,7 +763,7 @@ mod test {
         w.attach(e, "A");
         w.destroy(e);
 
-        assert_eq!(w.get_component::<&'static str>(e), None);
+        assert_eq!(w.get_component::<&'static str>(e).as_deref(), None);
     }
 
     #[test]
@@ -777,7 +776,7 @@ mod test {
 
         let e2 = w.create();
 
-        assert_eq!(w.get_component::<&'static str>(e2), None);
+        assert_eq!(w.get_component::<&'static str>(e2).as_deref(), None);
     }
 
     #[test]
