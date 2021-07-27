@@ -1273,6 +1273,7 @@ name = "raven_ecs"
 version = "0.1.0"
 dependencies = [
  "rand",
+ "ref_filter_map",
 ]
 
 [[package]]
@@ -1334,6 +1335,12 @@ checksum = "5ab49abadf3f9e1c4bc499e8845e152ad87d2ad2d30371841171169e9d75feee"
 dependencies = [
  "bitflags",
 ]
+
+[[package]]
+name = "ref_filter_map"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b5ceb840e4009da4841ed22a15eb49f64fdd00a2138945c5beacf506b2fb5ed"
 
 [[package]]
 name = "regex"

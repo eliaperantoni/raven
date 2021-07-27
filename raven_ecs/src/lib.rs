@@ -1,3 +1,5 @@
+#![feature(try_blocks)]
+
 use std::any::Any;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -5,6 +7,8 @@ use std::iter::empty;
 
 use pool::{AnyPool, Pool};
 use std::cell::{Ref, RefMut, RefCell};
+
+use ref_filter_map::*;
 
 type ID = usize;
 type Version = u32;
@@ -620,22 +624,22 @@ impl World {
         pool.detach(entity.id)
     }
 
-    pub fn get_component<T: Component>(&self, entity: Entity) -> Option<&T> {
+    pub fn get_component<T: Component>(&self, entity: Entity) -> Option<Ref<T>> {
         if !self.entity_exists(entity) {
             return None;
         }
 
-        let pool = self.pool::<T>()?;
-        pool.get(entity.id)
+        let p = self.pool::<T>()?;
+        ref_filter_map(p, |p| Some(p.get(entity.id)?))
     }
 
-    pub fn get_component_mut<T: Component>(&mut self, entity: Entity) -> Option<&mut T> {
+    pub fn get_component_mut<T: Component>(&mut self, entity: Entity) -> Option<RefMut<T>> {
         if !self.entity_exists(entity) {
             return None;
         }
 
-        let mut pool = self.pool_mut::<T>()?;
-        pool.get_mut(entity.id)
+        let mut p = self.pool_mut::<T>()?;
+        ref_mut_filter_map(p, |p| Some(p.get_mut(entity.id)?))
     }
 
     fn with_version(&self, entity_id: ID) -> Option<Entity> {
