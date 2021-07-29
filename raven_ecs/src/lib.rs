@@ -19,23 +19,24 @@ struct Entity {
     version: Version,
 }
 
-/// Any `T` such that `T: 'static + Sized` is a valid `[Component]`
-pub trait Component: 'static + Sized {}
+pub trait Component: 'static + Sized {
+
+}
+
 impl<T: 'static> Component for T {}
 
 mod pool {
     use super::*;
-    use std::borrow::{Borrow, BorrowMut};
 
     const PAGE_SIZE: usize = 100;
 
-    /// A `[Page]` is either null or a pointer to an array of optional indices
+    /// A `Page` is either null or a pointer to an array of optional indices
     type Page = Option<Box<[Option<usize>; PAGE_SIZE]>>;
 
     pub struct Pool<T: Component> {
         sparse: Vec<Page>,
         packed: Vec<ID>,
-        components: Vec<RefCell<T>>,
+        components: Vec<T>,
     }
 
     impl<T: Component> Pool<T> {
@@ -74,7 +75,7 @@ mod pool {
             page[idx_into_page] = Some(self.packed.len());
 
             self.packed.push(entity_id);
-            self.components.push(RefCell::new(component));
+            self.components.push(component);
         }
 
         pub fn detach(&mut self, entity_id: ID) -> Option<T> {
@@ -136,10 +137,10 @@ mod pool {
 
             // Resize both packed arrays
             self.packed.pop();
-            Some(self.components.pop().unwrap().into_inner())
+            Some(self.components.pop().unwrap())
         }
 
-        pub fn get(&self, entity_id: ID) -> Option<Ref<T>> {
+        pub fn get(&self, entity_id: ID) -> Option<&T> {
             let idx_to_page = Self::idx_to_page(entity_id);
             let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -147,10 +148,10 @@ mod pool {
             // equal to the length of the page, it would've been placed in the next page.
             let packed_idx = self.sparse.get(idx_to_page)?.as_ref()?[idx_into_page]?;
 
-            Some(self.components[packed_idx].borrow())
+            Some(&self.components[packed_idx])
         }
 
-        pub fn get_mut(&self, entity_id: ID) -> Option<RefMut<T>> {
+        pub fn get_mut(&mut self, entity_id: ID) -> Option<&mut T> {
             let idx_to_page = Self::idx_to_page(entity_id);
             let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -158,15 +159,15 @@ mod pool {
             // equal to the length of the page, it would've been placed in the next page.
             let packed_idx = self.sparse.get(idx_to_page)?.as_ref()?[idx_into_page]?;
 
-            Some(self.components[packed_idx].borrow_mut())
+            Some(&mut self.components[packed_idx])
         }
 
-        pub fn iter(&self) -> impl ExactSizeIterator<Item=(ID, Ref<T>)> {
-            self.packed.iter().copied().zip(self.components.iter().map(|e| e.borrow()))
+        pub fn iter(&self) -> impl ExactSizeIterator<Item=(&ID, &T)> {
+            self.packed.iter().zip(self.components.iter())
         }
 
-        pub fn iter_mut(&self) -> impl ExactSizeIterator<Item=(ID, RefMut<T>)> {
-            self.packed.iter().copied().zip(self.components.iter().map(|e| e.borrow_mut()))
+        pub fn iter_mut(&mut self) -> impl ExactSizeIterator<Item=(&ID, &mut T)> {
+            self.packed.iter().zip(self.components.iter_mut())
         }
     }
 
@@ -193,11 +194,6 @@ mod pool {
     #[cfg(test)]
     mod test {
         use super::*;
-        use std::ops::Deref;
-
-        macro_rules! next_as_ref {
-            ($it:ident) => { $it.next().as_ref().map(|(id, comp)| (*id, comp.deref())) }
-        }
 
         #[test]
         fn iter() {
@@ -208,10 +204,10 @@ mod pool {
             p.attach(2, "C");
 
             let mut it = p.iter();
-            assert_eq!(next_as_ref!(it), Some((0, &"A")));
-            assert_eq!(next_as_ref!(it), Some((1, &"B")));
-            assert_eq!(next_as_ref!(it), Some((2, &"C")));
-            assert_eq!(next_as_ref!(it), None);
+            assert_eq!(it.next(), Some((&0, &"A")));
+            assert_eq!(it.next(), Some((&1, &"B")));
+            assert_eq!(it.next(), Some((&2, &"C")));
+            assert_eq!(it.next(), None);
         }
 
         #[test]
@@ -225,15 +221,15 @@ mod pool {
             {
                 let mut it = p.iter_mut();
 
-                let (_, mut component) = it.next().unwrap();
+                let (_, component) = it.next().unwrap();
                 *component = "Z";
             }
 
             let mut it = p.iter();
-            assert_eq!(next_as_ref!(it), Some((0, &"Z")));
-            assert_eq!(next_as_ref!(it), Some((1, &"B")));
-            assert_eq!(next_as_ref!(it), Some((2, &"C")));
-            assert_eq!(next_as_ref!(it), None);
+            assert_eq!(it.next(), Some((&0, &"Z")));
+            assert_eq!(it.next(), Some((&1, &"B")));
+            assert_eq!(it.next(), Some((&2, &"C")));
+            assert_eq!(it.next(), None);
         }
 
         #[test]
@@ -241,7 +237,7 @@ mod pool {
             let mut p: Pool<&'static str> = Pool::new();
 
             p.attach(0, "A");
-            assert_eq!(p.get(0).as_deref(), Some(&"A"));
+            assert_eq!(p.get(0), Some(&"A"));
         }
 
         #[test]
@@ -250,7 +246,7 @@ mod pool {
 
             p.attach(0, "A");
             *p.get_mut(0).unwrap() = "B";
-            assert_eq!(p.get(0).as_deref(), Some(&"B"));
+            assert_eq!(p.get(0), Some(&"B"));
         }
 
         #[test]
@@ -260,9 +256,9 @@ mod pool {
             assert_eq!(p.sparse.len(), 0);
             p.attach(0, "A");
             assert_eq!(p.sparse.len(), 1);
-            p.attach(PAGE_SIZE - 1, "B"); // Still in the first page
+            p.attach(99, "B"); // Still in the first page
             assert_eq!(p.sparse.len(), 1);
-            p.attach(PAGE_SIZE, "C"); // Goes to the second page
+            p.attach(100, "C"); // Goes to the second page
             assert_eq!(p.sparse.len(), 2);
         }
 
@@ -295,15 +291,15 @@ mod pool {
             assert_len_is(&p, 0);
             p.attach(0, "A");
             assert_len_is(&p, 1);
-            p.attach(1, "B");
+            p.attach(PAGE_SIZE - 1, "B");
             assert_len_is(&p, 2);
-            p.attach(2, "C");
+            p.attach(PAGE_SIZE, "C");
             assert_len_is(&p, 3);
             p.detach(0);
             assert_len_is(&p, 2);
-            p.detach(1);
+            p.detach(PAGE_SIZE - 1);
             assert_len_is(&p, 1);
-            p.detach(2);
+            p.detach(PAGE_SIZE);
             assert_len_is(&p, 0);
         }
 
@@ -339,13 +335,10 @@ mod pool {
             }))]);
 
             assert_eq!(p.packed, vec![0, 1]);
-            assert_eq!(p.components, vec![
-                RefCell::new("A"),
-                RefCell::new("B"),
-            ]);
+            assert_eq!(p.components, vec!["A", "B"]);
 
-            assert_eq!(p.get(0).as_deref(), Some(&"A"));
-            assert_eq!(p.get(1).as_deref(), Some(&"B"));
+            assert_eq!(p.get(0), Some(&"A"));
+            assert_eq!(p.get(1), Some(&"B"));
         }
 
         #[test]
@@ -363,13 +356,10 @@ mod pool {
             }))]);
 
             assert_eq!(p.packed, vec![0, 2]);
-            assert_eq!(p.components, vec![
-                RefCell::new("A"),
-                RefCell::new("B"),
-            ]);
+            assert_eq!(p.components, vec!["A", "B"]);
 
-            assert_eq!(p.get(0).as_deref(), Some(&"A"));
-            assert_eq!(p.get(2).as_deref(), Some(&"B"));
+            assert_eq!(p.get(0), Some(&"A"));
+            assert_eq!(p.get(2), Some(&"B"));
         }
 
         #[test]
@@ -388,12 +378,10 @@ mod pool {
             }))]);
 
             assert_eq!(p.packed, vec![1]);
-            assert_eq!(p.components, vec![
-                RefCell::new("B"),
-            ]);
+            assert_eq!(p.components, vec!["B"]);
 
-            assert_eq!(p.get(0).as_deref(), None);
-            assert_eq!(p.get(1).as_deref(), Some(&"B"));
+            assert_eq!(p.get(0), None);
+            assert_eq!(p.get(1), Some(&"B"));
         }
 
         #[test]
@@ -412,12 +400,10 @@ mod pool {
             }))]);
 
             assert_eq!(p.packed, vec![0]);
-            assert_eq!(p.components, vec![
-                RefCell::new("A"),
-            ]);
+            assert_eq!(p.components, vec!["A"]);
 
-            assert_eq!(p.get(0).as_deref(), Some(&"A"));
-            assert_eq!(p.get(1).as_deref(), None);
+            assert_eq!(p.get(0), Some(&"A"));
+            assert_eq!(p.get(1), None);
         }
 
         #[test]
@@ -436,13 +422,11 @@ mod pool {
             }))]);
 
             assert_eq!(p.packed, vec![2]);
-            assert_eq!(p.components, vec![
-                RefCell::new("B"),
-            ]);
+            assert_eq!(p.components, vec!["B"]);
 
-            assert_eq!(p.get(0).as_deref(), None);
-            assert_eq!(p.get(1).as_deref(), None);
-            assert_eq!(p.get(2).as_deref(), Some(&"B"));
+            assert_eq!(p.get(0), None);
+            assert_eq!(p.get(1), None);
+            assert_eq!(p.get(2), Some(&"B"));
         }
 
         #[test]
@@ -461,13 +445,11 @@ mod pool {
             }))]);
 
             assert_eq!(p.packed, vec![0]);
-            assert_eq!(p.components, vec![
-                RefCell::new("A"),
-            ]);
+            assert_eq!(p.components, vec!["A"]);
 
-            assert_eq!(p.get(0).as_deref(), Some(&"A"));
-            assert_eq!(p.get(1).as_deref(), None);
-            assert_eq!(p.get(2).as_deref(), None);
+            assert_eq!(p.get(0), Some(&"A"));
+            assert_eq!(p.get(1), None);
+            assert_eq!(p.get(2), None);
         }
 
         #[test]
@@ -508,9 +490,9 @@ mod pool {
             loop {
                 for (entity_id, component, alive) in entities.iter().copied() {
                     if alive {
-                        assert_eq!(p.get(entity_id).as_deref(), Some(&component));
+                        assert_eq!(p.get(entity_id), Some(&component));
                     } else {
-                        assert_eq!(p.get(entity_id).as_deref(), None);
+                        assert_eq!(p.get(entity_id), None);
                     }
                 }
 
@@ -530,12 +512,11 @@ mod pool {
     }
 }
 
-/*
 struct World {
     entities: Vec<(Option<ID>, Version)>,
     destroyed_head: Option<usize>,
 
-    pools: HashMap<TypeId, Box<dyn AnyPool>>,
+    pools: HashMap<TypeId, Box<RefCell<dyn AnyPool>>>,
 }
 
 impl World {
@@ -676,6 +657,202 @@ impl World {
     }
 }
 
+trait Query<'a> {
+    type O;
+
+    fn query(w: &'a World) -> Self::O;
+}
+
+impl<'a, T: Component> Query<'a> for (T,) {
+    type O = View1<'a, T>;
+
+    fn query(w: &'a World) -> Self::O {
+        View1 {
+            w,
+            pool_t: w.pool::<T>(),
+        }
+    }
+}
+
+impl<'a, T: Component, U: Component> Query<'a> for (T,U) {
+    type O = View2<'a, T, U>;
+
+    fn query(w: &'a World) -> Self::O {
+        View2 {
+            w,
+            pool_t: w.pool::<T>(),
+            pool_u: w.pool::<U>(),
+        }
+    }
+}
+
+trait QueryMut<'a> {
+    type O;
+
+    fn query_mut(w: &'a World) -> Self::O;
+}
+
+impl<'a, T: Component> QueryMut<'a> for (T,) {
+    type O = View1Mut<'a, T>;
+
+    fn query_mut(w: &'a World) -> Self::O {
+        View1Mut {
+            w,
+            pool_t: w.pool_mut::<T>(),
+        }
+    }
+}
+
+impl<'a, T: Component, U: Component> QueryMut<'a> for (T,U) {
+    type O = View2Mut<'a, T, U>;
+
+    fn query_mut(w: &'a World) -> Self::O {
+        View2Mut {
+            w,
+            pool_t: w.pool_mut::<T>(),
+            pool_u: w.pool_mut::<U>(),
+        }
+    }
+}
+
+struct View1<'a, T: Component> {
+    w: &'a World,
+    pool_t: Option<Ref<'a, Pool<T>>>,
+}
+
+impl<'a, T: Component> View1<'a, T> {
+    fn iter(&'a self) -> impl Iterator<Item=(Entity, (&'a T,))> {
+        let pool_t = if let Some(pool_t) = self.pool_t.as_ref() { pool_t } else {
+            return vec![].into_iter();
+        };
+
+        let mut out = vec![];
+
+        for (&entity_id, comp) in pool_t.iter() {
+            out.push((self.w.with_version(entity_id).unwrap(), (comp,)))
+        }
+
+        out.into_iter()
+    }
+}
+
+struct View1Mut<'a, T: Component> {
+    w: &'a World,
+    pool_t: Option<RefMut<'a, Pool<T>>>,
+}
+
+impl<'a, T: Component> View1Mut<'a, T> {
+    fn iter(&'a mut self) -> impl Iterator<Item=(Entity, (&'a mut T,))> {
+        let mut pool_t = if let Some(pool_t) = self.pool_t.as_mut() { pool_t } else {
+            return vec![].into_iter();
+        };
+
+        let mut out = vec![];
+
+        for (&entity_id, comp) in pool_t.iter_mut() {
+            out.push((self.w.with_version(entity_id).unwrap(), (comp,)))
+        }
+
+        out.into_iter()
+    }
+}
+
+struct View2<'a, T: Component, U: Component> {
+    w: &'a World,
+    pool_t: Option<Ref<'a, Pool<T>>>,
+    pool_u: Option<Ref<'a, Pool<U>>>,
+}
+
+impl<'a, T: Component, U: Component> View2<'a, T, U> {
+    fn iter(&'a self) -> impl Iterator<Item=(Entity, (&'a T, &'a U))> {
+        let pool_t = if let Some(pool_t) = self.pool_t.as_ref() { pool_t } else {
+            return vec![].into_iter();
+        };
+        let pool_u = if let Some(pool_u) = self.pool_u.as_ref() { pool_u } else {
+            return vec![].into_iter();
+        };
+
+        let mut min_len = usize::MAX;
+
+        min_len = min(min_len, pool_t.iter().len());
+        min_len = min(min_len, pool_u.iter().len());
+
+        if pool_t.iter().len() == min_len {
+            let mut out = vec![];
+
+            for (&entity_id, t) in pool_t.iter() {
+                let u = if let Some(u) = pool_u.get(entity_id) {u} else {continue;};
+
+                out.push((self.w.with_version(entity_id).unwrap(), (t, u)));
+            }
+
+            return out.into_iter();
+        }
+
+        if pool_u.iter().len() == min_len {
+            let mut out = vec![];
+
+            for (&entity_id, u) in pool_u.iter() {
+                let t = if let Some(t) = pool_t.get(entity_id) {t} else {continue;};
+
+                out.push((self.w.with_version(entity_id).unwrap(), (t, u)));
+            }
+
+            return out.into_iter();
+        }
+
+        unreachable!()
+    }
+}
+
+struct View2Mut<'a, T: Component, U: Component> {
+    w: &'a World,
+    pool_t: Option<RefMut<'a, Pool<T>>>,
+    pool_u: Option<RefMut<'a, Pool<U>>>,
+}
+
+impl<'a, T: Component, U: Component> View2Mut<'a, T, U> {
+    fn iter(&'a mut self) -> impl Iterator<Item=(Entity, (&'a mut T, &'a mut U))> {
+        let mut pool_t = if let Some(pool_t) = self.pool_t.as_mut() { pool_t } else {
+            return vec![].into_iter();
+        };
+        let mut pool_u = if let Some(pool_u) = self.pool_u.as_mut() { pool_u } else {
+            return vec![].into_iter();
+        };
+
+        let mut min_len = usize::MAX;
+
+        min_len = min(min_len, pool_t.iter().len());
+        min_len = min(min_len, pool_u.iter().len());
+
+        if pool_t.iter().len() == min_len {
+            let mut out = vec![];
+
+            for (&entity_id, t) in pool_t.iter_mut() {
+                let u = if let Some(u) = pool_u.get_mut(entity_id) {u} else {continue;};
+
+                out.push((self.w.with_version(entity_id).unwrap(), (t, u)));
+            }
+
+            return out.into_iter();
+        }
+
+        if pool_u.iter().len() == min_len {
+            let mut out = vec![];
+
+            for (&entity_id, u) in pool_u.iter_mut() {
+                let t = if let Some(t) = pool_t.get_mut(entity_id) {t} else {continue;};
+
+                out.push((self.w.with_version(entity_id).unwrap(), (t, u)));
+            }
+
+            return out.into_iter();
+        }
+
+        unreachable!()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -788,6 +965,9 @@ mod test_query {
 
         let e3 = w.create();
         w.attach::<&'static str>(e3, "C");
+
+        assert_eq!(<(i32,)>::query(&w).iter().collect::<Vec<_>>(), vec![
+            (e1, (&10,)),
+        ]);
     }
 }
-*/
