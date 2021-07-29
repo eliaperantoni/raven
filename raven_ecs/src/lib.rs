@@ -650,54 +650,41 @@ impl World {
     }
 }
 
-trait Query<'a>: Sized + 'a {
-    fn query(w: &'a World) -> Vec<(Entity, Self)>;
+trait Query<'a> {
+    type O;
+
+    fn query(w: &'a World) -> Self::O;
 }
 
-impl<'a, T, U> Query<'a> for (Ref<'a, T>, Ref<'a, U>)
-    where
-        T: Component,
-        U: Component
-{
-    fn query(w: &'a World) -> Vec<(Entity, Self)> {
-        let pool_t = if let Some(pool) = w.pool::<T>() { pool } else { return Vec::new() };
-        let pool_u = if let Some(pool) = w.pool::<U>() { pool } else { return Vec::new() };
+impl<'a, T: Component> Query<'a> for (T,) {
+    type O = View1<'a, T>;
 
-        let mut min_len = usize::MAX;
+    fn query(w: &'a World) -> Self::O {
+        View1 {
+            w,
+            pool_t: w.pool::<T>(),
+        }
+    }
+}
 
-        if pool_t.iter().len() < min_len {
-            min_len = pool_t.iter().len();
+struct View1<'a, T: Component> {
+    w: &'a World,
+    pool_t: Option<Ref<'a, Pool<T>>>,
+}
+
+impl<'a, T: Component> View1<'a, T> {
+    fn iter(&'a self) -> impl Iterator<Item=(Entity, (&'a T,))> {
+        let pool_t = if let Some(pool_t) = self.pool_t.as_ref() { pool_t } else {
+            return vec![].into_iter();
+        };
+
+        let mut out = vec![];
+
+        for (&entity_id, comp) in pool_t.iter() {
+            out.push((self.w.with_version(entity_id).unwrap(), (comp,)))
         }
 
-        if pool_u.iter().len() < min_len {
-            min_len = pool_u.iter().len();
-        }
-
-        let mut out = Vec::new();
-
-        if pool_t.iter().len() == min_len {
-            for (id, t) in pool_t.iter() {
-                let u = pool_u.get(*id);
-
-                if let (t, Some(u)) = (t, u) {
-                    let e = w.with_version(*id).unwrap();
-                    out.push((e, (t, u)));
-                }
-            }
-        }
-
-        if pool_u.iter().len() == min_len {
-            for (id, u) in pool_u.iter() {
-                let t = pool_t.get(*id);
-
-                if let (Some(t), u) = (t, u) {
-                    let e = w.with_version(*id).unwrap();
-                    out.push((e, (t, u)));
-                }
-            }
-        }
-
-        out
+        out.into_iter()
     }
 }
 
@@ -814,13 +801,8 @@ mod test_query {
         let e3 = w.create();
         w.attach::<&'static str>(e3, "C");
 
-        assert_eq!(<(&i32, &&'static str)>::query(&w), vec![
-            (e1, (&10, &"A")),
-        ]);
-
-        assert_eq!(<(&&'static str, &char)>::query(&w), vec![
-            (e1, (&"A", &'a')),
-            (e2, (&"B", &'b')),
+        assert_eq!(<(i32,)>::query(&w).iter().collect::<Vec<_>>(), vec![
+            (e1, (&10,)),
         ]);
     }
 }
