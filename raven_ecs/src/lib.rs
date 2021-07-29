@@ -8,6 +8,7 @@ use std::iter::empty;
 
 use pool::{AnyPool, Pool};
 use std::cell::{Ref, RefMut, RefCell};
+use std::cmp::min;
 
 type ID = usize;
 type Version = u32;
@@ -584,6 +585,7 @@ impl World {
         }
     }
 
+    /// Immutably borrows a pool from its `[RefCell]` by taking an immutable reference to a `[World]`
     fn pool<T: Component>(&self) -> Option<Ref<Pool<T>>> {
         let t_id = TypeId::of::<T>();
 
@@ -591,7 +593,8 @@ impl World {
         Some(Ref::map(p, |p| p.as_any().downcast_ref::<Pool<T>>().unwrap()))
     }
 
-    fn pool_mut<T: Component>(&mut self) -> Option<RefMut<Pool<T>>> {
+    /// Mutably borrows a pool from its `[RefCell]` by taking an immutable reference to a `[World]`
+    fn pool_mut<T: Component>(&self) -> Option<RefMut<Pool<T>>> {
         let t_id = TypeId::of::<T>();
 
         let p = self.pools.get(&t_id)?.borrow_mut();
@@ -623,7 +626,8 @@ impl World {
         pool.detach(entity.id)
     }
 
-    pub fn get_component<T: Component>(&self, entity: Entity) -> Option<Ref<T>> {
+    /// Returns an immutable reference to the `[Component]` attached to the provided entity
+    pub fn component<T: Component>(&self, entity: Entity) -> Option<Ref<T>> {
         if !self.entity_exists(entity) {
             return None;
         }
@@ -632,7 +636,10 @@ impl World {
         Ref::filter_map(p, |p| Some(p.get(entity.id)?)).ok()
     }
 
-    pub fn get_component_mut<T: Component>(&mut self, entity: Entity) -> Option<RefMut<T>> {
+    /// Returns a mutable reference to the `[Component]` attached to the provided entity
+    // NOTE: The receiver doesn't need to be mut in order to call `pool_mut` but we should enforce
+    // this anyways because it would be way too easy to borrow mutably twice from the same pool.
+    pub fn component_mut<T: Component>(&mut self, entity: Entity) -> Option<RefMut<T>> {
         if !self.entity_exists(entity) {
             return None;
         }
@@ -667,6 +674,47 @@ impl<'a, T: Component> Query<'a> for (T,) {
     }
 }
 
+impl<'a, T: Component, U: Component> Query<'a> for (T,U) {
+    type O = View2<'a, T, U>;
+
+    fn query(w: &'a World) -> Self::O {
+        View2 {
+            w,
+            pool_t: w.pool::<T>(),
+            pool_u: w.pool::<U>(),
+        }
+    }
+}
+
+trait QueryMut<'a> {
+    type O;
+
+    fn query_mut(w: &'a World) -> Self::O;
+}
+
+impl<'a, T: Component> QueryMut<'a> for (T,) {
+    type O = View1Mut<'a, T>;
+
+    fn query_mut(w: &'a World) -> Self::O {
+        View1Mut {
+            w,
+            pool_t: w.pool_mut::<T>(),
+        }
+    }
+}
+
+impl<'a, T: Component, U: Component> QueryMut<'a> for (T,U) {
+    type O = View2Mut<'a, T, U>;
+
+    fn query_mut(w: &'a World) -> Self::O {
+        View2Mut {
+            w,
+            pool_t: w.pool_mut::<T>(),
+            pool_u: w.pool_mut::<U>(),
+        }
+    }
+}
+
 struct View1<'a, T: Component> {
     w: &'a World,
     pool_t: Option<Ref<'a, Pool<T>>>,
@@ -685,6 +733,123 @@ impl<'a, T: Component> View1<'a, T> {
         }
 
         out.into_iter()
+    }
+}
+
+struct View1Mut<'a, T: Component> {
+    w: &'a World,
+    pool_t: Option<RefMut<'a, Pool<T>>>,
+}
+
+impl<'a, T: Component> View1Mut<'a, T> {
+    fn iter(&'a mut self) -> impl Iterator<Item=(Entity, (&'a mut T,))> {
+        let mut pool_t = if let Some(pool_t) = self.pool_t.as_mut() { pool_t } else {
+            return vec![].into_iter();
+        };
+
+        let mut out = vec![];
+
+        for (&entity_id, comp) in pool_t.iter_mut() {
+            out.push((self.w.with_version(entity_id).unwrap(), (comp,)))
+        }
+
+        out.into_iter()
+    }
+}
+
+struct View2<'a, T: Component, U: Component> {
+    w: &'a World,
+    pool_t: Option<Ref<'a, Pool<T>>>,
+    pool_u: Option<Ref<'a, Pool<U>>>,
+}
+
+impl<'a, T: Component, U: Component> View2<'a, T, U> {
+    fn iter(&'a self) -> impl Iterator<Item=(Entity, (&'a T, &'a U))> {
+        let pool_t = if let Some(pool_t) = self.pool_t.as_ref() { pool_t } else {
+            return vec![].into_iter();
+        };
+        let pool_u = if let Some(pool_u) = self.pool_u.as_ref() { pool_u } else {
+            return vec![].into_iter();
+        };
+
+        let mut min_len = usize::MAX;
+
+        min_len = min(min_len, pool_t.iter().len());
+        min_len = min(min_len, pool_u.iter().len());
+
+        if pool_t.iter().len() == min_len {
+            let mut out = vec![];
+
+            for (&entity_id, t) in pool_t.iter() {
+                let u = if let Some(u) = pool_u.get(entity_id) {u} else {continue;};
+
+                out.push((self.w.with_version(entity_id).unwrap(), (t, u)));
+            }
+
+            return out.into_iter();
+        }
+
+        if pool_u.iter().len() == min_len {
+            let mut out = vec![];
+
+            for (&entity_id, u) in pool_u.iter() {
+                let t = if let Some(t) = pool_t.get(entity_id) {t} else {continue;};
+
+                out.push((self.w.with_version(entity_id).unwrap(), (t, u)));
+            }
+
+            return out.into_iter();
+        }
+
+        unreachable!()
+    }
+}
+
+struct View2Mut<'a, T: Component, U: Component> {
+    w: &'a World,
+    pool_t: Option<RefMut<'a, Pool<T>>>,
+    pool_u: Option<RefMut<'a, Pool<U>>>,
+}
+
+impl<'a, T: Component, U: Component> View2Mut<'a, T, U> {
+    fn iter(&'a mut self) -> impl Iterator<Item=(Entity, (&'a mut T, &'a mut U))> {
+        let mut pool_t = if let Some(pool_t) = self.pool_t.as_mut() { pool_t } else {
+            return vec![].into_iter();
+        };
+        let mut pool_u = if let Some(pool_u) = self.pool_u.as_mut() { pool_u } else {
+            return vec![].into_iter();
+        };
+
+        let mut min_len = usize::MAX;
+
+        min_len = min(min_len, pool_t.iter().len());
+        min_len = min(min_len, pool_u.iter().len());
+
+        if pool_t.iter().len() == min_len {
+            let mut out = vec![];
+
+            for (&entity_id, t) in pool_t.iter_mut() {
+                let u = if let Some(u) = pool_u.get_mut(entity_id) {u} else {continue;};
+
+                out.push((self.w.with_version(entity_id).unwrap(), (t, u)));
+            }
+
+            return out.into_iter();
+        }
+
+        if pool_u.iter().len() == min_len {
+            let mut out = vec![];
+
+            for (&entity_id, u) in pool_u.iter_mut() {
+                let t = if let Some(t) = pool_t.get_mut(entity_id) {t} else {continue;};
+
+                out.push((self.w.with_version(entity_id).unwrap(), (t, u)));
+            }
+
+            return out.into_iter();
+        }
+
+        unreachable!()
     }
 }
 
@@ -716,7 +881,7 @@ mod test {
         let e = w.create();
         w.attach(e, "A");
 
-        assert_eq!(w.get_component::<&'static str>(e).as_deref(), Some(&"A"));
+        assert_eq!(w.component::<&'static str>(e).as_deref(), Some(&"A"));
     }
 
     #[test]
@@ -727,8 +892,8 @@ mod test {
         w.attach::<&'static str>(e, "A");
         w.attach::<i32>(e, 10);
 
-        assert_eq!(w.get_component::<&'static str>(e).as_deref(), Some(&"A"));
-        assert_eq!(w.get_component::<i32>(e).as_deref(), Some(&10));
+        assert_eq!(w.component::<&'static str>(e).as_deref(), Some(&"A"));
+        assert_eq!(w.component::<i32>(e).as_deref(), Some(&10));
     }
 
     #[test]
@@ -739,7 +904,7 @@ mod test {
         w.attach(e, "A");
         w.detach::<&'static str>(e);
 
-        assert_eq!(w.get_component::<&'static str>(e).as_deref(), None);
+        assert_eq!(w.component::<&'static str>(e).as_deref(), None);
     }
 
     #[test]
@@ -750,7 +915,7 @@ mod test {
         w.attach(e, "A");
         w.destroy(e);
 
-        assert_eq!(w.get_component::<&'static str>(e).as_deref(), None);
+        assert_eq!(w.component::<&'static str>(e).as_deref(), None);
     }
 
     #[test]
@@ -763,7 +928,7 @@ mod test {
 
         let e2 = w.create();
 
-        assert_eq!(w.get_component::<&'static str>(e2).as_deref(), None);
+        assert_eq!(w.component::<&'static str>(e2).as_deref(), None);
     }
 
     #[test]
