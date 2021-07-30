@@ -5,9 +5,9 @@
 
 mod pool;
 
-pub mod world;
+//pub mod world;
 
-pub use world::query;
+//pub use world::query;
 
 pub type ID = usize;
 pub type Version = u32;

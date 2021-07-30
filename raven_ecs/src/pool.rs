@@ -3,15 +3,19 @@ use crate::{Component, ID};
 use std::any::Any;
 use std::cell::{Ref, RefCell, RefMut};
 
+use smallvec::{SmallVec, smallvec};
+
 const PAGE_SIZE: usize = 100;
 
 /// A `Page` is either null or a pointer to an array of optional indices
 type Page = Option<Box<[Option<usize>; PAGE_SIZE]>>;
 
+type CompVec<T> = SmallVec<[T; 1]>;
+
 pub struct Pool<T: Component> {
     sparse: Vec<Page>,
     packed: Vec<ID>,
-    components: Vec<RefCell<T>>,
+    components: Vec<RefCell<CompVec<T>>>,
 }
 
 impl<T: Component> Pool<T> {
@@ -34,6 +38,13 @@ impl<T: Component> Pool<T> {
     }
 
     pub fn attach(&mut self, entity_id: ID, component: T) {
+        // If this entity already has a component, then nothing should change regarding the sparse and packed arrays
+        // and we can simply do an easy push
+        if let Some(mut comp_vec) = self.get_comp_vec_mut(entity_id) {
+            comp_vec.push(component);
+            return;
+        }
+
         let idx_to_page = Self::idx_to_page(entity_id);
         let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -50,10 +61,27 @@ impl<T: Component> Pool<T> {
         page[idx_into_page] = Some(self.packed.len());
 
         self.packed.push(entity_id);
-        self.components.push(RefCell::new(component));
+        self.components.push(RefCell::new(smallvec![component]));
     }
 
     pub fn detach(&mut self, entity_id: ID) -> Option<T> {
+        // Bail out early if this entity doesn't have any component
+        let mut comp_vec = self.get_comp_vec_mut(entity_id)?;
+
+        if comp_vec.len() > 1 {
+            // If this entity will be left with at least one component, then nothing will change regarding the sparse and
+            // packed arrays. So we can just do a simple remove
+            Some(comp_vec.remove(0))
+        } else {
+            // Drop this otherwise we can't borrow again
+            drop(comp_vec);
+
+            // Otherwise, this is the last component
+            Some(self.detach_all(entity_id).remove(0))
+        }
+    }
+
+    pub fn detach_all(&mut self, entity_id: ID) -> Vec<T> {
         let idx_to_page = Self::idx_to_page(entity_id);
         let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -64,24 +92,32 @@ impl<T: Component> Pool<T> {
             if len > 0 {
                 (len - 1, self.packed[len - 1])
             } else {
-                // We have no component at all
-                return None;
+                // We have no component at all, bail out
+                return Vec::new();
             }
         };
 
-        // Get a mut ref to the page. If the array is too small for the page to be there, then this entity does not
-        // have a component in this pool and we can return.
-        let page = self.sparse.get_mut(idx_to_page)?;
 
-        // Get a mut ref to the inner array. If the page is `None`, then this entity does not have a component in this
-        // pool and we can return.
-        let page = page.as_mut()?;
+        let (page, packed_idx) = match try {
+            // Get a mut ref to the page. If the array is too small for the page to be there, then this entity does not
+            // have a component in this pool and we can return.
+            let page = self.sparse.get_mut(idx_to_page)?;
 
-        // Index the page to get the index into the packed arrays.
-        // We don't need to check if `idx_into_page` is small enough because it always will. If it was greater or
-        // equal to the length of the page, it would've been placed in the next page.
-        // If the element was `None`, then this entity does not have a component in this pool and we can return.
-        let packed_idx = page[idx_into_page]?;
+            // Get a mut ref to the inner array. If the page is `None`, then this entity does not have a component in this
+            // pool and we can return.
+            let page = page.as_mut()?;
+
+            // Index the page to get the index into the packed arrays.
+            // We don't need to check if `idx_into_page` is small enough because it always will. If it was greater or
+            // equal to the length of the page, it would've been placed in the next page.
+            // If the element was `None`, then this entity does not have a component in this pool and we can return.
+            let packed_idx = page[idx_into_page]?;
+
+            (page, packed_idx)
+        } {
+            Some(pair) => pair,
+            None => return Vec::new()
+        };
 
         // Remove the element from the page, we read the packed index so we don't need that anymore
         page[idx_into_page] = None;
@@ -103,8 +139,7 @@ impl<T: Component> Pool<T> {
             let idx_to_page_of_last = Self::idx_to_page(entity_id_of_last);
             let idx_into_page_of_last = Self::idx_into_page(entity_id_of_last);
 
-            self.sparse[idx_to_page_of_last].as_mut().unwrap()[idx_into_page_of_last] =
-                Some(packed_idx);
+            self.sparse[idx_to_page_of_last].as_mut().unwrap()[idx_into_page_of_last] = Some(packed_idx);
         }
 
         // Swap the last element with the packed index in both packed arrays
@@ -113,10 +148,10 @@ impl<T: Component> Pool<T> {
 
         // Resize both packed arrays
         self.packed.pop();
-        Some(self.components.pop().unwrap().into_inner())
+        self.components.pop().unwrap().into_inner().into_vec()
     }
 
-    pub fn get(&self, entity_id: ID) -> Option<Ref<T>> {
+    fn get_comp_vec(&self, entity_id: ID) -> Option<Ref<CompVec<T>>> {
         let idx_to_page = Self::idx_to_page(entity_id);
         let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -127,7 +162,7 @@ impl<T: Component> Pool<T> {
         Some(self.components[packed_idx].borrow())
     }
 
-    pub fn get_mut(&self, entity_id: ID) -> Option<RefMut<T>> {
+    fn get_comp_vec_mut(&self, entity_id: ID) -> Option<RefMut<CompVec<T>>> {
         let idx_to_page = Self::idx_to_page(entity_id);
         let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -136,6 +171,56 @@ impl<T: Component> Pool<T> {
         let packed_idx = self.sparse.get(idx_to_page)?.as_ref()?[idx_into_page]?;
 
         Some(self.components[packed_idx].borrow_mut())
+    }
+
+    pub fn get_one(&self, entity_id: ID) -> Option<Ref<T>> {
+        let comp_vec = self.get_comp_vec(entity_id)?;
+        // The fact that `comp_vec` is not None is proof that there is at least one component
+        Some(Ref::map(comp_vec, |comp_vec| &comp_vec[0]))
+    }
+
+    pub fn get_one_mut(&self, entity_id: ID) -> Option<RefMut<T>> {
+        let comp_vec = self.get_comp_vec_mut(entity_id)?;
+        // The fact that `comp_vec` is not None is proof that there is at least one component
+        Some(RefMut::map(comp_vec, |comp_vec| &mut comp_vec[0]))
+    }
+
+    pub fn get_all(&self, entity_id: ID) -> Vec<Ref<T>> {
+        if let Some(comp_vec) = self.get_comp_vec(entity_id) {
+            let mut comp_vec = Ref::map(comp_vec, |comp_vec| &comp_vec[..]);
+
+            let mut out = Vec::new();
+
+            while comp_vec.len() > 0 {
+                let (first, rest) = Ref::map_split(comp_vec, |comp_vec| comp_vec.split_first().unwrap());
+                comp_vec = rest;
+
+                out.push(first);
+            }
+
+            out
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn get_all_mut(&self, entity_id: ID) -> Vec<RefMut<T>> {
+        if let Some(comp_vec) = self.get_comp_vec_mut(entity_id) {
+            let mut comp_vec = RefMut::map(comp_vec, |comp_vec| &mut comp_vec[..]);
+
+            let mut out = Vec::new();
+
+            while comp_vec.len() > 0 {
+                let (first, rest) = RefMut::map_split(comp_vec, |comp_vec| comp_vec.split_first_mut().unwrap());
+                comp_vec = rest;
+
+                out.push(first);
+            }
+
+            out
+        } else {
+            Vec::new()
+        }
     }
 
     pub fn entities_ids(&self) -> Vec<ID> {
@@ -163,6 +248,7 @@ impl<T: Component> AnyPool for Pool<T> {
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use super::*;
@@ -463,3 +549,4 @@ mod test {
         assert_eq!(p.components.len(), 0);
     }
 }
+*/
