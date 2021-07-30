@@ -14,7 +14,7 @@ trait Query<'a> {
 trait QueryMut<'a> {
     type Out;
 
-    fn query_mut(w: &'a World) -> Self::Out;
+    fn query_mut(w: &'a mut World) -> Self::Out;
 }
 
 impl<'a, T: Component, U: Component> Query<'a> for (T, U) {
@@ -65,7 +65,10 @@ impl<'a, T: Component, U: Component> Query<'a> for (T, U) {
 impl<'a, T: Component, U: Component> QueryMut<'a> for (T, U) {
     type Out = View2Mut<'a, T, U>;
 
-    fn query_mut(w: &'a World) -> Self::Out {
+    fn query_mut(w: &'a mut World) -> Self::Out {
+        // Coerce to an immutable reference because we don't really need mutability. It's just to expose a safer API
+        let w = &*w;
+
         macro_rules! pool_or_return {
             ($w:expr, $t:ty) => {
                 match $w.pool::<$t>() {
@@ -201,11 +204,9 @@ mod test {
         w.attach::<i32>(e3, 30);
         w.attach::<&'static str>(e3, "C");
 
-        {
-            let vec = <(i32, &'static str)>::query_mut(&w).collect::<Vec<_>>();
-            for (_, (mut n, _)) in vec {
-                *n += 1;
-            }
+        let vec = <(i32, &'static str)>::query_mut(&mut w).collect::<Vec<_>>();
+        for (_, (mut n, _)) in vec {
+            *n += 1;
         }
 
         let vec = <(i32, &'static str)>::query(&w).collect::<Vec<_>>();
