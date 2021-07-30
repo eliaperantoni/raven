@@ -1,8 +1,8 @@
-use crate::{ID, Component, Entity};
 use crate::world::World;
+use crate::{Component, Entity, ID};
 
-use std::marker::PhantomData;
 use std::cmp::min;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
 trait Query<'a> {
@@ -51,13 +51,15 @@ impl<'a, T: Component, U: Component> View2<'a, T, U> {
             ($w:expr, $t:ty) => {
                 match $w.pool::<$t>() {
                     Some(pool) => pool,
-                    None => return View2 {
-                        w: $w,
-                        entities_ids: Vec::new(),
-                        _marker: PhantomData,
-                    },
+                    None => {
+                        return View2 {
+                            w: $w,
+                            entities_ids: Vec::new(),
+                            _marker: PhantomData,
+                        }
+                    }
                 }
-            }
+            };
         }
 
         let pool_t = pool_or_return! {w, T};
@@ -92,13 +94,15 @@ impl<'a, T: Component, U: Component> View2Mut<'a, T, U> {
             ($w:expr, $t:ty) => {
                 match $w.pool::<$t>() {
                     Some(pool) => pool,
-                    None => return View2Mut {
-                        w: $w,
-                        entities_ids: Vec::new(),
-                        _marker: PhantomData,
-                    },
+                    None => {
+                        return View2Mut {
+                            w: $w,
+                            entities_ids: Vec::new(),
+                            _marker: PhantomData,
+                        }
+                    }
                 }
-            }
+            };
         }
 
         let pool_t = pool_or_return! {w, T};
@@ -128,7 +132,7 @@ impl<'a, T: Component, U: Component> View2Mut<'a, T, U> {
 }
 
 impl<'a, T: Component, U: Component> Iterator for View2<'a, T, U> {
-    type Item = (Entity, (impl Deref<Target=T>, impl Deref<Target=U>));
+    type Item = (Entity, (impl Deref<Target = T>, impl Deref<Target = U>));
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -138,8 +142,16 @@ impl<'a, T: Component, U: Component> Iterator for View2<'a, T, U> {
             let pool_t = self.w.pool::<T>().unwrap();
             let pool_u = self.w.pool::<U>().unwrap();
 
-            let t = if let Some(t) = pool_t.get(entity_id) { t } else { continue; };
-            let u = if let Some(u) = pool_u.get(entity_id) { u } else { continue; };
+            let t = if let Some(t) = pool_t.get(entity_id) {
+                t
+            } else {
+                continue;
+            };
+            let u = if let Some(u) = pool_u.get(entity_id) {
+                u
+            } else {
+                continue;
+            };
 
             let entity = self.w.entity_from_id(entity_id).unwrap();
 
@@ -149,7 +161,10 @@ impl<'a, T: Component, U: Component> Iterator for View2<'a, T, U> {
 }
 
 impl<'a, T: Component, U: Component> Iterator for View2Mut<'a, T, U> {
-    type Item = (Entity, (impl DerefMut<Target=T>, impl DerefMut<Target=U>));
+    type Item = (
+        Entity,
+        (impl DerefMut<Target = T>, impl DerefMut<Target = U>),
+    );
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -159,8 +174,16 @@ impl<'a, T: Component, U: Component> Iterator for View2Mut<'a, T, U> {
             let pool_t = self.w.pool::<T>().unwrap();
             let pool_u = self.w.pool::<U>().unwrap();
 
-            let t = if let Some(t) = pool_t.get_mut(entity_id) { t } else { continue; };
-            let u = if let Some(u) = pool_u.get_mut(entity_id) { u } else { continue; };
+            let t = if let Some(t) = pool_t.get_mut(entity_id) {
+                t
+            } else {
+                continue;
+            };
+            let u = if let Some(u) = pool_u.get_mut(entity_id) {
+                u
+            } else {
+                continue;
+            };
 
             let entity = self.w.entity_from_id(entity_id).unwrap();
 
@@ -175,7 +198,7 @@ mod test {
 
     #[test]
     fn query() {
-        let mut w = World::new();
+        let mut w = World::default();
 
         let e1 = w.create();
         w.attach::<i32>(e1, 10);
@@ -200,14 +223,10 @@ mod test {
         let vec = <(i32, &'static str)>::query(&w).collect::<Vec<_>>();
 
         assert_eq!(
-            vec
-                .iter()
+            vec.iter()
                 .map(|(entity, (n, s))| (*entity, (n.deref(), s.deref())))
                 .collect::<Vec<_>>(),
-            vec![
-                (e1, (&11, &"A")),
-                (e3, (&31, &"C")),
-            ]
+            vec![(e1, (&11, &"A")), (e3, (&31, &"C")),]
         );
     }
 }

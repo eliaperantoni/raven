@@ -1,7 +1,7 @@
-use crate::{ID, Component};
+use crate::{Component, ID};
 
-use std::cell::{RefCell, Ref, RefMut};
 use std::any::Any;
+use std::cell::{Ref, RefCell, RefMut};
 
 const PAGE_SIZE: usize = 100;
 
@@ -103,7 +103,8 @@ impl<T: Component> Pool<T> {
             let idx_to_page_of_last = Self::idx_to_page(entity_id_of_last);
             let idx_into_page_of_last = Self::idx_into_page(entity_id_of_last);
 
-            self.sparse[idx_to_page_of_last].as_mut().unwrap()[idx_into_page_of_last] = Some(packed_idx);
+            self.sparse[idx_to_page_of_last].as_mut().unwrap()[idx_into_page_of_last] =
+                Some(packed_idx);
         }
 
         // Swap the last element with the packed index in both packed arrays
@@ -261,12 +262,15 @@ mod test {
         p.attach(0, "A");
         p.attach(1, "B");
 
-        assert_eq!(p.sparse, vec![Some(Box::new({
-            let mut arr = [None; PAGE_SIZE];
-            arr[0] = Some(0); // Point to first element in packed arrays
-            arr[1] = Some(1); // Point to second element in packed arrays
-            arr
-        }))]);
+        assert_eq!(
+            p.sparse,
+            vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[0] = Some(0); // Point to first element in packed arrays
+                arr[1] = Some(1); // Point to second element in packed arrays
+                arr
+            }))]
+        );
 
         assert_eq!(p.packed, vec![0, 1]);
         assert_eq!(p.components, vec![RefCell::new("A"), RefCell::new("B")]);
@@ -282,12 +286,15 @@ mod test {
         p.attach(0, "A");
         p.attach(2, "B");
 
-        assert_eq!(p.sparse, vec![Some(Box::new({
-            let mut arr = [None; PAGE_SIZE];
-            arr[0] = Some(0); // Point to first element in packed arrays
-            arr[2] = Some(1); // Point to second element in packed arrays
-            arr
-        }))]);
+        assert_eq!(
+            p.sparse,
+            vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[0] = Some(0); // Point to first element in packed arrays
+                arr[2] = Some(1); // Point to second element in packed arrays
+                arr
+            }))]
+        );
 
         assert_eq!(p.packed, vec![0, 2]);
         assert_eq!(p.components, vec![RefCell::new("A"), RefCell::new("B")]);
@@ -305,11 +312,14 @@ mod test {
 
         p.detach(0);
 
-        assert_eq!(p.sparse, vec![Some(Box::new({
-            let mut arr = [None; PAGE_SIZE];
-            arr[1] = Some(0); // Point to first element in packed arrays
-            arr
-        }))]);
+        assert_eq!(
+            p.sparse,
+            vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[1] = Some(0); // Point to first element in packed arrays
+                arr
+            }))]
+        );
 
         assert_eq!(p.packed, vec![1]);
         assert_eq!(p.components, vec![RefCell::new("B")]);
@@ -327,11 +337,14 @@ mod test {
 
         p.detach(1);
 
-        assert_eq!(p.sparse, vec![Some(Box::new({
-            let mut arr = [None; PAGE_SIZE];
-            arr[0] = Some(0); // Point to first element in packed arrays
-            arr
-        }))]);
+        assert_eq!(
+            p.sparse,
+            vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[0] = Some(0); // Point to first element in packed arrays
+                arr
+            }))]
+        );
 
         assert_eq!(p.packed, vec![0]);
         assert_eq!(p.components, vec![RefCell::new("A")]);
@@ -349,11 +362,14 @@ mod test {
 
         p.detach(0);
 
-        assert_eq!(p.sparse, vec![Some(Box::new({
-            let mut arr = [None; PAGE_SIZE];
-            arr[2] = Some(0); // Point to first element in packed arrays
-            arr
-        }))]);
+        assert_eq!(
+            p.sparse,
+            vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[2] = Some(0); // Point to first element in packed arrays
+                arr
+            }))]
+        );
 
         assert_eq!(p.packed, vec![2]);
         assert_eq!(p.components, vec![RefCell::new("B")]);
@@ -372,11 +388,14 @@ mod test {
 
         p.detach(2);
 
-        assert_eq!(p.sparse, vec![Some(Box::new({
-            let mut arr = [None; PAGE_SIZE];
-            arr[0] = Some(0); // Point to first element in packed arrays
-            arr
-        }))]);
+        assert_eq!(
+            p.sparse,
+            vec![Some(Box::new({
+                let mut arr = [None; PAGE_SIZE];
+                arr[0] = Some(0); // Point to first element in packed arrays
+                arr
+            }))]
+        );
 
         assert_eq!(p.packed, vec![0]);
         assert_eq!(p.components, vec![RefCell::new("A")]);
@@ -389,9 +408,9 @@ mod test {
     #[test]
     fn rand_io() {
         use rand;
-        use rand::Rng;
         use rand::distributions::{Distribution, Uniform};
         use rand::seq::SliceRandom;
+        use rand::Rng;
 
         const N_TARGET_ENTITIES_PER_PAGE: usize = PAGE_SIZE / 10;
         const N_TARGET_PAGES: usize = 10;

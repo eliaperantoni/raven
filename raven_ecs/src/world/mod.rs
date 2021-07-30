@@ -1,5 +1,5 @@
-use crate::{ID, Version, Entity, Component};
-use crate::pool::{Pool, AnyPool};
+use crate::pool::{AnyPool, Pool};
+use crate::{Component, Entity, Version, ID};
 
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -14,15 +14,17 @@ pub struct World {
     pools: HashMap<TypeId, Box<dyn AnyPool>>,
 }
 
-impl World {
-    pub fn new() -> World {
+impl Default for World {
+    fn default() -> Self {
         World {
             entities: Vec::new(),
             destroyed_head: None,
             pools: HashMap::new(),
         }
     }
+}
 
+impl World {
     pub fn create(&mut self) -> Entity {
         if let Some(destroyed_next) = self.destroyed_head {
             // Move destroyed_head to the next destroyed entity (or None)
@@ -97,9 +99,7 @@ impl World {
         let t_id = TypeId::of::<T>();
 
         // Does a pool for this component T exist already? If not, create an empty one
-        if !self.pools.contains_key(&t_id) {
-            self.pools.insert(t_id, Box::new(Pool::<T>::new()));
-        }
+        self.pools.entry(t_id).or_insert_with(|| Box::new(Pool::<T>::new()));
 
         let pool = self.pool_mut::<T>().unwrap();
         pool.attach(entity.id, component);
@@ -114,22 +114,25 @@ impl World {
         pool.detach(entity.id)
     }
 
-    pub fn get<T: Component>(&self, entity: Entity) -> Option<impl Deref<Target=T> + '_> {
+    pub fn get<T: Component>(&self, entity: Entity) -> Option<impl Deref<Target = T> + '_> {
         if !self.entity_exists(entity) {
             return None;
         }
 
         let p = self.pool::<T>()?;
-        Some(p.get(entity.id)?)
+        p.get(entity.id)
     }
 
-    pub fn get_mut<T: Component>(&mut self, entity: Entity) -> Option<impl DerefMut<Target=T> + '_> {
+    pub fn get_mut<T: Component>(
+        &mut self,
+        entity: Entity,
+    ) -> Option<impl DerefMut<Target = T> + '_> {
         if !self.entity_exists(entity) {
             return None;
         }
 
         let p = self.pool::<T>()?;
-        Some(p.get_mut(entity.id)?)
+        p.get_mut(entity.id)
     }
 
     fn entity_from_id(&self, entity_id: ID) -> Option<Entity> {
@@ -147,7 +150,7 @@ mod test {
 
     #[test]
     fn create_entity() {
-        let mut w = World::new();
+        let mut w = World::default();
 
         assert_eq!(w.create(), Entity { id: 0, version: 0 });
         assert_eq!(w.create(), Entity { id: 1, version: 0 });
@@ -155,7 +158,7 @@ mod test {
 
     #[test]
     fn recycle() {
-        let mut w = World::new();
+        let mut w = World::default();
 
         let e = w.create();
         w.destroy(e);
@@ -164,7 +167,7 @@ mod test {
 
     #[test]
     fn attach() {
-        let mut w = World::new();
+        let mut w = World::default();
 
         let e = w.create();
         w.attach(e, "A");
@@ -174,7 +177,7 @@ mod test {
 
     #[test]
     fn different_components() {
-        let mut w = World::new();
+        let mut w = World::default();
 
         let e = w.create();
         w.attach::<&'static str>(e, "A");
@@ -186,7 +189,7 @@ mod test {
 
     #[test]
     fn detach() {
-        let mut w = World::new();
+        let mut w = World::default();
 
         let e = w.create();
         w.attach(e, "A");
@@ -197,7 +200,7 @@ mod test {
 
     #[test]
     fn destroy_clears_components() {
-        let mut w = World::new();
+        let mut w = World::default();
 
         let e = w.create();
         w.attach(e, "A");
@@ -208,7 +211,7 @@ mod test {
 
     #[test]
     fn recycled_is_fresh() {
-        let mut w = World::new();
+        let mut w = World::default();
 
         let e1 = w.create();
         w.attach(e1, "A");
@@ -221,7 +224,7 @@ mod test {
 
     #[test]
     fn longer_destroyed_list() {
-        let mut w = World::new();
+        let mut w = World::default();
 
         let entities: Vec<_> = (0..10).map(|_| w.create()).collect();
 
