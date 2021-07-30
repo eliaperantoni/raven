@@ -21,32 +21,6 @@ impl<'a, T: Component, U: Component> Query<'a> for (T, U) {
     type Out = View2<'a, T, U>;
 
     fn query(w: &'a World) -> Self::Out {
-        View2::new(w)
-    }
-}
-
-impl<'a, T: Component, U: Component> QueryMut<'a> for (T, U) {
-    type Out = View2Mut<'a, T, U>;
-
-    fn query_mut(w: &'a World) -> Self::Out {
-        View2Mut::new(w)
-    }
-}
-
-struct View2<'a, T: Component, U: Component> {
-    w: &'a World,
-    entities_ids: Vec<ID>,
-    _marker: PhantomData<(&'a T, &'a U)>,
-}
-
-struct View2Mut<'a, T: Component, U: Component> {
-    w: &'a World,
-    entities_ids: Vec<ID>,
-    _marker: PhantomData<(&'a mut T, &'a mut U)>,
-}
-
-impl<'a, T: Component, U: Component> View2<'a, T, U> {
-    fn new(w: &'a World) -> View2<'a, T, U> {
         macro_rules! pool_or_return {
             ($w:expr, $t:ty) => {
                 match $w.pool::<$t>() {
@@ -88,8 +62,10 @@ impl<'a, T: Component, U: Component> View2<'a, T, U> {
     }
 }
 
-impl<'a, T: Component, U: Component> View2Mut<'a, T, U> {
-    fn new(w: &'a World) -> View2Mut<'a, T, U> {
+impl<'a, T: Component, U: Component> QueryMut<'a> for (T, U) {
+    type Out = View2Mut<'a, T, U>;
+
+    fn query_mut(w: &'a World) -> Self::Out {
         macro_rules! pool_or_return {
             ($w:expr, $t:ty) => {
                 match $w.pool::<$t>() {
@@ -131,8 +107,20 @@ impl<'a, T: Component, U: Component> View2Mut<'a, T, U> {
     }
 }
 
+struct View2<'a, T: Component, U: Component> {
+    w: &'a World,
+    entities_ids: Vec<ID>,
+    _marker: PhantomData<(&'a T, &'a U)>,
+}
+
+struct View2Mut<'a, T: Component, U: Component> {
+    w: &'a World,
+    entities_ids: Vec<ID>,
+    _marker: PhantomData<(&'a mut T, &'a mut U)>,
+}
+
 impl<'a, T: Component, U: Component> Iterator for View2<'a, T, U> {
-    type Item = (Entity, (impl Deref<Target = T>, impl Deref<Target = U>));
+    type Item = (Entity, (impl Deref<Target=T>, impl Deref<Target=U>));
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -163,7 +151,7 @@ impl<'a, T: Component, U: Component> Iterator for View2<'a, T, U> {
 impl<'a, T: Component, U: Component> Iterator for View2Mut<'a, T, U> {
     type Item = (
         Entity,
-        (impl DerefMut<Target = T>, impl DerefMut<Target = U>),
+        (impl DerefMut<Target=T>, impl DerefMut<Target=U>),
     );
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -226,7 +214,7 @@ mod test {
             vec.iter()
                 .map(|(entity, (n, s))| (*entity, (n.deref(), s.deref())))
                 .collect::<Vec<_>>(),
-            vec![(e1, (&11, &"A")), (e3, (&31, &"C")),]
+            vec![(e1, (&11, &"A")), (e3, (&31, &"C")), ]
         );
     }
 }
