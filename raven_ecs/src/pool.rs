@@ -248,7 +248,7 @@ impl<T: Component> AnyPool for Pool<T> {
     }
 }
 
-/*
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -258,7 +258,7 @@ mod test {
         let mut p: Pool<&'static str> = Pool::new();
 
         p.attach(0, "A");
-        assert_eq!(p.get(0).as_deref(), Some(&"A"));
+        assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
     }
 
     #[test]
@@ -266,8 +266,8 @@ mod test {
         let mut p: Pool<&'static str> = Pool::new();
 
         p.attach(0, "A");
-        *p.get_mut(0).unwrap() = "B";
-        assert_eq!(p.get(0).as_deref(), Some(&"B"));
+        *p.get_one_mut(0).unwrap() = "B";
+        assert_eq!(p.get_one(0).as_deref(), Some(&"B"));
     }
 
     #[test]
@@ -359,10 +359,10 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![0, 1]);
-        assert_eq!(p.components, vec![RefCell::new("A"), RefCell::new("B")]);
+        assert_eq!(p.components, vec![RefCell::new(smallvec!["A"]), RefCell::new(smallvec!["B"])]);
 
-        assert_eq!(p.get(0).as_deref(), Some(&"A"));
-        assert_eq!(p.get(1).as_deref(), Some(&"B"));
+        assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
+        assert_eq!(p.get_one(1).as_deref(), Some(&"B"));
     }
 
     #[test]
@@ -383,10 +383,10 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![0, 2]);
-        assert_eq!(p.components, vec![RefCell::new("A"), RefCell::new("B")]);
+        assert_eq!(p.components, vec![RefCell::new(smallvec!["A"]), RefCell::new(smallvec!["B"])]);
 
-        assert_eq!(p.get(0).as_deref(), Some(&"A"));
-        assert_eq!(p.get(2).as_deref(), Some(&"B"));
+        assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
+        assert_eq!(p.get_one(2).as_deref(), Some(&"B"));
     }
 
     #[test]
@@ -408,10 +408,10 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![1]);
-        assert_eq!(p.components, vec![RefCell::new("B")]);
+        assert_eq!(p.components, vec![RefCell::new(smallvec!["B"])]);
 
-        assert_eq!(p.get(0).as_deref(), None);
-        assert_eq!(p.get(1).as_deref(), Some(&"B"));
+        assert_eq!(p.get_one(0).as_deref(), None);
+        assert_eq!(p.get_one(1).as_deref(), Some(&"B"));
     }
 
     #[test]
@@ -433,10 +433,10 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![0]);
-        assert_eq!(p.components, vec![RefCell::new("A")]);
+        assert_eq!(p.components, vec![RefCell::new(smallvec!["A"])]);
 
-        assert_eq!(p.get(0).as_deref(), Some(&"A"));
-        assert_eq!(p.get(1).as_deref(), None);
+        assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
+        assert_eq!(p.get_one(1).as_deref(), None);
     }
 
     #[test]
@@ -458,11 +458,11 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![2]);
-        assert_eq!(p.components, vec![RefCell::new("B")]);
+        assert_eq!(p.components, vec![RefCell::new(smallvec!["B"])]);
 
-        assert_eq!(p.get(0).as_deref(), None);
-        assert_eq!(p.get(1).as_deref(), None);
-        assert_eq!(p.get(2).as_deref(), Some(&"B"));
+        assert_eq!(p.get_one(0).as_deref(), None);
+        assert_eq!(p.get_one(1).as_deref(), None);
+        assert_eq!(p.get_one(2).as_deref(), Some(&"B"));
     }
 
     #[test]
@@ -484,11 +484,11 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![0]);
-        assert_eq!(p.components, vec![RefCell::new("A")]);
+        assert_eq!(p.components, vec![RefCell::new(smallvec!["A"])]);
 
-        assert_eq!(p.get(0).as_deref(), Some(&"A"));
-        assert_eq!(p.get(1).as_deref(), None);
-        assert_eq!(p.get(2).as_deref(), None);
+        assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
+        assert_eq!(p.get_one(1).as_deref(), None);
+        assert_eq!(p.get_one(2).as_deref(), None);
     }
 
     #[test]
@@ -529,9 +529,9 @@ mod test {
         loop {
             for (entity_id, component, alive) in entities.iter().copied() {
                 if alive {
-                    assert_eq!(p.get(entity_id).as_deref(), Some(&component));
+                    assert_eq!(p.get_one(entity_id).as_deref(), Some(&component));
                 } else {
-                    assert_eq!(p.get(entity_id).as_deref(), None);
+                    assert_eq!(p.get_one(entity_id).as_deref(), None);
                 }
             }
 
@@ -549,4 +549,3 @@ mod test {
         assert_eq!(p.components.len(), 0);
     }
 }
-*/
