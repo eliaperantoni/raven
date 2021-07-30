@@ -70,7 +70,7 @@ macro_rules! component_or_continue {
         } else {
             continue;
         }
-    }
+    };
 }
 
 macro_rules! next {
@@ -153,12 +153,12 @@ macro_rules! query_facilities {
     }}
 }
 
-query_facilities!{ 1, A }
-query_facilities!{ 2, A, B }
-query_facilities!{ 3, A, B, C }
-query_facilities!{ 4, A, B, C, D }
-query_facilities!{ 5, A, B, C, D, E }
-query_facilities!{ 6, A, B, C, D, E, F }
+query_facilities! { 1, A }
+query_facilities! { 2, A, B }
+query_facilities! { 3, A, B, C }
+query_facilities! { 4, A, B, C, D }
+query_facilities! { 5, A, B, C, D, E }
+query_facilities! { 6, A, B, C, D, E, F }
 
 #[cfg(test)]
 mod test {
@@ -192,7 +192,7 @@ mod test {
             vec.iter()
                 .map(|(entity, (n, s))| (*entity, (n.deref(), s.deref())))
                 .collect::<Vec<_>>(),
-            vec![(e1, (&11, &"A")), (e3, (&31, &"C")), ]
+            vec![(e1, (&11, &"A")), (e3, (&31, &"C")),]
         );
 
         let mut iters = 0;
