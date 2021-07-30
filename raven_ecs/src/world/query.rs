@@ -5,183 +5,160 @@ use std::cmp::min;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-trait Query<'a> {
+use paste::paste;
+
+pub trait Query<'a> {
     type Out;
 
     fn query(w: &'a World) -> Self::Out;
 }
 
-trait QueryMut<'a> {
+pub trait QueryMut<'a> {
     type Out;
 
     fn query_mut(w: &'a mut World) -> Self::Out;
 }
 
-impl<'a, T: Component, U: Component> Query<'a> for (T, U) {
-    type Out = View2<'a, T, U>;
-
-    fn query(w: &'a World) -> Self::Out {
-        macro_rules! pool_or_return {
-            ($w:expr, $t:ty) => {
-                match $w.pool::<$t>() {
-                    Some(pool) => pool,
-                    None => {
-                        return View2 {
-                            w: $w,
-                            entities_ids: Vec::new(),
-                            _marker: PhantomData,
-                        }
-                    }
+macro_rules! pool_or_return {
+    ($world:expr, $view_type:ident, $pool_type:ident) => {
+        match $world.pool::<$pool_type>() {
+            Some(pool) => pool,
+            None => {
+                return $view_type {
+                    w: $world,
+                    entities_ids: Vec::new(),
+                    _marker: PhantomData,
                 }
-            };
+            }
         }
+    };
+}
 
-        let pool_t = pool_or_return! {w, T};
-        let pool_u = pool_or_return! {w, U};
+macro_rules! prepare_query {
+    ($world:expr, $view_type:ident, $( $pool_type:ident ),*) => {
+        $(
+            let paste!{[< pool_ $pool_type:snake >]} = pool_or_return! {$world, $view_type, $pool_type};
+        )*
 
         let mut min_len = usize::MAX;
 
-        min_len = min(min_len, pool_t.entities_ids().len());
-        min_len = min(min_len, pool_u.entities_ids().len());
+        $(
+            min_len = min(min_len, paste!{[< pool_ $pool_type:snake >]}.entities_ids().len());
+        )*
 
         let entities_ids = 'entities_ids: {
-            if pool_t.entities_ids().len() == min_len {
-                break 'entities_ids pool_t.entities_ids();
-            }
-            if pool_u.entities_ids().len() == min_len {
-                break 'entities_ids pool_u.entities_ids();
-            }
+            $(
+                if paste!{[< pool_ $pool_type:snake >]}.entities_ids().len() == min_len {
+                    break 'entities_ids paste!{[< pool_ $pool_type:snake >]}.entities_ids();
+                }
+            )*
             unreachable!();
         };
 
-        View2 {
-            w,
+        $view_type {
+            w: $world,
             entities_ids,
             _marker: PhantomData,
         }
     }
 }
 
-impl<'a, T: Component, U: Component> QueryMut<'a> for (T, U) {
-    type Out = View2Mut<'a, T, U>;
-
-    fn query_mut(w: &'a mut World) -> Self::Out {
-        // Coerce to an immutable reference because we don't really need mutability. It's just to expose a safer API
-        let w = &*w;
-
-        macro_rules! pool_or_return {
-            ($w:expr, $t:ty) => {
-                match $w.pool::<$t>() {
-                    Some(pool) => pool,
-                    None => {
-                        return View2Mut {
-                            w: $w,
-                            entities_ids: Vec::new(),
-                            _marker: PhantomData,
-                        }
-                    }
-                }
-            };
-        }
-
-        let pool_t = pool_or_return! {w, T};
-        let pool_u = pool_or_return! {w, U};
-
-        let mut min_len = usize::MAX;
-
-        min_len = min(min_len, pool_t.entities_ids().len());
-        min_len = min(min_len, pool_u.entities_ids().len());
-
-        let entities_ids = 'entities_ids: {
-            if pool_t.entities_ids().len() == min_len {
-                break 'entities_ids pool_t.entities_ids();
-            }
-            if pool_u.entities_ids().len() == min_len {
-                break 'entities_ids pool_u.entities_ids();
-            }
-            unreachable!();
-        };
-
-        View2Mut {
-            w,
-            entities_ids,
-            _marker: PhantomData,
+macro_rules! component_or_continue {
+    ($c:expr) => {
+        if let Some(c) = $c {
+            c
+        } else {
+            continue;
         }
     }
 }
 
-struct View2<'a, T: Component, U: Component> {
-    w: &'a World,
-    entities_ids: Vec<ID>,
-    _marker: PhantomData<(&'a T, &'a U)>,
-}
-
-struct View2Mut<'a, T: Component, U: Component> {
-    w: &'a World,
-    entities_ids: Vec<ID>,
-    _marker: PhantomData<(&'a mut T, &'a mut U)>,
-}
-
-impl<'a, T: Component, U: Component> Iterator for View2<'a, T, U> {
-    type Item = (Entity, (impl Deref<Target=T>, impl Deref<Target=U>));
-
-    fn next(&mut self) -> Option<Self::Item> {
+macro_rules! next {
+    ($self:expr, $get:tt, $( $pool_type:ident ),* ) => {
         loop {
-            let entity_id: ID = *self.entities_ids.first()?;
-            self.entities_ids.remove(0);
+            let entity_id: ID = *$self.entities_ids.first()?;
+            $self.entities_ids.remove(0);
 
-            let pool_t = self.w.pool::<T>().unwrap();
-            let pool_u = self.w.pool::<U>().unwrap();
+            $(
+                let paste!{[< pool_ $pool_type:snake >]} = $self.w.pool::<$pool_type>().unwrap();
+            )*
 
-            let t = if let Some(t) = pool_t.get(entity_id) {
-                t
-            } else {
-                continue;
-            };
-            let u = if let Some(u) = pool_u.get(entity_id) {
-                u
-            } else {
-                continue;
-            };
+            $(
+                let paste!{[< $pool_type:lower >]} = component_or_continue!(paste!{[< pool_ $pool_type:snake >]}.$get(entity_id));
+            )*
 
-            let entity = self.w.entity_from_id(entity_id).unwrap();
+            let entity = $self.w.entity_from_id(entity_id).unwrap();
 
-            break Some((entity, (t, u)));
+            break Some((entity, (
+                $(
+                    paste!{[< $pool_type:lower >]},
+                )*
+            )));
         }
     }
 }
 
-impl<'a, T: Component, U: Component> Iterator for View2Mut<'a, T, U> {
-    type Item = (
-        Entity,
-        (impl DerefMut<Target=T>, impl DerefMut<Target=U>),
-    );
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let entity_id: ID = *self.entities_ids.first()?;
-            self.entities_ids.remove(0);
-
-            let pool_t = self.w.pool::<T>().unwrap();
-            let pool_u = self.w.pool::<U>().unwrap();
-
-            let t = if let Some(t) = pool_t.get_mut(entity_id) {
-                t
-            } else {
-                continue;
-            };
-            let u = if let Some(u) = pool_u.get_mut(entity_id) {
-                u
-            } else {
-                continue;
-            };
-
-            let entity = self.w.entity_from_id(entity_id).unwrap();
-
-            break Some((entity, (t, u)));
+macro_rules! query_facilities {
+    ( $n:tt, $( $t:ident ),* ) => {paste!{
+         pub struct [< View $n >]<'a, $( $t: Component, )* > {
+            w: &'a World,
+            entities_ids: Vec<ID>,
+            _marker: PhantomData<( $( &'a $t, )* )>,
         }
-    }
+
+        pub struct [< View $n Mut >]<'a, $( $t: Component, )* > {
+            w: &'a World,
+            entities_ids: Vec<ID>,
+            _marker: PhantomData<( $( &'a mut $t, )* )>,
+        }
+
+        impl<'a, $( $t: Component, )* > Query<'a> for ( $( $t, )* ) {
+            type Out = [< View $n >]<'a, $( $t, )* >;
+
+            fn query(w: &'a World) -> Self::Out {
+                prepare_query!{w, [< View $n >], $( $t ),* }
+            }
+        }
+
+        impl<'a, $( $t: Component, )* > QueryMut<'a> for ( $( $t, )* ) {
+            type Out = [< View $n Mut >]<'a, $( $t, )* >;
+
+            fn query_mut(w: &'a mut World) -> Self::Out {
+                let w = &*w;
+                prepare_query!{w, [< View $n Mut >], $( $t ),* }
+            }
+        }
+
+        impl<'a, $( $t: Component, )* > Iterator for [< View $n >]<'a, $( $t, )* > {
+            type Item = (
+                Entity,
+                ( $( impl Deref<Target=$t>, )* ),
+            );
+
+            fn next(&mut self) -> Option<Self::Item> {
+                next!(self, get, $( $t ),* )
+            }
+        }
+
+        impl<'a, $( $t: Component, )* > Iterator for [< View $n Mut >]<'a, $( $t, )* > {
+            type Item = (
+                Entity,
+                ( $( impl DerefMut<Target=$t>, )* ),
+            );
+
+            fn next(&mut self) -> Option<Self::Item> {
+                next!(self, get_mut, $( $t ),* )
+            }
+        }
+    }}
 }
+
+query_facilities!{ 1, A }
+query_facilities!{ 2, A, B }
+query_facilities!{ 3, A, B, C }
+query_facilities!{ 4, A, B, C, D }
+query_facilities!{ 5, A, B, C, D, E }
+query_facilities!{ 6, A, B, C, D, E, F }
 
 #[cfg(test)]
 mod test {
@@ -204,8 +181,8 @@ mod test {
         w.attach::<i32>(e3, 30);
         w.attach::<&'static str>(e3, "C");
 
-        let vec = <(i32, &'static str)>::query_mut(&mut w).collect::<Vec<_>>();
-        for (_, (mut n, _)) in vec {
+        let vec = <(i32,)>::query_mut(&mut w).collect::<Vec<_>>();
+        for (_, (mut n,)) in vec {
             *n += 1;
         }
 
@@ -217,5 +194,18 @@ mod test {
                 .collect::<Vec<_>>(),
             vec![(e1, (&11, &"A")), (e3, (&31, &"C")), ]
         );
+
+        let mut iters = 0;
+
+        for (entity, (n, s, c)) in <(i32, &'static str, char)>::query(&w) {
+            iters += 1;
+
+            assert_eq!(entity, e1);
+            assert_eq!(*n, 11);
+            assert_eq!(*s, "A");
+            assert_eq!(*c, 'a');
+        }
+
+        assert_eq!(iters, 1);
     }
 }

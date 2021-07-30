@@ -1,7 +1,7 @@
 #![feature(try_blocks)]
 #![feature(cell_filter_map)]
 #![feature(label_break_value)]
-#![feature(min_type_alias_impl_trait)]
+#![feature(type_alias_impl_trait)]
 
 mod pool;
 
