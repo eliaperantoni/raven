@@ -99,37 +99,37 @@ macro_rules! next {
 }
 
 macro_rules! query_facilities {
-    ( $n:tt, $( $t:ident ),* ) => {paste!{
-         pub struct [< View $n >]<'a, $( $t: Component, )* > {
+    ( $view_type:ident, $view_mut_type:ident, $( $t:ident ),* ) => {
+         pub struct $view_type<'a, $( $t: Component, )* > {
             w: &'a World,
             entities_ids: Vec<ID>,
             _marker: PhantomData<( $( &'a $t, )* )>,
         }
 
-        pub struct [< View $n Mut >]<'a, $( $t: Component, )* > {
+        pub struct $view_mut_type<'a, $( $t: Component, )* > {
             w: &'a World,
             entities_ids: Vec<ID>,
             _marker: PhantomData<( $( &'a mut $t, )* )>,
         }
 
         impl<'a, $( $t: Component, )* > Query<'a> for ( $( $t, )* ) {
-            type Out = [< View $n >]<'a, $( $t, )* >;
+            type Out = $view_type<'a, $( $t, )* >;
 
             fn query(w: &'a World) -> Self::Out {
-                prepare_query!{w, [< View $n >], $( $t ),* }
+                prepare_query!{w, $view_type, $( $t ),* }
             }
         }
 
         impl<'a, $( $t: Component, )* > QueryMut<'a> for ( $( $t, )* ) {
-            type Out = [< View $n Mut >]<'a, $( $t, )* >;
+            type Out = $view_mut_type<'a, $( $t, )* >;
 
             fn query_mut(w: &'a mut World) -> Self::Out {
                 let w = &*w;
-                prepare_query!{w, [< View $n Mut >], $( $t ),* }
+                prepare_query!{w, $view_mut_type, $( $t ),* }
             }
         }
 
-        impl<'a, $( $t: Component, )* > Iterator for [< View $n >]<'a, $( $t, )* > {
+        impl<'a, $( $t: Component, )* > Iterator for $view_type<'a, $( $t, )* > {
             type Item = (
                 Entity,
                 ( $( impl Deref<Target=$t>, )* ),
@@ -140,7 +140,7 @@ macro_rules! query_facilities {
             }
         }
 
-        impl<'a, $( $t: Component, )* > Iterator for [< View $n Mut >]<'a, $( $t, )* > {
+        impl<'a, $( $t: Component, )* > Iterator for $view_mut_type<'a, $( $t, )* > {
             type Item = (
                 Entity,
                 ( $( impl DerefMut<Target=$t>, )* ),
@@ -150,15 +150,15 @@ macro_rules! query_facilities {
                 next!(self, get_mut, $( $t ),* )
             }
         }
-    }}
+    }
 }
 
-query_facilities! { 1, A }
-query_facilities! { 2, A, B }
-query_facilities! { 3, A, B, C }
-query_facilities! { 4, A, B, C, D }
-query_facilities! { 5, A, B, C, D, E }
-query_facilities! { 6, A, B, C, D, E, F }
+query_facilities! { View1, View1Mut, A }
+query_facilities! { View2, View2Mut, A, B }
+query_facilities! { View3, View3Mut, A, B, C }
+query_facilities! { View4, View4Mut, A, B, C, D }
+query_facilities! { View5, View5Mut, A, B, C, D, E }
+query_facilities! { View6, View6Mut, A, B, C, D, E, F }
 
 #[cfg(test)]
 mod test {
