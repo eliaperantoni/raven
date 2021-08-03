@@ -40,7 +40,7 @@ impl<T: Component> Pool<T> {
     pub fn attach(&mut self, entity_id: ID, component: T) {
         // If this entity already has a component, then nothing should change regarding the sparse and packed arrays
         // and we can simply do an easy push
-        if let Some(mut comp_vec) = self.get_comp_vec_mut(entity_id) {
+        if let Some(comp_vec) = self.get_comp_vec_mut(entity_id) {
             comp_vec.push(RefCell::new(component));
             return;
         }
@@ -66,7 +66,7 @@ impl<T: Component> Pool<T> {
 
     pub fn detach(&mut self, entity_id: ID) -> Option<T> {
         // Bail out early if this entity doesn't have any component
-        let mut comp_vec = self.get_comp_vec_mut(entity_id)?;
+        let comp_vec = self.get_comp_vec_mut(entity_id)?;
 
         if comp_vec.len() > 1 {
             // If this entity will be left with at least one component, then nothing will change regarding the sparse and
