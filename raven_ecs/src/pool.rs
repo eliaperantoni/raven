@@ -333,7 +333,12 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![0, 1]);
-        assert_eq!(p.components, vec![RefCell::new(smallvec!["A"]), RefCell::new(smallvec!["B"])]);
+
+        let want_components: Vec<CompVec<_>> = vec![
+            smallvec![RefCell::new("A")],
+            smallvec![RefCell::new("B")],
+        ];
+        assert_eq!(p.components, want_components);
 
         assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
         assert_eq!(p.get_one(1).as_deref(), Some(&"B"));
@@ -357,7 +362,12 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![0, 2]);
-        assert_eq!(p.components, vec![RefCell::new(smallvec!["A"]), RefCell::new(smallvec!["B"])]);
+
+        let want_components: Vec<CompVec<_>> = vec![
+            smallvec![RefCell::new("A")],
+            smallvec![RefCell::new("B")],
+        ];
+        assert_eq!(p.components, want_components);
 
         assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
         assert_eq!(p.get_one(2).as_deref(), Some(&"B"));
@@ -382,7 +392,11 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![1]);
-        assert_eq!(p.components, vec![RefCell::new(smallvec!["B"])]);
+
+        let want_components: Vec<CompVec<_>> = vec![
+            smallvec![RefCell::new("B")],
+        ];
+        assert_eq!(p.components, want_components);
 
         assert_eq!(p.get_one(0).as_deref(), None);
         assert_eq!(p.get_one(1).as_deref(), Some(&"B"));
@@ -407,7 +421,11 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![0]);
-        assert_eq!(p.components, vec![RefCell::new(smallvec!["A"])]);
+
+        let want_components: Vec<CompVec<_>> = vec![
+            smallvec![RefCell::new("A")],
+        ];
+        assert_eq!(p.components, want_components);
 
         assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
         assert_eq!(p.get_one(1).as_deref(), None);
@@ -432,7 +450,11 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![2]);
-        assert_eq!(p.components, vec![RefCell::new(smallvec!["B"])]);
+
+        let want_components: Vec<CompVec<_>> = vec![
+            smallvec![RefCell::new("B")],
+        ];
+        assert_eq!(p.components, want_components);
 
         assert_eq!(p.get_one(0).as_deref(), None);
         assert_eq!(p.get_one(1).as_deref(), None);
@@ -458,7 +480,11 @@ mod test {
         );
 
         assert_eq!(p.packed, vec![0]);
-        assert_eq!(p.components, vec![RefCell::new(smallvec!["A"])]);
+
+        let want_components: Vec<CompVec<_>> = vec![
+            smallvec![RefCell::new("A")],
+        ];
+        assert_eq!(p.components, want_components);
 
         assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
         assert_eq!(p.get_one(1).as_deref(), None);
