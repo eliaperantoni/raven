@@ -10,12 +10,12 @@ const PAGE_SIZE: usize = 100;
 /// A `Page` is either null or a pointer to an array of optional indices
 type Page = Option<Box<[Option<usize>; PAGE_SIZE]>>;
 
-type CompVec<T> = SmallVec<[T; 1]>;
+type CompVec<T> = SmallVec<[RefCell<T>; 1]>;
 
 pub struct Pool<T: Component> {
     sparse: Vec<Page>,
     packed: Vec<ID>,
-    components: Vec<RefCell<CompVec<T>>>,
+    components: Vec<CompVec<T>>,
 }
 
 impl<T: Component> Pool<T> {
@@ -41,7 +41,7 @@ impl<T: Component> Pool<T> {
         // If this entity already has a component, then nothing should change regarding the sparse and packed arrays
         // and we can simply do an easy push
         if let Some(mut comp_vec) = self.get_comp_vec_mut(entity_id) {
-            comp_vec.push(component);
+            comp_vec.push(RefCell::new(component));
             return;
         }
 
@@ -61,7 +61,7 @@ impl<T: Component> Pool<T> {
         page[idx_into_page] = Some(self.packed.len());
 
         self.packed.push(entity_id);
-        self.components.push(RefCell::new(smallvec![component]));
+        self.components.push(smallvec![RefCell::new(component)]);
     }
 
     pub fn detach(&mut self, entity_id: ID) -> Option<T> {
@@ -71,11 +71,8 @@ impl<T: Component> Pool<T> {
         if comp_vec.len() > 1 {
             // If this entity will be left with at least one component, then nothing will change regarding the sparse and
             // packed arrays. So we can just do a simple remove
-            Some(comp_vec.remove(0))
+            Some(comp_vec.remove(0).into_inner())
         } else {
-            // Drop this otherwise we can't borrow again
-            drop(comp_vec);
-
             // Otherwise, this is the last component
             Some(self.detach_all(entity_id).remove(0))
         }
@@ -148,10 +145,10 @@ impl<T: Component> Pool<T> {
 
         // Resize both packed arrays
         self.packed.pop();
-        self.components.pop().unwrap().into_inner().into_vec()
+        self.components.pop().unwrap().into_vec().into_iter().map(|cell| cell.into_inner()).collect()
     }
 
-    fn get_comp_vec(&self, entity_id: ID) -> Option<Ref<CompVec<T>>> {
+    fn get_comp_vec(&self, entity_id: ID) -> Option<&CompVec<T>> {
         let idx_to_page = Self::idx_to_page(entity_id);
         let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -159,10 +156,10 @@ impl<T: Component> Pool<T> {
         // equal to the length of the page, it would've been placed in the next page.
         let packed_idx = self.sparse.get(idx_to_page)?.as_ref()?[idx_into_page]?;
 
-        Some(self.components[packed_idx].borrow())
+        Some(&self.components[packed_idx])
     }
 
-    fn get_comp_vec_mut(&self, entity_id: ID) -> Option<RefMut<CompVec<T>>> {
+    fn get_comp_vec_mut(&mut self, entity_id: ID) -> Option<&mut CompVec<T>> {
         let idx_to_page = Self::idx_to_page(entity_id);
         let idx_into_page = Self::idx_into_page(entity_id);
 
@@ -170,54 +167,32 @@ impl<T: Component> Pool<T> {
         // equal to the length of the page, it would've been placed in the next page.
         let packed_idx = self.sparse.get(idx_to_page)?.as_ref()?[idx_into_page]?;
 
-        Some(self.components[packed_idx].borrow_mut())
+        Some(&mut self.components[packed_idx])
     }
 
     pub fn get_one(&self, entity_id: ID) -> Option<Ref<T>> {
         let comp_vec = self.get_comp_vec(entity_id)?;
         // The fact that `comp_vec` is not None is proof that there is at least one component
-        Some(Ref::map(comp_vec, |comp_vec| &comp_vec[0]))
+        Some(comp_vec.first().unwrap().borrow())
     }
 
     pub fn get_one_mut(&self, entity_id: ID) -> Option<RefMut<T>> {
-        let comp_vec = self.get_comp_vec_mut(entity_id)?;
+        let comp_vec = self.get_comp_vec(entity_id)?;
         // The fact that `comp_vec` is not None is proof that there is at least one component
-        Some(RefMut::map(comp_vec, |comp_vec| &mut comp_vec[0]))
+        Some(comp_vec.first().unwrap().borrow_mut())
     }
 
     pub fn get_all(&self, entity_id: ID) -> Vec<Ref<T>> {
         if let Some(comp_vec) = self.get_comp_vec(entity_id) {
-            let mut comp_vec = Ref::map(comp_vec, |comp_vec| &comp_vec[..]);
-
-            let mut out = Vec::new();
-
-            while comp_vec.len() > 0 {
-                let (first, rest) = Ref::map_split(comp_vec, |comp_vec| comp_vec.split_first().unwrap());
-                comp_vec = rest;
-
-                out.push(first);
-            }
-
-            out
+            comp_vec.iter().map(|cell| cell.borrow()).collect()
         } else {
             Vec::new()
         }
     }
 
     pub fn get_all_mut(&self, entity_id: ID) -> Vec<RefMut<T>> {
-        if let Some(comp_vec) = self.get_comp_vec_mut(entity_id) {
-            let mut comp_vec = RefMut::map(comp_vec, |comp_vec| &mut comp_vec[..]);
-
-            let mut out = Vec::new();
-
-            while comp_vec.len() > 0 {
-                let (first, rest) = RefMut::map_split(comp_vec, |comp_vec| comp_vec.split_first_mut().unwrap());
-                comp_vec = rest;
-
-                out.push(first);
-            }
-
-            out
+        if let Some(comp_vec) = self.get_comp_vec(entity_id) {
+            comp_vec.iter().map(|cell| cell.borrow_mut()).collect()
         } else {
             Vec::new()
         }
@@ -247,7 +222,6 @@ impl<T: Component> AnyPool for Pool<T> {
         self.detach(entity_id);
     }
 }
-
 
 #[cfg(test)]
 mod test {
