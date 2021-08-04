@@ -132,6 +132,34 @@ impl World {
         p.get_one_mut(entity.id)
     }
 
+    pub fn get_all<T: Component>(&self, entity: Entity) -> Vec<impl Deref<Target = T> + '_> {
+        if !self.entity_exists(entity) {
+            return Vec::new();
+        }
+
+        let p = if let Some(p) = self.pool::<T>() {
+            p
+        } else {
+            return Vec::new();
+        };
+
+        p.get_all(entity.id)
+    }
+
+    pub fn get_all_mut<T: Component>(&mut self, entity: Entity) -> Vec<impl DerefMut<Target = T> + '_> {
+        if !self.entity_exists(entity) {
+            return Vec::new();
+        }
+
+        let p = if let Some(p) = self.pool::<T>() {
+            p
+        } else {
+            return Vec::new();
+        };
+
+        p.get_all_mut(entity.id)
+    }
+
     fn entity_from_id(&self, entity_id: ID) -> Option<Entity> {
         let &(_, version) = self.entities.get(entity_id)?;
         Some(Entity {
