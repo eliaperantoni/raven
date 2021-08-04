@@ -5,7 +5,7 @@
 
 mod pool;
 
-//pub mod world;
+pub mod world;
 
 //pub use world::query;
 

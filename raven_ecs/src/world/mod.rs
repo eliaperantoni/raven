@@ -5,7 +5,7 @@ use std::any::TypeId;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
-pub mod query;
+// pub mod query;
 
 pub struct World {
     entities: Vec<(Option<ID>, Version)>,
@@ -114,25 +114,22 @@ impl World {
         pool.detach(entity.id)
     }
 
-    pub fn get<T: Component>(&self, entity: Entity) -> Option<impl Deref<Target = T> + '_> {
+    pub fn get_one<T: Component>(&self, entity: Entity) -> Option<impl Deref<Target = T> + '_> {
         if !self.entity_exists(entity) {
             return None;
         }
 
         let p = self.pool::<T>()?;
-        p.get(entity.id)
+        p.get_one(entity.id)
     }
 
-    pub fn get_mut<T: Component>(
-        &mut self,
-        entity: Entity,
-    ) -> Option<impl DerefMut<Target = T> + '_> {
+    pub fn get_one_mut<T: Component>(&mut self, entity: Entity) -> Option<impl DerefMut<Target = T> + '_> {
         if !self.entity_exists(entity) {
             return None;
         }
 
         let p = self.pool::<T>()?;
-        p.get_mut(entity.id)
+        p.get_one_mut(entity.id)
     }
 
     fn entity_from_id(&self, entity_id: ID) -> Option<Entity> {
@@ -172,7 +169,7 @@ mod test {
         let e = w.create();
         w.attach(e, "A");
 
-        assert_eq!(w.get::<&'static str>(e).as_deref(), Some(&"A"));
+        assert_eq!(w.get_one::<&'static str>(e).as_deref(), Some(&"A"));
     }
 
     #[test]
@@ -183,8 +180,8 @@ mod test {
         w.attach::<&'static str>(e, "A");
         w.attach::<i32>(e, 10);
 
-        assert_eq!(w.get::<&'static str>(e).as_deref(), Some(&"A"));
-        assert_eq!(w.get::<i32>(e).as_deref(), Some(&10));
+        assert_eq!(w.get_one::<&'static str>(e).as_deref(), Some(&"A"));
+        assert_eq!(w.get_one::<i32>(e).as_deref(), Some(&10));
     }
 
     #[test]
@@ -195,7 +192,7 @@ mod test {
         w.attach(e, "A");
         w.detach::<&'static str>(e);
 
-        assert_eq!(w.get::<&'static str>(e).as_deref(), None);
+        assert_eq!(w.get_one::<&'static str>(e).as_deref(), None);
     }
 
     #[test]
@@ -206,7 +203,7 @@ mod test {
         w.attach(e, "A");
         w.destroy(e);
 
-        assert_eq!(w.get::<&'static str>(e).as_deref(), None);
+        assert_eq!(w.get_one::<&'static str>(e).as_deref(), None);
     }
 
     #[test]
@@ -219,7 +216,7 @@ mod test {
 
         let e2 = w.create();
 
-        assert_eq!(w.get::<&'static str>(e2).as_deref(), None);
+        assert_eq!(w.get_one::<&'static str>(e2).as_deref(), None);
     }
 
     #[test]
