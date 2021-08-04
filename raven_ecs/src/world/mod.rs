@@ -260,4 +260,51 @@ mod test {
         assert_eq!(w.create(), Entity { id: 9, version: 1 });
         assert_eq!(w.create(), Entity { id: 8, version: 1 });
     }
+
+    #[test]
+    fn mutability() {
+        let mut w = World::default();
+
+        let e = w.create();
+        w.attach(e, "A");
+
+        *w.get_one_mut::<&'static str>(e).unwrap() = "B";
+
+        assert_eq!(w.get_one::<&'static str>(e).as_deref(), Some(&"B"));
+    }
+
+    macro_rules! deref_vec {
+        ($e:expr) => {
+            $e.iter().map(|e| e.deref()).collect::<Vec<_>>()
+        }
+    }
+
+    #[test]
+    fn get_all() {
+        let mut w = World::default();
+
+        let e = w.create();
+        w.attach(e, "A");
+        w.attach(e, "B");
+        w.attach(e, "C");
+
+        assert_eq!(deref_vec!(w.get_all::<&'static str>(e)), vec![&"A", &"B", &"C"]);
+    }
+
+    #[test]
+    fn get_all_mut() {
+        let mut w = World::default();
+
+        let e = w.create();
+        w.attach(e, 1);
+        w.attach(e, 2);
+        w.attach(e, 3);
+
+        w.get_all_mut(e).iter_mut().map(|e| {
+            let e = *e;
+            *e *= 10
+        });
+
+        assert_eq!(deref_vec!(w.get_all::<&'static str>(e)), vec![&10, &20, &30]);
+    }
 }
