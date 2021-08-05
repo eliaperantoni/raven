@@ -5,7 +5,7 @@ use std::any::TypeId;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
-// pub mod query;
+pub mod query;
 
 pub struct World {
     entities: Vec<(Option<ID>, Version)>,

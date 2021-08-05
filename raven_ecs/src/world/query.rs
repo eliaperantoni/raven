@@ -136,7 +136,7 @@ macro_rules! query_facilities {
             );
 
             fn next(&mut self) -> Option<Self::Item> {
-                next!(self, get, $( $t ),* )
+                next!(self, get_one, $( $t ),* )
             }
         }
 
@@ -147,7 +147,7 @@ macro_rules! query_facilities {
             );
 
             fn next(&mut self) -> Option<Self::Item> {
-                next!(self, get_mut, $( $t ),* )
+                next!(self, get_one_mut, $( $t ),* )
             }
         }
     }
