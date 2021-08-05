@@ -1,4 +1,4 @@
-use crate::{Component, ID};
+use crate::{Component, ID, deref_vec};
 
 use std::any::Any;
 use std::cell::{Ref, RefCell, RefMut};
@@ -226,9 +226,10 @@ impl<T: Component> AnyPool for Pool<T> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::ops::Deref;
 
     #[test]
-    fn get() {
+    fn get_one() {
         let mut p: Pool<&'static str> = Pool::new();
 
         p.attach(0, "A");
@@ -236,12 +237,38 @@ mod test {
     }
 
     #[test]
-    fn get_mut() {
+    fn get_mut_mut() {
         let mut p: Pool<&'static str> = Pool::new();
 
         p.attach(0, "A");
         *p.get_one_mut(0).unwrap() = "B";
         assert_eq!(p.get_one(0).as_deref(), Some(&"B"));
+    }
+
+    #[test]
+    fn get_all() {
+        let mut p: Pool<i32> = Pool::new();
+
+        p.attach(0, 10);
+        p.attach(0, 20);
+        p.attach(0, 30);
+
+        assert_eq!(deref_vec!(p.get_all(0)), vec![&10, &20, &30]);
+    }
+
+    #[test]
+    fn get_all_mut() {
+        let mut p: Pool<i32> = Pool::new();
+
+        p.attach(0, 1);
+        p.attach(0, 2);
+        p.attach(0, 3);
+
+        for mut n in p.get_all_mut(0) {
+            *n *= 10;
+        }
+
+        assert_eq!(deref_vec!(p.get_all(0)), vec![&10, &20, &30]);
     }
 
     #[test]

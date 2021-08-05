@@ -1,5 +1,5 @@
 use crate::pool::{AnyPool, Pool};
-use crate::{Component, Entity, Version, ID};
+use crate::{Component, Entity, Version, ID, deref_vec};
 
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -273,12 +273,6 @@ mod test {
         assert_eq!(w.get_one::<&'static str>(e).as_deref(), Some(&"B"));
     }
 
-    macro_rules! deref_vec {
-        ($e:expr) => {
-            $e.iter().map(|e| e.deref()).collect::<Vec<_>>()
-        }
-    }
-
     #[test]
     fn get_all() {
         let mut w = World::default();
@@ -300,11 +294,10 @@ mod test {
         w.attach(e, 2);
         w.attach(e, 3);
 
-        w.get_all_mut(e).iter_mut().map(|e| {
-            let e = *e;
-            *e *= 10
-        });
+        for mut n in w.get_all_mut::<i32>(e) {
+            *n *= 10;
+        }
 
-        assert_eq!(deref_vec!(w.get_all::<&'static str>(e)), vec![&10, &20, &30]);
+        assert_eq!(deref_vec!(w.get_all::<i32>(e)), vec![&10, &20, &30]);
     }
 }
