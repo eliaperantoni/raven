@@ -416,4 +416,23 @@ mod test {
             assert_eq!(*s, want_s);
         }
     }
+
+    #[test]
+    #[should_panic]
+    fn elements_cannot_coexist() {
+        let mut w = World::default();
+
+        let e1 = w.create();
+        w.attach::<i32>(e1, 1);
+        w.attach::<i32>(e1, 10);
+        w.attach::<&'static str>(e1, "A");
+
+        let e2 = w.create();
+        w.attach::<i32>(e2, 2);
+        w.attach::<i32>(e2, 20);
+        w.attach::<&'static str>(e2, "B");
+        w.attach::<&'static str>(e2, "b");
+
+        <(i32, &'static str)>::query_deep_mut(&mut w).collect::<Vec<_>>();
+    }
 }
