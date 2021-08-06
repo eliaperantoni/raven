@@ -170,16 +170,29 @@ impl<T: Component> Pool<T> {
         Some(&mut self.components[packed_idx])
     }
 
+    pub fn count(&self, entity_id: ID) -> usize {
+        let opt: Option<usize> = try {
+            self.get_comp_vec(entity_id)?.len()
+        };
+        opt.unwrap_or(0)
+    }
+
     pub fn get_one(&self, entity_id: ID) -> Option<Ref<T>> {
-        let comp_vec = self.get_comp_vec(entity_id)?;
-        // The fact that `comp_vec` is not None is proof that there is at least one component
-        Some(comp_vec.first().unwrap().borrow())
+        self.get_nth(entity_id, 0)
     }
 
     pub fn get_one_mut(&self, entity_id: ID) -> Option<RefMut<T>> {
+        self.get_nth_mut(entity_id, 0)
+    }
+
+    pub fn get_nth(&self, entity_id: ID, n: usize) -> Option<Ref<T>> {
         let comp_vec = self.get_comp_vec(entity_id)?;
-        // The fact that `comp_vec` is not None is proof that there is at least one component
-        Some(comp_vec.first().unwrap().borrow_mut())
+        Some(comp_vec.get(n)?.borrow())
+    }
+
+    pub fn get_nth_mut(&self, entity_id: ID, n: usize) -> Option<RefMut<T>> {
+        let comp_vec = self.get_comp_vec(entity_id)?;
+        Some(comp_vec.get(n)?.borrow_mut())
     }
 
     pub fn get_all(&self, entity_id: ID) -> Vec<Ref<T>> {
@@ -227,6 +240,45 @@ impl<T: Component> AnyPool for Pool<T> {
 mod test {
     use super::*;
     use std::ops::Deref;
+
+    #[test]
+    fn count() {
+        let mut p: Pool<&'static str> = Pool::new();
+
+        p.attach(0, "A");
+        p.attach(0, "B");
+        p.attach(0, "C");
+        p.attach(0, "D");
+        p.attach(0, "E");
+
+        assert_eq!(p.count(0), 5);
+    }
+
+    #[test]
+    fn get_nth() {
+        let mut p: Pool<&'static str> = Pool::new();
+
+        p.attach(0, "A");
+        p.attach(0, "B");
+
+        assert_eq!(p.get_nth(0, 0).as_deref(), Some(&"A"));
+        assert_eq!(p.get_nth(0, 1).as_deref(), Some(&"B"));
+        assert_eq!(p.get_nth(0, 2).as_deref(), None);
+    }
+
+    #[test]
+    fn get_nth_mut() {
+        let mut p: Pool<&'static str> = Pool::new();
+
+        p.attach(0, "A");
+        p.attach(0, "B");
+
+        *p.get_nth_mut(0, 1).unwrap() = "Z";
+
+        assert_eq!(p.get_nth(0, 0).as_deref(), Some(&"A"));
+        assert_eq!(p.get_nth(0, 1).as_deref(), Some(&"Z"));
+        assert_eq!(p.get_nth(0, 2).as_deref(), None);
+    }
 
     #[test]
     fn get_one() {
