@@ -9,16 +9,14 @@ use paste::paste;
 
 pub trait Query<'a> {
     type Out;
+    type OutMut;
 
     fn query(w: &'a World) -> Self::Out;
+    fn query_mut(w: &'a mut World) -> Self::OutMut;
 }
 
-pub trait QueryMut<'a> {
-    type Out;
-
-    fn query_mut(w: &'a mut World) -> Self::Out;
-}
-
+/// Given a reference to a world and a type, evaluates to a reference to the pool of that type or else returns an empty
+/// view
 macro_rules! pool_or_return {
     ($world:expr, $view_type:ident, $pool_type:ident) => {
         match $world.pool::<$pool_type>() {
@@ -114,16 +112,13 @@ macro_rules! query_facilities {
 
         impl<'a, $( $t: Component, )* > Query<'a> for ( $( $t, )* ) {
             type Out = $view_type<'a, $( $t, )* >;
+            type OutMut = $view_mut_type<'a, $( $t, )* >;
 
             fn query(w: &'a World) -> Self::Out {
                 prepare_query!{w, $view_type, $( $t ),* }
             }
-        }
 
-        impl<'a, $( $t: Component, )* > QueryMut<'a> for ( $( $t, )* ) {
-            type Out = $view_mut_type<'a, $( $t, )* >;
-
-            fn query_mut(w: &'a mut World) -> Self::Out {
+             fn query_mut(w: &'a mut World) -> Self::OutMut {
                 let w = &*w;
                 prepare_query!{w, $view_mut_type, $( $t ),* }
             }
