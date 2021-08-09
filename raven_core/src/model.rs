@@ -47,6 +47,14 @@ impl ModelLoader {
 
     fn process_node(&self, node: &russimp::Node) -> Result<Entity, Box<dyn Error>> {
         let mut entity = Entity::default();
+        // TODO Apply node transform to child entity
+        // node.transform is
+        //   a1 a2 a3 a4
+        //   b1 b2 b3 b4
+        //   c1 c2 c3 c4
+        //   d1 d2 d3 d4
+        // therefore the translation is
+        //   (a4, b4, c4)
 
         for mesh_idx in &node.meshes {
             let mesh = &self.scene.meshes[*mesh_idx as usize];
@@ -63,7 +71,6 @@ impl ModelLoader {
 
         for child in &node.children {
             let child = RefCell::borrow(child);
-            // TODO Apply node transform to child entity
             let child = self.process_node(&child)?;
 
             entity.add_child(child);
