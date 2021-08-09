@@ -1281,6 +1281,7 @@ dependencies = [
  "glutin",
  "image",
  "itertools",
+ "raven_ecs",
  "russimp",
 ]
 

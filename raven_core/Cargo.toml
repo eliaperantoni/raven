@@ -12,3 +12,4 @@ russimp = "0.2.2"
 itertools = "0.10.1"
 image = "0.23.14"
 derivative = "2.2.0"
+raven_ecs = { path="../raven_ecs" }

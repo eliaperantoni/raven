@@ -17,13 +17,7 @@ pub mod input;
 pub mod framebuffer;
 pub mod scene;
 
-pub struct ID(u128);
-
-impl ID {
-    pub fn next() -> Self {
-        ID(0)
-    }
-}
+pub struct ResourceID(u128);
 
 pub struct Raven {
     renderer_sys: RendererSystem,

@@ -1,21 +1,30 @@
 use std::any::{Any, TypeId};
 
-use crate::ID;
+use glam::Mat4;
+use raven_ecs::Entity;
+
+use crate::ResourceID;
 use crate::material::Material;
 use crate::mesh::Mesh;
 
 #[derive(Debug)]
+pub struct TransformComponent {
+    transform: Mat4,
+}
+
+#[derive(Debug)]
+pub struct HierarchyComponent {
+    parent: Option<Entity>,
+    children: Vec<Entity>,
+}
+
+#[derive(Debug)]
 pub struct MeshComponent {
-    pub entity: ID,
-    // TODO Should probably use references instead of owned types
-    pub mesh: Mesh,
-    pub material: Material,
+    mesh: ResourceID,
+    mat: ResourceID,
 }
 
 #[derive(Debug)]
 pub struct CameraComponent {
-    pub entity: ID,
-    pub fov: f32,
+    fov: f32,
 }
-
-pub trait Component {}

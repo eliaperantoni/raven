@@ -13,16 +13,25 @@ pub enum TextureType {
     Specular,
 }
 
-impl Into<russimp::TextureType> for TextureType {
-    fn into(self) -> russimp::TextureType {
-        match self {
+impl From<russimp::TextureType> for TextureType {
+    fn from(t: russimp::TextureType) -> Self {
+        match t {
+            russimp::TextureType::Diffuse => TextureType::Diffuse,
+            russimp::TextureType::Specular => TextureType::Specular,
+            _ => todo!(),
+        }
+    }
+}
+
+impl From<TextureType> for russimp::TextureType {
+    fn from(t: TextureType) -> Self {
+        match t {
             TextureType::Diffuse => russimp::TextureType::Diffuse,
             TextureType::Specular => russimp::TextureType::Specular,
         }
     }
 }
 
-// TODO Impl Debug trait without printing `data`
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Texture {

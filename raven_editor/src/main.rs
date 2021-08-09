@@ -41,15 +41,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     imgui.io_mut().config_flags |= imgui::ConfigFlags::DOCKING_ENABLE;
 
     let mut platform = WinitPlatform::init(&mut imgui);
-    platform.attach_window(
-        imgui.io_mut(),
-        windowed_context.window(),
-        HiDpiMode::Rounded,
-    );
+    platform.attach_window(imgui.io_mut(), windowed_context.window(), HiDpiMode::Rounded);
 
-    let renderer = Renderer::new(&mut imgui, |symbol| {
-        windowed_context.get_proc_address(symbol)
-    });
+    let renderer = Renderer::new(&mut imgui, |symbol| windowed_context.get_proc_address(symbol));
     gl::load_with(|symbol| windowed_context.get_proc_address(symbol));
 
     let mut last_frame = Instant::now();
