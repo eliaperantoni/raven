@@ -1,4 +1,4 @@
-use crate::{Component, ID, deref_vec};
+use crate::{Component, ID};
 
 use std::any::Any;
 use std::cell::{Ref, RefCell, RefMut};

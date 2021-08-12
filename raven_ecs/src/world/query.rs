@@ -4,7 +4,6 @@ use crate::{Component, Entity, ID};
 use std::cmp::min;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::cell::{Ref, RefMut};
 
 use paste::paste;
 
@@ -80,16 +79,6 @@ macro_rules! prepare_query {
     }
 }
 
-macro_rules! component_or_continue {
-    ($c:expr) => {
-        if let Some(c) = $c {
-            c
-        } else {
-            continue;
-        }
-    };
-}
-
 macro_rules! next_shallow {
     ($self:expr, $get_one_x:tt, $( $pool_type:ident ),* ) => {
         loop {
@@ -144,6 +133,7 @@ macro_rules! next_deep {
                             }
                             len
                         });
+                        #[allow(unused)]
                         i += 1;
                     )*
 
@@ -151,12 +141,13 @@ macro_rules! next_deep {
                 }
             }
 
-            let mut deep_state = $self.deep_state.as_mut().unwrap();
+            let deep_state = $self.deep_state.as_mut().unwrap();
             let entity_id = deep_state.0;
 
             let mut i = 0;
             $(
                 let paste!{[< $pool_type:lower >]} = paste!{[< pool_ $pool_type:snake >]}.$get_nth_x(entity_id, deep_state.1[i].0).unwrap();
+                #[allow(unused)]
                 i += 1;
             )*
 
@@ -326,7 +317,7 @@ mod test {
         w.attach::<i32>(e3, 30);
         w.attach::<i32>(e3, 99);
 
-        for(e, (mut n, mut s)) in <(i32, String)>::query_shallow_mut(&mut w) {
+        for(_e, (mut n, mut s)) in <(i32, String)>::query_shallow_mut(&mut w) {
             *n += 1;
             *s = s.to_ascii_lowercase();
         }
@@ -433,6 +424,6 @@ mod test {
         w.attach::<&'static str>(e2, "B");
         w.attach::<&'static str>(e2, "b");
 
-        <(i32, &'static str)>::query_deep_mut(&mut w).collect::<Vec<_>>();
+        <(i32, &'static str)>::query_deep_mut(&mut w).collect::<Vec<_>>().into_iter().for_each(drop);
     }
 }

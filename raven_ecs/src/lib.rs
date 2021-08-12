@@ -2,6 +2,7 @@
 #![feature(cell_filter_map)]
 #![feature(label_break_value)]
 #![feature(type_alias_impl_trait)]
+#![feature(stmt_expr_attributes)]
 
 #[macro_export]
 macro_rules! deref_vec {

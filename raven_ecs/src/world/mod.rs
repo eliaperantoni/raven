@@ -1,5 +1,5 @@
 use crate::pool::{AnyPool, Pool};
-use crate::{Component, Entity, Version, ID, deref_vec};
+use crate::{Component, Entity, Version, ID};
 
 use std::any::TypeId;
 use std::collections::HashMap;
