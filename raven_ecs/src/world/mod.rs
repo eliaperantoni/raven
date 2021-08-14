@@ -6,6 +6,7 @@ use crate::{Component, Entity, ID, Version};
 use crate::pool::{AnyPool, Pool};
 
 pub mod query;
+mod serde;
 
 pub struct World {
     entities: Vec<(Option<ID>, Version)>,
@@ -74,7 +75,7 @@ impl World {
     }
 
     fn entity_exists(&self, entity: Entity) -> bool {
-        self.entities.get(entity.id) == Some(&(Some(entity.id), entity.version))
+        self.entity_from_id(entity.id) == Some(entity)
     }
 
     fn pool<T: Component>(&self) -> Option<&Pool<T>> {
@@ -172,12 +173,38 @@ impl World {
         p.get_all_mut(entity.id)
     }
 
+    fn is_alive(&self, entity_id: ID) -> bool {
+        matches!(self.entities.get(entity_id), Some(&(Some(stored_entity_id), _)) if stored_entity_id == entity_id)
+    }
+
     fn entity_from_id(&self, entity_id: ID) -> Option<Entity> {
-        let &(_, version) = self.entities.get(entity_id)?;
+        if !self.is_alive(entity_id) {
+            return None;
+        }
+
         Some(Entity {
             id: entity_id,
-            version,
+            version: self.version_from_id(entity_id)?,
         })
+    }
+
+    fn version_from_id(&self, entity_id: ID) -> Option<Version> {
+        if !self.is_alive(entity_id) {
+            return None;
+        }
+
+        let &(_, version) = self.entities.get(entity_id)?;
+        Some(version)
+    }
+
+    pub fn entities(&self) -> Vec<Entity> {
+        let mut out = Vec::new();
+        for entity_id in 0..self.entities.len() {
+            if let Some(entity) = self.entity_from_id(entity_id) {
+                out.push(entity);
+            }
+        }
+        out
     }
 }
 
@@ -324,5 +351,19 @@ mod test {
         }
 
         assert_eq!(deref_vec!(w.get_all::<i32>(e)), vec![&10, &20, &30]);
+    }
+
+    #[test]
+    fn entities() {
+        let mut w = World::default();
+
+        let e1 = w.create();
+        let e2 = w.create();
+        let e3 = w.create();
+        let e4 = w.create();
+
+        w.destroy(e3);
+
+        assert_eq!(w.entities(), vec![e1, e2, e4]);
     }
 }

@@ -217,22 +217,6 @@ impl<T: Component> Pool<T> {
     }
 }
 
-impl<T: Component> PartialEq<Self> for Pool<T> {
-    fn eq(&self, other: &Self) -> bool {
-        if self.entities_ids() != other.entities_ids() {
-            return false;
-        }
-
-        for entity_id in self.entities_ids() {
-            if deref_vec!(self.get_all(entity_id)) != deref_vec!(other.get_all(entity_id)) {
-                return false;
-            }
-        }
-
-        true
-    }
-}
-
 pub trait AnyPool {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -258,84 +242,89 @@ mod test {
     use std::ops::Deref;
 
     use super::*;
+    use crate::test::*;
 
     #[test]
     fn count() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        p.attach(0, 2);
-        p.attach(0, 3);
-        p.attach(0, 4);
-        p.attach(0, 5);
+        p.attach(0, CompX::new("A"));
+        p.attach(0, CompX::new("B"));
+        p.attach(0, CompX::new("C"));
+        p.attach(0, CompX::new("D"));
+        p.attach(0, CompX::new("E"));
 
         assert_eq!(p.count(0), 5);
     }
 
     #[test]
     fn get_nth() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        p.attach(0, 2);
+        p.attach(0, CompX::new("A"));
+        p.attach(0, CompX::new("B"));
 
-        assert_eq!(p.get_nth(0, 0).as_deref(), Some(&1));
-        assert_eq!(p.get_nth(0, 1).as_deref(), Some(&2));
+        assert_eq!(p.get_nth(0, 0).as_deref(), Some(&CompX::new("A")));
+        assert_eq!(p.get_nth(0, 1).as_deref(), Some(&CompX::new("B")));
         assert_eq!(p.get_nth(0, 2).as_deref(), None);
     }
 
     #[test]
     fn get_nth_mut() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        p.attach(0, 2);
+        p.attach(0, CompX::new("A"));
+        p.attach(0, CompX::new("B"));
 
-        *p.get_nth_mut(0, 1).unwrap() = 99;
+        *p.get_nth_mut(0, 1).unwrap() = CompX::new("Z");
 
-        assert_eq!(p.get_nth(0, 0).as_deref(), Some(&1));
-        assert_eq!(p.get_nth(0, 1).as_deref(), Some(&99));
+        assert_eq!(p.get_nth(0, 0).as_deref(), Some(&CompX::new("A")));
+        assert_eq!(p.get_nth(0, 1).as_deref(), Some(&CompX::new("Z")));
         assert_eq!(p.get_nth(0, 2).as_deref(), None);
     }
 
     #[test]
     fn get_one() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        assert_eq!(p.get_one(0).as_deref(), Some(&1));
+        p.attach(0, CompX::new("A"));
+        assert_eq!(p.get_one(0).as_deref(), Some(&CompX::new("A")));
     }
 
     #[test]
     fn get_mut_mut() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        *p.get_one_mut(0).unwrap() = 99;
-        assert_eq!(p.get_one(0).as_deref(), Some(&99));
+        p.attach(0, CompX::new("A"));
+        *p.get_one_mut(0).unwrap() = CompX::new("Z");
+        assert_eq!(p.get_one(0).as_deref(), Some(&CompX::new("Z")));
     }
 
     #[test]
     fn get_all() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 10);
-        p.attach(0, 20);
-        p.attach(0, 30);
+        p.attach(0, CompX::new("A"));
+        p.attach(0, CompX::new("B"));
+        p.attach(0, CompX::new("C"));
 
-        assert_eq!(deref_vec!(p.get_all(0)), vec![&10, &20, &30]);
+        assert_eq!(deref_vec!(p.get_all(0)), vec![
+            &CompX::new("A"),
+            &CompX::new("B"),
+            &CompX::new("C"),
+        ]);
     }
 
     #[test]
     fn get_all_mut() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        p.attach(0, 2);
-        p.attach(0, 3);
+        p.attach(0, CompX::new("A"));
+        p.attach(0, CompX::new("B"));
+        p.attach(0, CompX::new("C"));
 
         for mut n in p.get_all_mut(0) {
-            *n *= 10;
+            *n = ;
         }
 
         assert_eq!(deref_vec!(p.get_all(0)), vec![&10, &20, &30]);
@@ -343,24 +332,24 @@ mod test {
 
     #[test]
     fn sparse_grows() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
         assert_eq!(p.sparse.len(), 0);
-        p.attach(0, 1);
+        p.attach(0, CompX::new("A"));
         assert_eq!(p.sparse.len(), 1);
-        p.attach(99, 2); // Still in the first page
+        p.attach(99, CompX::new("B")); // Still in the first page
         assert_eq!(p.sparse.len(), 1);
-        p.attach(100, 3); // Goes to the second page
+        p.attach(100, CompX::new("C")); // Goes to the second page
         assert_eq!(p.sparse.len(), 2);
     }
 
     #[test]
     fn sparse_shrinks() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        p.attach(PAGE_SIZE - 1, 2);
-        p.attach(PAGE_SIZE, 3);
+        p.attach(0, CompX::new("A"));
+        p.attach(PAGE_SIZE - 1, CompX::new("B"));
+        p.attach(PAGE_SIZE, CompX::new("C"));
 
         assert_eq!(p.sparse.len(), 2);
         p.detach_one(0);

@@ -6,8 +6,9 @@
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use typetag;
 
-pub use world::query;
+//pub use world::query;
 
 #[macro_export]
 macro_rules! deref_vec {
@@ -17,8 +18,9 @@ macro_rules! deref_vec {
 }
 
 mod pool;
-
-pub mod world;
+//pub mod world;
+#[cfg(test)]
+mod test;
 
 type ID = usize;
 type Version = u32;
@@ -29,6 +31,5 @@ pub struct Entity {
     version: Version,
 }
 
+#[typetag::serde(tag = "type")]
 pub trait Component: 'static + PartialEq + Sized + Serialize + DeserializeOwned {}
-
-impl<T: 'static + PartialEq + Serialize + DeserializeOwned> Component for T {}
