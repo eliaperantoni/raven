@@ -4,7 +4,6 @@ use std::ops::{Deref, DerefMut};
 
 use crate::{Component, Entity, ID, Version};
 use crate::pool::{AnyPool, Pool};
-use crate::deref_vec;
 
 pub mod query;
 

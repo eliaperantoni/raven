@@ -1,11 +1,11 @@
-use crate::world::World;
-use crate::{Component, Entity, ID};
-
 use std::cmp::min;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
 use paste::paste;
+
+use crate::{Component, Entity, ID};
+use crate::world::World;
 
 pub trait Query<'a> {
     type Out;
@@ -317,7 +317,7 @@ mod test {
         w.attach::<i32>(e3, 30);
         w.attach::<i32>(e3, 99);
 
-        for(_e, (mut n, mut s)) in <(i32, String)>::query_shallow_mut(&mut w) {
+        for (_e, (mut n, mut s)) in <(i32, String)>::query_shallow_mut(&mut w) {
             *n += 1;
             *s = s.to_ascii_lowercase();
         }

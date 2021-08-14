@@ -4,10 +4,10 @@
 #![feature(type_alias_impl_trait)]
 #![feature(stmt_expr_attributes)]
 
-use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 pub use world::query;
-use serde::de::DeserializeOwned;
 
 #[macro_export]
 macro_rules! deref_vec {
@@ -29,6 +29,6 @@ pub struct Entity {
     version: Version,
 }
 
-pub trait Component: 'static + Sized + Serialize + DeserializeOwned {}
+pub trait Component: 'static + PartialEq + Sized + Serialize + DeserializeOwned {}
 
-impl<T: 'static + Serialize + DeserializeOwned> Component for T {}
+impl<T: 'static + PartialEq + Serialize + DeserializeOwned> Component for T {}
