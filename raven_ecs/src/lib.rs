@@ -17,8 +17,8 @@ pub mod world;
 
 pub use world::query;
 
-pub type ID = usize;
-pub type Version = u32;
+type ID = usize;
+type Version = u32;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub struct Entity {
