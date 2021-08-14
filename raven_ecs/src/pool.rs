@@ -1,12 +1,7 @@
 use std::any::Any;
 use std::cell::{Ref, RefCell, RefMut};
-use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
 use std::ops::Deref;
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde::de::{MapAccess, Visitor};
-use serde::ser::SerializeMap;
 use smallvec::{SmallVec, smallvec};
 
 use crate::{Component, ID};
@@ -222,57 +217,6 @@ impl<T: Component> Pool<T> {
     }
 }
 
-impl<T: Component> Serialize for Pool<T> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-        let entities_ids = self.entities_ids();
-
-        let mut map = serializer.serialize_map(Some(entities_ids.len()))?;
-        for entity_id in entities_ids {
-            let components = self.get_all(entity_id);
-            map.serialize_entry(&entity_id, &deref_vec!(components))?;
-        }
-        map.end()
-    }
-}
-
-struct PoolVisitor<T: Component> {
-    marker: PhantomData<T>,
-}
-
-impl<T: Component> PoolVisitor<T> {
-    fn new() -> PoolVisitor<T> {
-        PoolVisitor {
-            marker: PhantomData,
-        }
-    }
-}
-
-impl<'de, T: Component> Visitor<'de> for PoolVisitor<T> {
-    type Value = Pool<T>;
-
-    fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
-        formatter.write_str("a pool")
-    }
-
-    fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error> where M: MapAccess<'de> {
-        let mut pool = Pool::new();
-
-        while let Some((entity_id, components)) = map.next_entry::<_, Vec<_>>()? {
-            for component in components {
-                pool.attach(entity_id, component);
-            }
-        }
-
-        Ok(pool)
-    }
-}
-
-impl<'de, T: Component> Deserialize<'de> for Pool<T> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
-        deserializer.deserialize_map(PoolVisitor::new())
-    }
-}
-
 impl<T: Component> PartialEq<Self> for Pool<T> {
     fn eq(&self, other: &Self) -> bool {
         if self.entities_ids() != other.entities_ids() {
@@ -286,12 +230,6 @@ impl<T: Component> PartialEq<Self> for Pool<T> {
         }
 
         true
-    }
-}
-
-impl<T: Component> Debug for Pool<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&ron::to_string(self).unwrap_or_else(|_| "serialization error".to_string()))
     }
 }
 
@@ -706,35 +644,5 @@ mod test {
         assert_eq!(p.sparse.len(), 0);
         assert_eq!(p.packed.len(), 0);
         assert_eq!(p.components.len(), 0);
-    }
-
-    #[test]
-    fn serde() {
-        #[derive(Serialize, Deserialize, PartialEq)]
-        struct SomeComponent {
-            field_str: String,
-            field_int: i32,
-        }
-
-        let mut original: Pool<SomeComponent> = Pool::new();
-
-        original.attach(0, SomeComponent {
-            field_str: "falcon".to_string(),
-            field_int: 11,
-        });
-        original.attach(0, SomeComponent {
-            field_str: "owl".to_string(),
-            field_int: 47,
-        });
-
-        original.attach(1, SomeComponent {
-            field_str: "hawk".to_string(),
-            field_int: 94,
-        });
-
-        let serialized = ron::to_string(&original).unwrap();
-        let deserialized = ron::from_str(&serialized).unwrap();
-
-        assert_eq!(original, deserialized);
     }
 }
