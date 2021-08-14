@@ -8,7 +8,8 @@ edition = "2018"
 [dependencies]
 paste = "1.0.5"
 smallvec = "1.6.1"
-serde = "1.0.127"
+serde = { version = "1.0.127", features = ["derive"] }
+ron = "0.6.4"
 
 [dev-dependencies]
 rand = "0.8.4"

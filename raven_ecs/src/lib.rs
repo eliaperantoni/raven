@@ -4,6 +4,11 @@
 #![feature(type_alias_impl_trait)]
 #![feature(stmt_expr_attributes)]
 
+use serde::{Deserialize, Serialize};
+
+pub use world::query;
+use serde::de::DeserializeOwned;
+
 #[macro_export]
 macro_rules! deref_vec {
     ($e:expr) => {
@@ -15,8 +20,6 @@ mod pool;
 
 pub mod world;
 
-pub use world::query;
-
 type ID = usize;
 type Version = u32;
 
@@ -26,6 +29,6 @@ pub struct Entity {
     version: Version,
 }
 
-pub trait Component: 'static + Sized {}
+pub trait Component: 'static + Sized + Serialize + DeserializeOwned {}
 
-impl<T: 'static> Component for T {}
+impl<T: 'static + Serialize + DeserializeOwned> Component for T {}

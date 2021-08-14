@@ -1,9 +1,10 @@
-use crate::pool::{AnyPool, Pool};
-use crate::{Component, Entity, Version, ID};
-
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+
+use crate::{Component, Entity, ID, Version};
+use crate::pool::{AnyPool, Pool};
+use crate::deref_vec;
 
 pub mod query;
 
@@ -105,16 +106,28 @@ impl World {
         pool.attach(entity.id, component);
     }
 
-    pub fn detach<T: Component>(&mut self, entity: Entity) -> Option<T> {
+    pub fn detach_one<T: Component>(&mut self, entity: Entity) -> Option<T> {
         if !self.entity_exists(entity) {
             return None;
         }
 
         let pool = self.pool_mut::<T>()?;
-        pool.detach(entity.id)
+        pool.detach_one(entity.id)
     }
 
-    pub fn get_one<T: Component>(&self, entity: Entity) -> Option<impl Deref<Target = T> + '_> {
+    pub fn detach_all<T: Component>(&mut self, entity: Entity) -> Vec<T> {
+        if !self.entity_exists(entity) {
+            return Vec::new();
+        }
+
+        if let Some(pool) = self.pool_mut::<T>() {
+            pool.detach_all(entity.id)
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn get_one<T: Component>(&self, entity: Entity) -> Option<impl Deref<Target=T> + '_> {
         if !self.entity_exists(entity) {
             return None;
         }
@@ -123,7 +136,7 @@ impl World {
         p.get_one(entity.id)
     }
 
-    pub fn get_one_mut<T: Component>(&mut self, entity: Entity) -> Option<impl DerefMut<Target = T> + '_> {
+    pub fn get_one_mut<T: Component>(&mut self, entity: Entity) -> Option<impl DerefMut<Target=T> + '_> {
         if !self.entity_exists(entity) {
             return None;
         }
@@ -132,7 +145,7 @@ impl World {
         p.get_one_mut(entity.id)
     }
 
-    pub fn get_all<T: Component>(&self, entity: Entity) -> Vec<impl Deref<Target = T> + '_> {
+    pub fn get_all<T: Component>(&self, entity: Entity) -> Vec<impl Deref<Target=T> + '_> {
         if !self.entity_exists(entity) {
             return Vec::new();
         }
@@ -146,7 +159,7 @@ impl World {
         p.get_all(entity.id)
     }
 
-    pub fn get_all_mut<T: Component>(&mut self, entity: Entity) -> Vec<impl DerefMut<Target = T> + '_> {
+    pub fn get_all_mut<T: Component>(&mut self, entity: Entity) -> Vec<impl DerefMut<Target=T> + '_> {
         if !self.entity_exists(entity) {
             return Vec::new();
         }
@@ -195,9 +208,9 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, "A");
+        w.attach(e, 1);
 
-        assert_eq!(w.get_one::<&'static str>(e).as_deref(), Some(&"A"));
+        assert_eq!(w.get_one::<i32>(e).as_deref(), Some(&1));
     }
 
     #[test]
@@ -205,22 +218,35 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach::<&'static str>(e, "A");
+        w.attach::<char>(e, 'A');
         w.attach::<i32>(e, 10);
 
-        assert_eq!(w.get_one::<&'static str>(e).as_deref(), Some(&"A"));
+        assert_eq!(w.get_one::<char>(e).as_deref(), Some(&'A'));
         assert_eq!(w.get_one::<i32>(e).as_deref(), Some(&10));
     }
 
     #[test]
-    fn detach() {
+    fn detach_one() {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, "A");
-        w.detach::<&'static str>(e);
+        w.attach(e, 'A');
+        w.attach(e, 'B');
+        w.detach_one::<char>(e);
 
-        assert_eq!(w.get_one::<&'static str>(e).as_deref(), None);
+        assert_eq!(deref_vec!(w.get_all::<char>(e)), vec![&'B']);
+    }
+
+    #[test]
+    fn detach_all() {
+        let mut w = World::default();
+
+        let e = w.create();
+        w.attach(e, 'A');
+        w.attach(e, 'B');
+        w.detach_all::<char>(e);
+
+        assert_eq!(deref_vec!(w.get_all::<char>(e)), Vec::<&char>::new());
     }
 
     #[test]
@@ -228,10 +254,10 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, "A");
+        w.attach(e, 'A');
         w.destroy(e);
 
-        assert_eq!(w.get_one::<&'static str>(e).as_deref(), None);
+        assert_eq!(w.get_one::<char>(e).as_deref(), None);
     }
 
     #[test]
@@ -239,12 +265,12 @@ mod test {
         let mut w = World::default();
 
         let e1 = w.create();
-        w.attach(e1, "A");
+        w.attach(e1, 'A');
         w.destroy(e1);
 
         let e2 = w.create();
 
-        assert_eq!(w.get_one::<&'static str>(e2).as_deref(), None);
+        assert_eq!(w.get_one::<char>(e2).as_deref(), None);
     }
 
     #[test]
@@ -266,11 +292,11 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, "A");
+        w.attach(e, 'A');
 
-        *w.get_one_mut::<&'static str>(e).unwrap() = "B";
+        *w.get_one_mut::<char>(e).unwrap() = 'B';
 
-        assert_eq!(w.get_one::<&'static str>(e).as_deref(), Some(&"B"));
+        assert_eq!(w.get_one::<char>(e).as_deref(), Some(&'B'));
     }
 
     #[test]
@@ -278,11 +304,11 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, "A");
-        w.attach(e, "B");
-        w.attach(e, "C");
+        w.attach(e, 'A');
+        w.attach(e, 'B');
+        w.attach(e, 'C');
 
-        assert_eq!(deref_vec!(w.get_all::<&'static str>(e)), vec![&"A", &"B", &"C"]);
+        assert_eq!(deref_vec!(w.get_all::<char>(e)), vec![&'A', &'B', &'C']);
     }
 
     #[test]

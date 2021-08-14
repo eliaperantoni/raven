@@ -273,25 +273,25 @@ mod test {
         let e1 = w.create();
         w.attach::<i32>(e1, 10);
         w.attach::<i32>(e1, 99);
-        w.attach::<&'static str>(e1, "A");
-        w.detach::<i32>(e1);
+        w.attach::<char>(e1, 'A');
+        w.detach_one::<i32>(e1);
 
         let e2 = w.create();
         w.attach::<i32>(e2, 20);
         w.attach::<i32>(e2, 99);
-        w.attach::<&'static str>(e2, "B");
+        w.attach::<char>(e2, 'B');
 
         let e3 = w.create();
         w.attach::<i32>(e3, 30);
         w.attach::<i32>(e3, 99);
 
         let want = vec![
-            (e1, (99, "A")),
-            (e2, (20, "B")),
+            (e1, (99, 'A')),
+            (e2, (20, 'B')),
         ];
 
-        assert_eq!(<(i32, &'static str)>::query_shallow(&w).count(), want.len());
-        for (i, (e, (n, s))) in <(i32, &'static str)>::query_shallow(&w).enumerate() {
+        assert_eq!(<(i32, char)>::query_shallow(&w).count(), want.len());
+        for (i, (e, (n, s))) in <(i32, char)>::query_shallow(&w).enumerate() {
             let (want_e, (want_n, want_s)) = want[i];
             assert_eq!(e, want_e);
             assert_eq!(*n, want_n);
@@ -343,25 +343,25 @@ mod test {
         let e1 = w.create();
         w.attach::<i32>(e1, 1);
         w.attach::<i32>(e1, 10);
-        w.attach::<&'static str>(e1, "A");
+        w.attach::<char>(e1, 'A');
 
         let e2 = w.create();
         w.attach::<i32>(e2, 2);
         w.attach::<i32>(e2, 20);
-        w.attach::<&'static str>(e2, "B");
-        w.attach::<&'static str>(e2, "b");
+        w.attach::<char>(e2, 'B');
+        w.attach::<char>(e2, 'b');
 
         let want = vec![
-            (e1, (1, "A")),
-            (e1, (10, "A")),
-            (e2, (2, "B")),
-            (e2, (2, "b")),
-            (e2, (20, "B")),
-            (e2, (20, "b")),
+            (e1, (1, 'A')),
+            (e1, (10, 'A')),
+            (e2, (2, 'B')),
+            (e2, (2, 'b')),
+            (e2, (20, 'B')),
+            (e2, (20, 'b')),
         ];
 
-        assert_eq!(<(i32, &'static str)>::query_deep(&w).count(), want.len());
-        for (i, (e, (n, s))) in <(i32, &'static str)>::query_deep(&w).enumerate() {
+        assert_eq!(<(i32, char)>::query_deep(&w).count(), want.len());
+        for (i, (e, (n, s))) in <(i32, char)>::query_deep(&w).enumerate() {
             let (want_e, (want_n, want_s)) = want[i];
             assert_eq!(e, want_e);
             assert_eq!(*n, want_n);
@@ -376,31 +376,31 @@ mod test {
         let e1 = w.create();
         w.attach::<i32>(e1, 1);
         w.attach::<i32>(e1, 10);
-        w.attach::<&'static str>(e1, "A");
+        w.attach::<char>(e1, 'A');
 
         let e2 = w.create();
         w.attach::<i32>(e2, 2);
         w.attach::<i32>(e2, 20);
-        w.attach::<&'static str>(e2, "B");
-        w.attach::<&'static str>(e2, "b");
+        w.attach::<char>(e2, 'B');
+        w.attach::<char>(e2, 'b');
 
         {
-            let mut view = <(i32, &'static str)>::query_deep_mut(&mut w);
+            let mut view = <(i32, char)>::query_deep_mut(&mut w);
             let (_, (mut n, _)) = view.nth(2).unwrap();
             *n = 99;
         }
 
         let want = vec![
-            (e1, (1, "A")),
-            (e1, (10, "A")),
-            (e2, (99, "B")),
-            (e2, (99, "b")),
-            (e2, (20, "B")),
-            (e2, (20, "b")),
+            (e1, (1, 'A')),
+            (e1, (10, 'A')),
+            (e2, (99, 'B')),
+            (e2, (99, 'b')),
+            (e2, (20, 'B')),
+            (e2, (20, 'b')),
         ];
 
-        assert_eq!(<(i32, &'static str)>::query_deep(&w).count(), want.len());
-        for (i, (e, (n, s))) in <(i32, &'static str)>::query_deep(&w).enumerate() {
+        assert_eq!(<(i32, char)>::query_deep(&w).count(), want.len());
+        for (i, (e, (n, s))) in <(i32, char)>::query_deep(&w).enumerate() {
             let (want_e, (want_n, want_s)) = want[i];
             assert_eq!(e, want_e);
             assert_eq!(*n, want_n);
@@ -416,14 +416,14 @@ mod test {
         let e1 = w.create();
         w.attach::<i32>(e1, 1);
         w.attach::<i32>(e1, 10);
-        w.attach::<&'static str>(e1, "A");
+        w.attach::<char>(e1, 'A');
 
         let e2 = w.create();
         w.attach::<i32>(e2, 2);
         w.attach::<i32>(e2, 20);
-        w.attach::<&'static str>(e2, "B");
-        w.attach::<&'static str>(e2, "b");
+        w.attach::<char>(e2, 'B');
+        w.attach::<char>(e2, 'b');
 
-        <(i32, &'static str)>::query_deep_mut(&mut w).collect::<Vec<_>>().into_iter().for_each(drop);
+        <(i32, char)>::query_deep_mut(&mut w).collect::<Vec<_>>().into_iter().for_each(drop);
     }
 }

@@ -1,9 +1,13 @@
-use crate::{Component, ID};
-
 use std::any::Any;
 use std::cell::{Ref, RefCell, RefMut};
+use std::ops::Deref;
 
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::ser::SerializeMap;
 use smallvec::{SmallVec, smallvec};
+
+use crate::{Component, ID};
+use serde::de::Error;
 
 const PAGE_SIZE: usize = 100;
 
@@ -64,7 +68,7 @@ impl<T: Component> Pool<T> {
         self.components.push(smallvec![RefCell::new(component)]);
     }
 
-    pub fn detach(&mut self, entity_id: ID) -> Option<T> {
+    pub fn detach_one(&mut self, entity_id: ID) -> Option<T> {
         // Bail out early if this entity doesn't have any component
         let comp_vec = self.get_comp_vec_mut(entity_id)?;
 
@@ -216,6 +220,19 @@ impl<T: Component> Pool<T> {
     }
 }
 
+impl<T: Component> Serialize for Pool<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        let entities_ids = self.entities_ids();
+
+        let mut map = serializer.serialize_map(Some(entities_ids.len()))?;
+        for entity_id in entities_ids {
+            let components = self.get_all(entity_id);
+            map.serialize_entry(&entity_id, &deref_vec!(components))?;
+        }
+        map.end()
+    }
+}
+
 pub trait AnyPool {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -232,69 +249,71 @@ impl<T: Component> AnyPool for Pool<T> {
     }
 
     fn clear_entity(&mut self, entity_id: ID) {
-        self.detach(entity_id);
+        self.detach_one(entity_id);
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use std::ops::Deref;
+
+    use super::*;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn count() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        p.attach(0, "B");
-        p.attach(0, "C");
-        p.attach(0, "D");
-        p.attach(0, "E");
+        p.attach(0, 1);
+        p.attach(0, 2);
+        p.attach(0, 3);
+        p.attach(0, 4);
+        p.attach(0, 5);
 
         assert_eq!(p.count(0), 5);
     }
 
     #[test]
     fn get_nth() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        p.attach(0, "B");
+        p.attach(0, 1);
+        p.attach(0, 2);
 
-        assert_eq!(p.get_nth(0, 0).as_deref(), Some(&"A"));
-        assert_eq!(p.get_nth(0, 1).as_deref(), Some(&"B"));
+        assert_eq!(p.get_nth(0, 0).as_deref(), Some(&1));
+        assert_eq!(p.get_nth(0, 1).as_deref(), Some(&2));
         assert_eq!(p.get_nth(0, 2).as_deref(), None);
     }
 
     #[test]
     fn get_nth_mut() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        p.attach(0, "B");
+        p.attach(0, 1);
+        p.attach(0, 2);
 
-        *p.get_nth_mut(0, 1).unwrap() = "Z";
+        *p.get_nth_mut(0, 1).unwrap() = 99;
 
-        assert_eq!(p.get_nth(0, 0).as_deref(), Some(&"A"));
-        assert_eq!(p.get_nth(0, 1).as_deref(), Some(&"Z"));
+        assert_eq!(p.get_nth(0, 0).as_deref(), Some(&1));
+        assert_eq!(p.get_nth(0, 1).as_deref(), Some(&99));
         assert_eq!(p.get_nth(0, 2).as_deref(), None);
     }
 
     #[test]
     fn get_one() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
+        p.attach(0, 1);
+        assert_eq!(p.get_one(0).as_deref(), Some(&1));
     }
 
     #[test]
     fn get_mut_mut() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        *p.get_one_mut(0).unwrap() = "B";
-        assert_eq!(p.get_one(0).as_deref(), Some(&"B"));
+        p.attach(0, 1);
+        *p.get_one_mut(0).unwrap() = 99;
+        assert_eq!(p.get_one(0).as_deref(), Some(&99));
     }
 
     #[test]
@@ -325,37 +344,37 @@ mod test {
 
     #[test]
     fn sparse_grows() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
         assert_eq!(p.sparse.len(), 0);
-        p.attach(0, "A");
+        p.attach(0, 1);
         assert_eq!(p.sparse.len(), 1);
-        p.attach(99, "B"); // Still in the first page
+        p.attach(99, 2); // Still in the first page
         assert_eq!(p.sparse.len(), 1);
-        p.attach(100, "C"); // Goes to the second page
+        p.attach(100, 3); // Goes to the second page
         assert_eq!(p.sparse.len(), 2);
     }
 
     #[test]
     fn sparse_shrinks() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        p.attach(PAGE_SIZE - 1, "B");
-        p.attach(PAGE_SIZE, "C");
+        p.attach(0, 1);
+        p.attach(PAGE_SIZE - 1, 2);
+        p.attach(PAGE_SIZE, 3);
 
         assert_eq!(p.sparse.len(), 2);
-        p.detach(0);
+        p.detach_one(0);
         assert_eq!(p.sparse.len(), 2);
-        p.detach(PAGE_SIZE - 1);
+        p.detach_one(PAGE_SIZE - 1);
         assert_eq!(p.sparse.len(), 2);
-        p.detach(PAGE_SIZE);
+        p.detach_one(PAGE_SIZE);
         assert_eq!(p.sparse.len(), 0);
     }
 
     #[test]
     fn packed_arrays_len() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
         let assert_len_is = |p: &Pool<_>, len: usize| {
             assert_eq!(p.packed.len(), len);
@@ -363,43 +382,43 @@ mod test {
         };
 
         assert_len_is(&p, 0);
-        p.attach(0, "A");
+        p.attach(0, 1);
         assert_len_is(&p, 1);
-        p.attach(PAGE_SIZE - 1, "B");
+        p.attach(PAGE_SIZE - 1, 2);
         assert_len_is(&p, 2);
-        p.attach(PAGE_SIZE, "C");
+        p.attach(PAGE_SIZE, 3);
         assert_len_is(&p, 3);
-        p.detach(0);
+        p.detach_one(0);
         assert_len_is(&p, 2);
-        p.detach(PAGE_SIZE - 1);
+        p.detach_one(PAGE_SIZE - 1);
         assert_len_is(&p, 1);
-        p.detach(PAGE_SIZE);
+        p.detach_one(PAGE_SIZE);
         assert_len_is(&p, 0);
     }
 
     #[test]
     fn remove_returns_component() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        assert_eq!(p.detach(0), Some("A"));
+        p.attach(0, 99);
+        assert_eq!(p.detach_one(0), Some(99));
     }
 
     #[test]
     fn remove_non_repeatable() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        p.detach(0); // Should be Some("A")
-        assert_eq!(p.detach(0), None);
+        p.attach(0, 99);
+        p.detach_one(0); // Should be Some(99)
+        assert_eq!(p.detach_one(0), None);
     }
 
     #[test]
     fn simple_add() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        p.attach(1, "B");
+        p.attach(0, 1);
+        p.attach(1, 2);
 
         assert_eq!(
             p.sparse,
@@ -414,21 +433,21 @@ mod test {
         assert_eq!(p.packed, vec![0, 1]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new("A")],
-            smallvec![RefCell::new("B")],
+            smallvec![RefCell::new(1)],
+            smallvec![RefCell::new(2)],
         ];
         assert_eq!(p.components, want_components);
 
-        assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
-        assert_eq!(p.get_one(1).as_deref(), Some(&"B"));
+        assert_eq!(p.get_one(0).as_deref(), Some(&1));
+        assert_eq!(p.get_one(1).as_deref(), Some(&2));
     }
 
     #[test]
     fn add_not_adjacent() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        p.attach(2, "B");
+        p.attach(0, 1);
+        p.attach(2, 2);
 
         assert_eq!(
             p.sparse,
@@ -443,23 +462,23 @@ mod test {
         assert_eq!(p.packed, vec![0, 2]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new("A")],
-            smallvec![RefCell::new("B")],
+            smallvec![RefCell::new(1)],
+            smallvec![RefCell::new(2)],
         ];
         assert_eq!(p.components, want_components);
 
-        assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
-        assert_eq!(p.get_one(2).as_deref(), Some(&"B"));
+        assert_eq!(p.get_one(0).as_deref(), Some(&1));
+        assert_eq!(p.get_one(2).as_deref(), Some(&2));
     }
 
     #[test]
     fn simple_remove_left() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        p.attach(1, "B");
+        p.attach(0, 1);
+        p.attach(1, 2);
 
-        p.detach(0);
+        p.detach_one(0);
 
         assert_eq!(
             p.sparse,
@@ -473,22 +492,22 @@ mod test {
         assert_eq!(p.packed, vec![1]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new("B")],
+            smallvec![RefCell::new(2)],
         ];
         assert_eq!(p.components, want_components);
 
         assert_eq!(p.get_one(0).as_deref(), None);
-        assert_eq!(p.get_one(1).as_deref(), Some(&"B"));
+        assert_eq!(p.get_one(1).as_deref(), Some(&2));
     }
 
     #[test]
     fn simple_remove_right() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        p.attach(1, "B");
+        p.attach(0, 1);
+        p.attach(1, 2);
 
-        p.detach(1);
+        p.detach_one(1);
 
         assert_eq!(
             p.sparse,
@@ -502,22 +521,22 @@ mod test {
         assert_eq!(p.packed, vec![0]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new("A")],
+            smallvec![RefCell::new(1)],
         ];
         assert_eq!(p.components, want_components);
 
-        assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
+        assert_eq!(p.get_one(0).as_deref(), Some(&1));
         assert_eq!(p.get_one(1).as_deref(), None);
     }
 
     #[test]
     fn remove_not_adjacent_left() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        p.attach(2, "B");
+        p.attach(0, 1);
+        p.attach(2, 2);
 
-        p.detach(0);
+        p.detach_one(0);
 
         assert_eq!(
             p.sparse,
@@ -531,23 +550,23 @@ mod test {
         assert_eq!(p.packed, vec![2]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new("B")],
+            smallvec![RefCell::new(2)],
         ];
         assert_eq!(p.components, want_components);
 
         assert_eq!(p.get_one(0).as_deref(), None);
         assert_eq!(p.get_one(1).as_deref(), None);
-        assert_eq!(p.get_one(2).as_deref(), Some(&"B"));
+        assert_eq!(p.get_one(2).as_deref(), Some(&2));
     }
 
     #[test]
     fn remove_not_adjacent_right() {
-        let mut p: Pool<&'static str> = Pool::new();
+        let mut p: Pool<i32> = Pool::new();
 
-        p.attach(0, "A");
-        p.attach(2, "B");
+        p.attach(0, 1);
+        p.attach(2, 2);
 
-        p.detach(2);
+        p.detach_one(2);
 
         assert_eq!(
             p.sparse,
@@ -561,11 +580,11 @@ mod test {
         assert_eq!(p.packed, vec![0]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new("A")],
+            smallvec![RefCell::new(1)],
         ];
         assert_eq!(p.components, want_components);
 
-        assert_eq!(p.get_one(0).as_deref(), Some(&"A"));
+        assert_eq!(p.get_one(0).as_deref(), Some(&1));
         assert_eq!(p.get_one(1).as_deref(), None);
         assert_eq!(p.get_one(2).as_deref(), None);
     }
@@ -617,7 +636,7 @@ mod test {
             // Delete the first entity still alive
             if let Some((entity_id, _, alive)) = entities.iter_mut().find(|(_, _, alive)| *alive) {
                 *alive = false;
-                p.detach(*entity_id);
+                p.detach_one(*entity_id);
             } else {
                 break;
             }
@@ -626,5 +645,32 @@ mod test {
         assert_eq!(p.sparse.len(), 0);
         assert_eq!(p.packed.len(), 0);
         assert_eq!(p.components.len(), 0);
+    }
+
+    #[test]
+    fn serde() {
+        #[derive(Serialize, Deserialize)]
+        struct SomeComponent {
+            field_str: String,
+            field_int: i32,
+        }
+
+        let mut p: Pool<SomeComponent> = Pool::new();
+
+        p.attach(0, SomeComponent {
+            field_str: "falcon".to_string(),
+            field_int: 11,
+        });
+        p.attach(0, SomeComponent {
+            field_str: "owl".to_string(),
+            field_int: 47,
+        });
+
+        p.attach(1, SomeComponent {
+            field_str: "hawk".to_string(),
+            field_int: 94,
+        });
+
+        println!("{}", ron::to_string(&p).unwrap());
     }
 }
