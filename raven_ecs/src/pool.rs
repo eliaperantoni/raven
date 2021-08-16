@@ -221,6 +221,7 @@ pub trait AnyPool {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn clear_entity(&mut self, entity_id: ID);
+    fn get_all_as_any(&self, entity_id: ID) -> Vec<Ref<dyn Component>>;
 }
 
 impl<T: Component> AnyPool for Pool<T> {
@@ -234,6 +235,14 @@ impl<T: Component> AnyPool for Pool<T> {
 
     fn clear_entity(&mut self, entity_id: ID) {
         self.detach_one(entity_id);
+    }
+
+    fn get_all_as_any(&self, entity_id: ID) -> Vec<Ref<dyn Component>> {
+        self
+            .get_all(entity_id)
+            .into_iter()
+            .map(|ref_| Ref::map(ref_, |comp| comp as &dyn Component))
+            .collect()
     }
 }
 

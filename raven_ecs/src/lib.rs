@@ -4,11 +4,10 @@
 #![feature(type_alias_impl_trait)]
 #![feature(stmt_expr_attributes)]
 
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use typetag;
 
-//pub use world::query;
+pub use world::query;
 
 #[macro_export]
 macro_rules! deref_vec {
@@ -18,7 +17,7 @@ macro_rules! deref_vec {
 }
 
 mod pool;
-//pub mod world;
+pub mod world;
 #[cfg(test)]
 mod test;
 
@@ -31,5 +30,5 @@ pub struct Entity {
     version: Version,
 }
 
-#[typetag::serde(tag = "type")]
-pub trait Component: 'static + PartialEq + Sized + Serialize + DeserializeOwned {}
+// #[typetag::serde(tag = "type")]
+pub trait Component: 'static {}

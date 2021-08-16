@@ -6,7 +6,7 @@ use crate::{Component, Entity, ID, Version};
 use crate::pool::{AnyPool, Pool};
 
 pub mod query;
-mod serde;
+// mod serde;
 
 pub struct World {
     entities: Vec<(Option<ID>, Version)>,
@@ -211,6 +211,7 @@ impl World {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::*;
 
     #[test]
     fn create_entity() {
@@ -234,9 +235,9 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, 1);
+        w.attach(e, CompX::new("A"));
 
-        assert_eq!(w.get_one::<i32>(e).as_deref(), Some(&1));
+        assert_eq!(w.get_one::<CompX>(e).as_deref(), Some(&CompX::new("A")));
     }
 
     #[test]
@@ -244,11 +245,11 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach::<char>(e, 'A');
-        w.attach::<i32>(e, 10);
+        w.attach::<CompX>(e, CompX::new("A"));
+        w.attach::<CompY>(e, CompY::new("B"));
 
-        assert_eq!(w.get_one::<char>(e).as_deref(), Some(&'A'));
-        assert_eq!(w.get_one::<i32>(e).as_deref(), Some(&10));
+        assert_eq!(w.get_one::<CompX>(e).as_deref(), Some(&CompX::new("A")));
+        assert_eq!(w.get_one::<CompY>(e).as_deref(), Some(&CompY::new("B")));
     }
 
     #[test]
@@ -256,11 +257,11 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, 'A');
-        w.attach(e, 'B');
-        w.detach_one::<char>(e);
+        w.attach(e, CompX::new("A"));
+        w.attach(e, CompX::new("B"));
+        w.detach_one::<CompX>(e);
 
-        assert_eq!(deref_vec!(w.get_all::<char>(e)), vec![&'B']);
+        assert_eq!(deref_vec!(w.get_all::<CompX>(e)), vec![&CompX::new("B")]);
     }
 
     #[test]
@@ -268,11 +269,11 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, 'A');
-        w.attach(e, 'B');
-        w.detach_all::<char>(e);
+        w.attach(e, CompX::new("A"));
+        w.attach(e, CompX::new("B"));
+        w.detach_all::<CompX>(e);
 
-        assert_eq!(deref_vec!(w.get_all::<char>(e)), Vec::<&char>::new());
+        assert_eq!(deref_vec!(w.get_all::<CompX>(e)), Vec::<&CompX>::new());
     }
 
     #[test]
@@ -280,10 +281,10 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, 'A');
+        w.attach(e, CompX::new("A"));
         w.destroy(e);
 
-        assert_eq!(w.get_one::<char>(e).as_deref(), None);
+        assert_eq!(w.get_one::<CompX>(e).as_deref(), None);
     }
 
     #[test]
@@ -291,12 +292,12 @@ mod test {
         let mut w = World::default();
 
         let e1 = w.create();
-        w.attach(e1, 'A');
+        w.attach(e1, CompX::new("A"));
         w.destroy(e1);
 
         let e2 = w.create();
 
-        assert_eq!(w.get_one::<char>(e2).as_deref(), None);
+        assert_eq!(w.get_one::<CompX>(e2).as_deref(), None);
     }
 
     #[test]
@@ -318,11 +319,14 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, 'A');
+        w.attach(e, CompX::new("A"));
 
-        *w.get_one_mut::<char>(e).unwrap() = 'B';
+        {
+            let mut comp = w.get_one_mut::<CompX>(e).unwrap();
+            comp.f = comp.f.to_ascii_lowercase();
+        }
 
-        assert_eq!(w.get_one::<char>(e).as_deref(), Some(&'B'));
+        assert_eq!(w.get_one::<CompX>(e).as_deref(), Some(&CompX::new("a")));
     }
 
     #[test]
@@ -330,11 +334,15 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, 'A');
-        w.attach(e, 'B');
-        w.attach(e, 'C');
+        w.attach(e, CompX::new("A"));
+        w.attach(e, CompX::new("B"));
+        w.attach(e, CompX::new("C"));
 
-        assert_eq!(deref_vec!(w.get_all::<char>(e)), vec![&'A', &'B', &'C']);
+        assert_eq!(deref_vec!(w.get_all::<CompX>(e)), vec![
+            &CompX::new("A"),
+            &CompX::new("B"),
+            &CompX::new("C"),
+        ]);
     }
 
     #[test]
@@ -342,15 +350,19 @@ mod test {
         let mut w = World::default();
 
         let e = w.create();
-        w.attach(e, 1);
-        w.attach(e, 2);
-        w.attach(e, 3);
+        w.attach(e, CompX::new("A"));
+        w.attach(e, CompX::new("B"));
+        w.attach(e, CompX::new("C"));
 
-        for mut n in w.get_all_mut::<i32>(e) {
-            *n *= 10;
+        for mut n in w.get_all_mut::<CompX>(e) {
+            n.f = n.f.to_ascii_lowercase();
         }
 
-        assert_eq!(deref_vec!(w.get_all::<i32>(e)), vec![&10, &20, &30]);
+        assert_eq!(deref_vec!(w.get_all::<CompX>(e)), vec![
+            &CompX::new("a"),
+            &CompX::new("b"),
+            &CompX::new("c"),
+        ]);
     }
 
     #[test]
@@ -364,6 +376,10 @@ mod test {
 
         w.destroy(e3);
 
-        assert_eq!(w.entities(), vec![e1, e2, e4]);
+        assert_eq!(w.entities(), vec![
+            e1,
+            e2,
+            e4,
+        ]);
     }
 }

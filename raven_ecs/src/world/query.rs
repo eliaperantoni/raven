@@ -265,37 +265,38 @@ query_facilities! { View6, View6Mut, A, B, C, D, E, F }
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test::*;
 
     #[test]
     fn query_shallow() {
         let mut w = World::default();
 
         let e1 = w.create();
-        w.attach::<i32>(e1, 10);
-        w.attach::<i32>(e1, 99);
-        w.attach::<char>(e1, 'A');
-        w.detach_one::<i32>(e1);
+        w.attach::<CompX>(e1, CompX::new("A"));
+        w.attach::<CompX>(e1, CompX::new("B"));
+        w.attach::<CompY>(e1, CompY::new("C"));
+        w.detach_one::<CompX>(e1);
 
         let e2 = w.create();
-        w.attach::<i32>(e2, 20);
-        w.attach::<i32>(e2, 99);
-        w.attach::<char>(e2, 'B');
+        w.attach::<CompX>(e2, CompX::new("D"));
+        w.attach::<CompX>(e2, CompX::new("E"));
+        w.attach::<CompY>(e2, CompY::new("F"));
 
         let e3 = w.create();
-        w.attach::<i32>(e3, 30);
-        w.attach::<i32>(e3, 99);
+        w.attach::<CompX>(e3, CompX::new("G"));
+        w.attach::<CompX>(e3, CompX::new("H"));
 
         let want = vec![
-            (e1, (99, 'A')),
-            (e2, (20, 'B')),
+            (e1, (CompX::new("B"), CompY::new("C"))),
+            (e2, (CompX::new("D"), CompY::new("F"))),
         ];
 
-        assert_eq!(<(i32, char)>::query_shallow(&w).count(), want.len());
-        for (i, (e, (n, s))) in <(i32, char)>::query_shallow(&w).enumerate() {
-            let (want_e, (want_n, want_s)) = want[i];
+        assert_eq!(<(CompX, CompY)>::query_shallow(&w).count(), want.len());
+        for (i, (e, (x, y))) in <(CompX, CompY)>::query_shallow(&w).enumerate() {
+            let (want_e, (want_x, want_y)) = want[i].clone();
             assert_eq!(e, want_e);
-            assert_eq!(*n, want_n);
-            assert_eq!(*s, want_s);
+            assert_eq!(*x, want_x);
+            assert_eq!(*y, want_y);
         }
     }
 
@@ -304,35 +305,36 @@ mod test {
         let mut w = World::default();
 
         let e1 = w.create();
-        w.attach::<i32>(e1, 10);
-        w.attach::<i32>(e1, 99);
-        w.attach::<String>(e1, String::from("A"));
+        w.attach::<CompX>(e1, CompX::new("A"));
+        w.attach::<CompX>(e1, CompX::new("B"));
+        w.attach::<CompY>(e1, CompY::new("C"));
+        w.detach_one::<CompX>(e1);
 
         let e2 = w.create();
-        w.attach::<i32>(e2, 20);
-        w.attach::<i32>(e2, 99);
-        w.attach::<String>(e2, String::from("B"));
+        w.attach::<CompX>(e2, CompX::new("D"));
+        w.attach::<CompX>(e2, CompX::new("E"));
+        w.attach::<CompY>(e2, CompY::new("F"));
 
         let e3 = w.create();
-        w.attach::<i32>(e3, 30);
-        w.attach::<i32>(e3, 99);
+        w.attach::<CompX>(e3, CompX::new("G"));
+        w.attach::<CompX>(e3, CompX::new("H"));
 
-        for (_e, (mut n, mut s)) in <(i32, String)>::query_shallow_mut(&mut w) {
-            *n += 1;
-            *s = s.to_ascii_lowercase();
+        for (_e, (mut x, mut y)) in <(CompX, CompY)>::query_shallow_mut(&mut w) {
+            x.f = x.f.to_ascii_lowercase();
+            y.f = y.f.to_ascii_lowercase();
         }
 
         let want = vec![
-            (e1, (11, String::from("a"))),
-            (e2, (21, String::from("b"))),
+            (e1, (CompX::new("b"), CompY::new("c"))),
+            (e2, (CompX::new("d"), CompY::new("f"))),
         ];
 
-        assert_eq!(<(i32, String)>::query_shallow(&w).count(), want.len());
-        for (i, (e, (n, s))) in <(i32, String)>::query_shallow(&w).enumerate() {
-            let (want_e, (want_n, want_s)) = want[i].clone();
+        assert_eq!(<(CompX, CompY)>::query_shallow(&w).count(), want.len());
+        for (i, (e, (x, y))) in <(CompX, CompY)>::query_shallow(&w).enumerate() {
+            let (want_e, (want_x, want_y)) = want[i].clone();
             assert_eq!(e, want_e);
-            assert_eq!(*n, want_n);
-            assert_eq!(s.clone(), want_s);
+            assert_eq!(*x, want_x);
+            assert_eq!(y.clone(), want_y);
         }
     }
 
@@ -341,31 +343,31 @@ mod test {
         let mut w = World::default();
 
         let e1 = w.create();
-        w.attach::<i32>(e1, 1);
-        w.attach::<i32>(e1, 10);
-        w.attach::<char>(e1, 'A');
+        w.attach::<CompX>(e1, CompX::new("A"));
+        w.attach::<CompX>(e1, CompX::new("B"));
+        w.attach::<CompY>(e1, CompY::new("C"));
 
         let e2 = w.create();
-        w.attach::<i32>(e2, 2);
-        w.attach::<i32>(e2, 20);
-        w.attach::<char>(e2, 'B');
-        w.attach::<char>(e2, 'b');
+        w.attach::<CompX>(e2, CompX::new("D"));
+        w.attach::<CompX>(e2, CompX::new("E"));
+        w.attach::<CompY>(e2, CompY::new("F"));
+        w.attach::<CompY>(e2, CompY::new("G"));
 
         let want = vec![
-            (e1, (1, 'A')),
-            (e1, (10, 'A')),
-            (e2, (2, 'B')),
-            (e2, (2, 'b')),
-            (e2, (20, 'B')),
-            (e2, (20, 'b')),
+            (e1, (CompX::new("A"), CompY::new("C"))),
+            (e1, (CompX::new("B"), CompY::new("C"))),
+            (e2, (CompX::new("D"), CompY::new("F"))),
+            (e2, (CompX::new("D"), CompY::new("G"))),
+            (e2, (CompX::new("E"), CompY::new("F"))),
+            (e2, (CompX::new("E"), CompY::new("G"))),
         ];
 
-        assert_eq!(<(i32, char)>::query_deep(&w).count(), want.len());
-        for (i, (e, (n, s))) in <(i32, char)>::query_deep(&w).enumerate() {
-            let (want_e, (want_n, want_s)) = want[i];
+        assert_eq!(<(CompX, CompY)>::query_deep(&w).count(), want.len());
+        for (i, (e, (x, y))) in <(CompX, CompY)>::query_deep(&w).enumerate() {
+            let (want_e, (want_x, want_y)) = want[i].clone();
             assert_eq!(e, want_e);
-            assert_eq!(*n, want_n);
-            assert_eq!(*s, want_s);
+            assert_eq!(*x, want_x);
+            assert_eq!(*y, want_y);
         }
     }
 
@@ -374,37 +376,39 @@ mod test {
         let mut w = World::default();
 
         let e1 = w.create();
-        w.attach::<i32>(e1, 1);
-        w.attach::<i32>(e1, 10);
-        w.attach::<char>(e1, 'A');
+        w.attach::<CompX>(e1, CompX::new("A"));
+        w.attach::<CompX>(e1, CompX::new("B"));
+        w.attach::<CompY>(e1, CompY::new("C"));
 
         let e2 = w.create();
-        w.attach::<i32>(e2, 2);
-        w.attach::<i32>(e2, 20);
-        w.attach::<char>(e2, 'B');
-        w.attach::<char>(e2, 'b');
+        w.attach::<CompX>(e2, CompX::new("D"));
+        w.attach::<CompX>(e2, CompX::new("E"));
+        w.attach::<CompY>(e2, CompY::new("F"));
+        w.attach::<CompY>(e2, CompY::new("G"));
 
         {
-            let mut view = <(i32, char)>::query_deep_mut(&mut w);
-            let (_, (mut n, _)) = view.nth(2).unwrap();
-            *n = 99;
+            let mut view = <(CompX, CompY)>::query_deep_mut(&mut w);
+            let (_, (mut x, mut y)) = view.nth(2).unwrap();
+            // 2nd result is (D,F). Should make every D and F lowercase
+            x.f = x.f.to_ascii_lowercase();
+            y.f = y.f.to_ascii_lowercase();
         }
 
         let want = vec![
-            (e1, (1, 'A')),
-            (e1, (10, 'A')),
-            (e2, (99, 'B')),
-            (e2, (99, 'b')),
-            (e2, (20, 'B')),
-            (e2, (20, 'b')),
+            (e1, (CompX::new("A"), CompY::new("C"))),
+            (e1, (CompX::new("B"), CompY::new("C"))),
+            (e2, (CompX::new("d"), CompY::new("f"))),
+            (e2, (CompX::new("d"), CompY::new("G"))),
+            (e2, (CompX::new("E"), CompY::new("f"))),
+            (e2, (CompX::new("E"), CompY::new("G"))),
         ];
 
-        assert_eq!(<(i32, char)>::query_deep(&w).count(), want.len());
-        for (i, (e, (n, s))) in <(i32, char)>::query_deep(&w).enumerate() {
-            let (want_e, (want_n, want_s)) = want[i];
+        assert_eq!(<(CompX, CompY)>::query_deep(&w).count(), want.len());
+        for (i, (e, (x, y))) in <(CompX, CompY)>::query_deep(&w).enumerate() {
+            let (want_e, (want_x, want_y)) = want[i].clone();
             assert_eq!(e, want_e);
-            assert_eq!(*n, want_n);
-            assert_eq!(*s, want_s);
+            assert_eq!(*x, want_x);
+            assert_eq!(*y, want_y);
         }
     }
 
@@ -414,16 +418,16 @@ mod test {
         let mut w = World::default();
 
         let e1 = w.create();
-        w.attach::<i32>(e1, 1);
-        w.attach::<i32>(e1, 10);
-        w.attach::<char>(e1, 'A');
+        w.attach::<CompX>(e1, CompX::new("A"));
+        w.attach::<CompX>(e1, CompX::new("B"));
+        w.attach::<CompY>(e1, CompY::new("C"));
 
         let e2 = w.create();
-        w.attach::<i32>(e2, 2);
-        w.attach::<i32>(e2, 20);
-        w.attach::<char>(e2, 'B');
-        w.attach::<char>(e2, 'b');
+        w.attach::<CompX>(e2, CompX::new("D"));
+        w.attach::<CompX>(e2, CompX::new("E"));
+        w.attach::<CompY>(e2, CompY::new("F"));
+        w.attach::<CompY>(e2, CompY::new("G"));
 
-        <(i32, char)>::query_deep_mut(&mut w).collect::<Vec<_>>().into_iter().for_each(drop);
+        <(CompX, CompY)>::query_deep_mut(&mut w).collect::<Vec<_>>().into_iter().for_each(drop);
     }
 }
