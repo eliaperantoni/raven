@@ -1,6 +1,5 @@
 use std::any::Any;
 use std::cell::{Ref, RefCell, RefMut};
-use std::ops::Deref;
 
 use smallvec::{SmallVec, smallvec};
 

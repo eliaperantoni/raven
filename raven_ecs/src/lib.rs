@@ -4,7 +4,6 @@
 #![feature(type_alias_impl_trait)]
 #![feature(stmt_expr_attributes)]
 
-use serde::{Serialize, Deserialize};
 use typetag;
 
 pub use world::query;
