@@ -5,7 +5,7 @@ use crate::Component;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct CompX {
-    f: String,
+    pub f: String,
 }
 
 impl CompX {
@@ -18,7 +18,7 @@ impl CompX {
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct CompY {
-    f: String,
+    pub f: String,
 }
 
 impl CompY {
@@ -31,7 +31,7 @@ impl CompY {
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct CompZ {
-    f: String,
+    pub f: String,
 }
 
 impl CompZ {
@@ -42,11 +42,11 @@ impl CompZ {
     }
 }
 
-#[typetag::serde]
+// #[typetag::serde]
 impl Component for CompX {}
 
-#[typetag::serde]
+// #[typetag::serde]
 impl Component for CompY {}
 
-#[typetag::serde]
+// #[typetag::serde]
 impl Component for CompZ {}

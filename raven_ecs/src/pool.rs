@@ -324,10 +324,14 @@ mod test {
         p.attach(0, CompX::new("C"));
 
         for mut n in p.get_all_mut(0) {
-            *n = ;
+            n.f = n.f.to_ascii_lowercase();
         }
 
-        assert_eq!(deref_vec!(p.get_all(0)), vec![&10, &20, &30]);
+        assert_eq!(deref_vec!(p.get_all(0)), vec![
+            &CompX::new("a"),
+            &CompX::new("b"),
+            &CompX::new("c"),
+        ]);
     }
 
     #[test]
@@ -362,7 +366,7 @@ mod test {
 
     #[test]
     fn packed_arrays_len() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
         let assert_len_is = |p: &Pool<_>, len: usize| {
             assert_eq!(p.packed.len(), len);
@@ -370,11 +374,11 @@ mod test {
         };
 
         assert_len_is(&p, 0);
-        p.attach(0, 1);
+        p.attach(0, CompX::new("A"));
         assert_len_is(&p, 1);
-        p.attach(PAGE_SIZE - 1, 2);
+        p.attach(PAGE_SIZE - 1, CompX::new("B"));
         assert_len_is(&p, 2);
-        p.attach(PAGE_SIZE, 3);
+        p.attach(PAGE_SIZE, CompX::new("C"));
         assert_len_is(&p, 3);
         p.detach_one(0);
         assert_len_is(&p, 2);
@@ -386,27 +390,27 @@ mod test {
 
     #[test]
     fn remove_returns_component() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 99);
-        assert_eq!(p.detach_one(0), Some(99));
+        p.attach(0, CompX::new("Z"));
+        assert_eq!(p.detach_one(0), Some(CompX::new("Z")));
     }
 
     #[test]
     fn remove_non_repeatable() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 99);
-        p.detach_one(0); // Should be Some(99)
+        p.attach(0, CompX::new("Z"));
+        p.detach_one(0); // Should be Some(CompX {f: "Z"})
         assert_eq!(p.detach_one(0), None);
     }
 
     #[test]
     fn simple_add() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        p.attach(1, 2);
+        p.attach(0, CompX::new("A"));
+        p.attach(1, CompX::new("B"));
 
         assert_eq!(
             p.sparse,
@@ -421,21 +425,21 @@ mod test {
         assert_eq!(p.packed, vec![0, 1]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new(1)],
-            smallvec![RefCell::new(2)],
+            smallvec![RefCell::new(CompX::new("A"))],
+            smallvec![RefCell::new(CompX::new("B"))],
         ];
         assert_eq!(p.components, want_components);
 
-        assert_eq!(p.get_one(0).as_deref(), Some(&1));
-        assert_eq!(p.get_one(1).as_deref(), Some(&2));
+        assert_eq!(p.get_one(0).as_deref(), Some(&CompX::new("A")));
+        assert_eq!(p.get_one(1).as_deref(), Some(&CompX::new("B")));
     }
 
     #[test]
     fn add_not_adjacent() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        p.attach(2, 2);
+        p.attach(0, CompX::new("A"));
+        p.attach(2, CompX::new("B"));
 
         assert_eq!(
             p.sparse,
@@ -450,21 +454,21 @@ mod test {
         assert_eq!(p.packed, vec![0, 2]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new(1)],
-            smallvec![RefCell::new(2)],
+            smallvec![RefCell::new(CompX::new("A"))],
+            smallvec![RefCell::new(CompX::new("B"))],
         ];
         assert_eq!(p.components, want_components);
 
-        assert_eq!(p.get_one(0).as_deref(), Some(&1));
-        assert_eq!(p.get_one(2).as_deref(), Some(&2));
+        assert_eq!(p.get_one(0).as_deref(), Some(&CompX::new("A")));
+        assert_eq!(p.get_one(2).as_deref(), Some(&CompX::new("B")));
     }
 
     #[test]
     fn simple_remove_left() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        p.attach(1, 2);
+        p.attach(0, CompX::new("A"));
+        p.attach(1, CompX::new("B"));
 
         p.detach_one(0);
 
@@ -480,20 +484,20 @@ mod test {
         assert_eq!(p.packed, vec![1]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new(2)],
+            smallvec![RefCell::new(CompX::new("B"))],
         ];
         assert_eq!(p.components, want_components);
 
         assert_eq!(p.get_one(0).as_deref(), None);
-        assert_eq!(p.get_one(1).as_deref(), Some(&2));
+        assert_eq!(p.get_one(1).as_deref(), Some(&CompX::new("B")));
     }
 
     #[test]
     fn simple_remove_right() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        p.attach(1, 2);
+        p.attach(0, CompX::new("A"));
+        p.attach(1, CompX::new("B"));
 
         p.detach_one(1);
 
@@ -509,20 +513,20 @@ mod test {
         assert_eq!(p.packed, vec![0]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new(1)],
+            smallvec![RefCell::new(CompX::new("A"))],
         ];
         assert_eq!(p.components, want_components);
 
-        assert_eq!(p.get_one(0).as_deref(), Some(&1));
+        assert_eq!(p.get_one(0).as_deref(), Some(&CompX::new("A")));
         assert_eq!(p.get_one(1).as_deref(), None);
     }
 
     #[test]
     fn remove_not_adjacent_left() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        p.attach(2, 2);
+        p.attach(0, CompX::new("A"));
+        p.attach(2, CompX::new("B"));
 
         p.detach_one(0);
 
@@ -538,21 +542,21 @@ mod test {
         assert_eq!(p.packed, vec![2]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new(2)],
+            smallvec![RefCell::new(CompX::new("B"))],
         ];
         assert_eq!(p.components, want_components);
 
         assert_eq!(p.get_one(0).as_deref(), None);
         assert_eq!(p.get_one(1).as_deref(), None);
-        assert_eq!(p.get_one(2).as_deref(), Some(&2));
+        assert_eq!(p.get_one(2).as_deref(), Some(&CompX::new("B")));
     }
 
     #[test]
     fn remove_not_adjacent_right() {
-        let mut p: Pool<i32> = Pool::new();
+        let mut p: Pool<CompX> = Pool::new();
 
-        p.attach(0, 1);
-        p.attach(2, 2);
+        p.attach(0, CompX::new("A"));
+        p.attach(2, CompX::new("B"));
 
         p.detach_one(2);
 
@@ -568,11 +572,11 @@ mod test {
         assert_eq!(p.packed, vec![0]);
 
         let want_components: Vec<CompVec<_>> = vec![
-            smallvec![RefCell::new(1)],
+            smallvec![RefCell::new(CompX::new("A"))],
         ];
         assert_eq!(p.components, want_components);
 
-        assert_eq!(p.get_one(0).as_deref(), Some(&1));
+        assert_eq!(p.get_one(0).as_deref(), Some(&CompX::new("A")));
         assert_eq!(p.get_one(1).as_deref(), None);
         assert_eq!(p.get_one(2).as_deref(), None);
     }
@@ -592,7 +596,7 @@ mod test {
 
         // Generate a random number of random entities and give each one a component (equal to the id +1, for simplicity).
         // The bool tracks whether that entity should still be present in the pool (we will delete them).
-        let mut entities: Vec<(ID, i32, bool)> = Vec::new();
+        let mut entities: Vec<(ID, CompX, bool)> = Vec::new();
         for _ in 0..rng.gen_range(0..PAGE_SIZE * N_TARGET_ENTITIES_PER_PAGE) {
             // Find a new ID never used before
             let id: ID = loop {
@@ -602,18 +606,18 @@ mod test {
                 }
             };
 
-            entities.push((id, id as i32 + 1, true));
+            entities.push((id, CompX::new(&id.to_string()), true));
         }
 
-        let mut p: Pool<i32> = Pool::new();
-        for (entity_id, component, _) in entities.iter().copied() {
+        let mut p: Pool<CompX> = Pool::new();
+        for (entity_id, component, _) in entities.iter().cloned() {
             p.attach(entity_id, component);
         }
 
         entities.shuffle(&mut rng);
 
         loop {
-            for (entity_id, component, alive) in entities.iter().copied() {
+            for (entity_id, component, alive) in entities.iter().cloned() {
                 if alive {
                     assert_eq!(p.get_one(entity_id).as_deref(), Some(&component));
                 } else {
