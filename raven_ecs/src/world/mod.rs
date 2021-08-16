@@ -6,7 +6,7 @@ use crate::{Component, Entity, ID, Version};
 use crate::pool::{AnyPool, Pool};
 
 pub mod query;
-// mod serde;
+mod serde;
 
 pub struct World {
     entities: Vec<(Option<ID>, Version)>,

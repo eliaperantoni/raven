@@ -29,8 +29,8 @@ impl CompY {
     }
 }
 
-// #[typetag::serde]
+#[typetag::serde]
 impl Component for CompX {}
 
-// #[typetag::serde]
+#[typetag::serde]
 impl Component for CompY {}

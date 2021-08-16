@@ -29,5 +29,5 @@ pub struct Entity {
     version: Version,
 }
 
-// #[typetag::serde(tag = "type")]
+#[typetag::serde(tag = "type")]
 pub trait Component: 'static {}
