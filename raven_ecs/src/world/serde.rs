@@ -9,7 +9,8 @@ use crate::pool::AnyPool;
 
 use super::World;
 use std::ops::Deref;
-use serde::de::Error;
+use serde::de::{Error, Visitor, SeqAccess};
+use std::fmt::Formatter;
 
 // Serde is dumb and doesn't impl Serialize for std::cell::Ref. We'll do it ourselves
 struct Ref<'a, T: ?Sized>(std::cell::Ref<'a, T>);
@@ -25,6 +26,13 @@ struct SerializedEntity<'a> {
     id: ID,
     version: Version,
     components: Vec<Ref<'a, dyn Component>>,
+}
+
+#[derive(Deserialize)]
+struct DeserializedEntity {
+    id: ID,
+    version: Version,
+    components: Vec<Box<dyn Component>>,
 }
 
 impl Serialize for World {
@@ -51,9 +59,29 @@ impl Serialize for World {
     }
 }
 
+struct WorldVisitor;
+
+impl<'de> Visitor<'de> for WorldVisitor {
+    type Value = World;
+
+    fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+        formatter.write_str("a world")
+    }
+
+    fn visit_seq<S>(self, mut seq: S) -> Result<Self::Value, S::Error> where S: SeqAccess<'de> {
+        let mut world = World::default();
+
+        while let Some(next) = seq.next_element::<DeserializedEntity>()? {
+            println!("TODO");
+        }
+
+        Ok(world)
+    }
+}
+
 impl<'de> Deserialize<'de> for World {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
-        todo!()
+        deserializer.deserialize_seq(WorldVisitor)
     }
 }
 
@@ -65,28 +93,33 @@ mod test {
 
     #[test]
     fn serde() {
-        let mut w = World::default();
+        let mut original = World::default();
 
-        let e1 = w.create();
-        let e2 = w.create();
-        let e3 = w.create();
-        let _e4 = w.create();
+        let e1 = original.create();
+        let e2 = original.create();
+        let e3 = original.create();
+        let _e4 = original.create();
 
-        w.destroy(e3);
+        original.destroy(e3);
 
-        let e3 = w.create();
+        let e3 = original.create();
 
-        w.attach(e1, CompX::new("A"));
-        w.attach(e1, CompX::new("B"));
-        w.attach(e1, CompY::new("C"));
+        original.attach(e1, CompX::new("A"));
+        original.attach(e1, CompX::new("B"));
+        original.attach(e1, CompY::new("C"));
 
-        w.attach(e2, CompX::new("D"));
-        w.attach(e2, CompY::new("E"));
-        w.attach(e2, CompY::new("F"));
+        original.attach(e2, CompX::new("D"));
+        original.attach(e2, CompY::new("E"));
+        original.attach(e2, CompY::new("F"));
 
-        w.attach(e3, CompY::new("G"));
-        w.attach(e3, CompY::new("H"));
+        original.attach(e3, CompY::new("G"));
+        original.attach(e3, CompY::new("H"));
 
-        println!("{}", serde_json::to_string_pretty(&w).unwrap());
+        let serialized = serde_json::to_string_pretty(&original).unwrap();
+
+        println!("{}", serialized);
+
+        let deserialized: World = serde_json::from_str(&serialized).unwrap();
+        dbg!();
     }
 }
