@@ -7,6 +7,7 @@
 use typetag;
 
 pub use world::query;
+
 use crate::world::World;
 
 #[macro_export]

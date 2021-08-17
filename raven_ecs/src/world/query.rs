@@ -264,8 +264,9 @@ query_facilities! { View6, View6Mut, A, B, C, D, E, F }
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::test::*;
+
+    use super::*;
 
     #[test]
     fn query_shallow() {

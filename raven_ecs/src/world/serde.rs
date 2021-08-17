@@ -1,12 +1,13 @@
-use serde::{Deserialize, Serialize, Serializer, Deserializer};
+use std::fmt::Formatter;
+use std::ops::Deref;
+
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::de::{SeqAccess, Visitor};
 use serde::ser::SerializeSeq;
 
-use crate::{Component, ID, Version, Entity};
+use crate::{Component, Entity, ID, Version};
 
 use super::World;
-use std::ops::Deref;
-use serde::de::{Visitor, SeqAccess};
-use std::fmt::Formatter;
 
 // Serde is dumb and doesn't impl Serialize for std::cell::Ref. We'll do it ourselves
 struct Ref<'a, T: ?Sized>(std::cell::Ref<'a, T>);
@@ -70,7 +71,7 @@ impl<'de> Visitor<'de> for WorldVisitor {
         while let Some(next) = seq.next_element::<DeserializedEntity>()? {
             let entity = Entity {
                 id: next.id,
-                version: next.version
+                version: next.version,
             };
 
             if world.entities.len() <= entity.id {

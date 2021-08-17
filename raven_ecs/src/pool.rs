@@ -249,8 +249,9 @@ impl<T: Component> AnyPool for Pool<T> {
 mod test {
     use std::ops::Deref;
 
-    use super::*;
     use crate::test::*;
+
+    use super::*;
 
     #[test]
     fn count() {

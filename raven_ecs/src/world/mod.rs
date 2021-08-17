@@ -210,8 +210,9 @@ impl World {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use crate::test::*;
+
+    use super::*;
 
     #[test]
     fn create_entity() {
