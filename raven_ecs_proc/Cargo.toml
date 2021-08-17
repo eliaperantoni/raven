@@ -1,0 +1,12 @@
+[package]
+name = "raven_ecs_proc"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0.9"
+syn = "1.0.74"
+typetag = "0.1.7"

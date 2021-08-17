@@ -1,18 +1,10 @@
 [package]
-name = "raven_ecs"
+name = "raven_ecs_test"
 version = "0.1.0"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-paste = "1.0.5"
-smallvec = "1.6.1"
+raven_ecs = { path="../raven_ecs" }
 serde = { version = "1.0.127", features = ["derive"] }
-ron = "0.6.4"
-serde_json = "1.0.66"
-typetag = "0.1.7"
-raven_ecs_proc = { path = "../raven_ecs_proc" }
-
-[dev-dependencies]
-rand = "0.8.4"

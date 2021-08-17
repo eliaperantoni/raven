@@ -7,6 +7,7 @@
 use typetag;
 
 pub use world::query;
+pub use raven_ecs_proc::Component;
 
 use crate::world::World;
 
