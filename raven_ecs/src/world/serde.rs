@@ -72,7 +72,35 @@ impl<'de> Visitor<'de> for WorldVisitor {
         let mut world = World::default();
 
         while let Some(next) = seq.next_element::<DeserializedEntity>()? {
-            println!("TODO");
+            if world.entities.len() <= next.id {
+                world.entities.resize(next.id + 1, (None, 0));
+            }
+
+            world.entities[next.id] = (Some(next.id), next.version);
+
+            for comp in next.components {
+                let c: &dyn Component = 
+            }
+        }
+
+        {
+            let destroyed_entities: Vec<ID> = world.entities
+                .iter()
+                .enumerate()
+                .filter(|(entity_id, _)| !world.is_alive(*entity_id))
+                .map(|(entity_id, _)| entity_id)
+                .collect();
+
+            let mut prev: Option<ID> = None;
+            for entity_id in destroyed_entities {
+                if let Some(prev) = prev {
+                    world.entities[entity_id].0 = Some(prev);
+                } else {
+                    prev = Some(entity_id);
+                }
+            }
+
+            world.destroyed_head = prev;
         }
 
         Ok(world)
