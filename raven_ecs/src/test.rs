@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use typetag;
 
-use crate::Component;
+use crate::{Component, Entity};
+use crate::world::World;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct CompX {
@@ -30,7 +31,15 @@ impl CompY {
 }
 
 #[typetag::serde]
-impl Component for CompX {}
+impl Component for CompX {
+    fn inject(self: Box<Self>, w: &mut World, e: Entity) {
+        w.attach::<Self>(e, *self);
+    }
+}
 
 #[typetag::serde]
-impl Component for CompY {}
+impl Component for CompY {
+    fn inject(self: Box<Self>, w: &mut World, e: Entity) {
+        w.attach::<Self>(e, *self);
+    }
+}

@@ -1,15 +1,11 @@
-use std::any::TypeId;
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize, Serializer, Deserializer};
 use serde::ser::SerializeSeq;
 
-use crate::{Component, ID, Version};
-use crate::pool::AnyPool;
+use crate::{Component, ID, Version, Entity};
 
 use super::World;
 use std::ops::Deref;
-use serde::de::{Error, Visitor, SeqAccess};
+use serde::de::{Visitor, SeqAccess};
 use std::fmt::Formatter;
 
 // Serde is dumb and doesn't impl Serialize for std::cell::Ref. We'll do it ourselves
@@ -48,7 +44,7 @@ impl Serialize for World {
             };
 
             for pool in self.pools.values() {
-                for component in pool.get_all_as_any(entity.id) {
+                for component in pool.get_all_as_dyn(entity.id) {
                     se.components.push(Ref(component));
                 }
             }
@@ -72,14 +68,19 @@ impl<'de> Visitor<'de> for WorldVisitor {
         let mut world = World::default();
 
         while let Some(next) = seq.next_element::<DeserializedEntity>()? {
-            if world.entities.len() <= next.id {
-                world.entities.resize(next.id + 1, (None, 0));
+            let entity = Entity {
+                id: next.id,
+                version: next.version
+            };
+
+            if world.entities.len() <= entity.id {
+                world.entities.resize(entity.id + 1, (None, 0));
             }
 
-            world.entities[next.id] = (Some(next.id), next.version);
+            world.entities[entity.id] = (Some(entity.id), entity.version);
 
             for comp in next.components {
-                let c: &dyn Component = 
+                comp.inject(&mut world, entity);
             }
         }
 
@@ -145,9 +146,19 @@ mod test {
 
         let serialized = serde_json::to_string_pretty(&original).unwrap();
 
-        println!("{}", serialized);
-
         let deserialized: World = serde_json::from_str(&serialized).unwrap();
-        dbg!();
+
+        assert_eq!(original.entities(), deserialized.entities());
+
+        for entity in original.entities() {
+            assert_eq!(
+                deref_vec!(original.get_all::<CompX>(entity)),
+                deref_vec!(deserialized.get_all::<CompX>(entity)),
+            );
+            assert_eq!(
+                deref_vec!(original.get_all::<CompY>(entity)),
+                deref_vec!(deserialized.get_all::<CompY>(entity)),
+            );
+        }
     }
 }

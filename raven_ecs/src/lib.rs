@@ -7,6 +7,7 @@
 use typetag;
 
 pub use world::query;
+use crate::world::World;
 
 #[macro_export]
 macro_rules! deref_vec {
@@ -30,4 +31,6 @@ pub struct Entity {
 }
 
 #[typetag::serde(tag = "type")]
-pub trait Component: 'static {}
+pub trait Component: 'static {
+    fn inject(self: Box<Self>, w: &mut World, e: Entity);
+}
