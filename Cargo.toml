@@ -3,7 +3,7 @@ members = [
     "raven_core",
     "raven_ecs",
     "raven_ecs_proc",
-    "raven_ecs_test",
+    "raven_ecs_example",
     "raven_editor",
     "raven_runtime",
 ]

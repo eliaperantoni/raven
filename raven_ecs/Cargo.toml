@@ -9,10 +9,9 @@ edition = "2018"
 paste = "1.0.5"
 smallvec = "1.6.1"
 serde = { version = "1.0.127", features = ["derive"] }
-ron = "0.6.4"
-serde_json = "1.0.66"
 typetag = "0.1.7"
 raven_ecs_proc = { path = "../raven_ecs_proc" }
 
 [dev-dependencies]
+serde_json = "1.0.66"
 rand = "0.8.4"

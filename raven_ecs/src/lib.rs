@@ -4,24 +4,24 @@
 #![feature(type_alias_impl_trait)]
 #![feature(stmt_expr_attributes)]
 
-use typetag;
+pub use typetag;
 
-pub use world::query;
 pub use raven_ecs_proc::Component;
+pub use world::query::Query;
+pub use world::World;
 
-use crate::world::World;
-
-#[macro_export]
+#[cfg(test)]
 macro_rules! deref_vec {
     ($e:expr) => {
         $e.iter().map(|e| e.deref()).collect::<Vec<_>>()
     }
 }
 
-mod pool;
-pub mod world;
 #[cfg(test)]
 mod test;
+
+mod pool;
+mod world;
 
 type ID = usize;
 type Version = u32;

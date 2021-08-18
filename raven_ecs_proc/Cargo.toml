@@ -9,4 +9,3 @@ proc-macro = true
 [dependencies]
 quote = "1.0.9"
 syn = "1.0.74"
-typetag = "0.1.7"

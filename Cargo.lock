@@ -1358,11 +1358,19 @@ dependencies = [
  "paste",
  "rand",
  "raven_ecs_proc",
- "ron",
  "serde",
  "serde_json",
  "smallvec",
  "typetag",
+]
+
+[[package]]
+name = "raven_ecs_example"
+version = "0.1.0"
+dependencies = [
+ "raven_ecs",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1371,15 +1379,6 @@ version = "0.1.0"
 dependencies = [
  "quote",
  "syn",
- "typetag",
-]
-
-[[package]]
-name = "raven_ecs_test"
-version = "0.1.0"
-dependencies = [
- "raven_ecs",
- "serde",
 ]
 
 [[package]]

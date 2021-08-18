@@ -1,5 +1,5 @@
 [package]
-name = "raven_ecs_test"
+name = "raven_ecs_example"
 version = "0.1.0"
 edition = "2018"
 
@@ -8,3 +8,4 @@ edition = "2018"
 [dependencies]
 raven_ecs = { path="../raven_ecs" }
 serde = { version = "1.0.127", features = ["derive"] }
+serde_json = "1.0.66"
