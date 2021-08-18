@@ -4,9 +4,12 @@
 #![feature(type_alias_impl_trait)]
 #![feature(stmt_expr_attributes)]
 
+#[doc(hidden)]
 pub use typetag;
 
+#[doc(hidden)]
 pub use raven_ecs_proc::Component;
+
 pub use world::query::Query;
 pub use world::World;
 

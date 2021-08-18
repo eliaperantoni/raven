@@ -4,12 +4,13 @@ use quote::{format_ident, quote};
 use syn::{self, DeriveInput};
 
 #[proc_macro_derive(Component)]
-pub fn component(input: TokenStream) -> TokenStream {
+pub fn derive_component(input: TokenStream) -> TokenStream {
     let comp_name = syn::parse::<DeriveInput>(input).unwrap().ident;
     let mod_name = format_ident!("impl_{}", comp_name);
 
     quote!(
         #[allow(non_snake_case)]
+        #[doc(hidden)]
         mod #mod_name {
             use super::#comp_name;
             // Module `typetag` needs to be brought into scope because the `typetag::serde` macro requires it to be in
