@@ -1,5 +1,6 @@
-use serde::{Serialize, Deserialize};
-use raven_ecs::{Component, World, Query};
+use serde::{Deserialize, Serialize};
+
+use raven_ecs::{Component, Query, World};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Component)]
 struct MyComponent {
@@ -21,7 +22,7 @@ fn main() {
 
     let w = serde_json::from_str::<World>(&serialized).unwrap();
 
-    for (_, (c,)) in <(MyComponent,)>::query_shallow(&w) {
+    for (_, (c, )) in <(MyComponent, )>::query_shallow(&w) {
         println!("s => {}, i => {}", c.s, c.i);
     }
 }
