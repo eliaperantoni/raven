@@ -11,13 +11,7 @@ pub use world::query::Query;
 pub use world::World;
 
 #[cfg(test)]
-macro_rules! deref_vec {
-    ($e:expr) => {
-        $e.iter().map(|e| e.deref()).collect::<Vec<_>>()
-    }
-}
-
-#[cfg(test)]
+#[macro_use]
 mod test;
 
 mod pool;

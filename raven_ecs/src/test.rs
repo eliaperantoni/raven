@@ -3,6 +3,12 @@ use serde::{Deserialize, Serialize};
 use crate::{Component, Entity};
 use crate::world::World;
 
+macro_rules! deref_vec {
+    ($e:expr) => {
+        $e.iter().map(|e| e.deref()).collect::<Vec<_>>()
+    }
+}
+
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct CompX {
     pub f: String,
