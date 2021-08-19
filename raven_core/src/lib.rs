@@ -1,27 +1,8 @@
-use std::error::Error;
-use std::fs;
-use std::path::Path;
-
-use ron;
-use serde::{Deserialize, Serialize};
-
-fn import(path: &Path) {
-    match path.extension() {
-        Some("png") => (),
-        _ => panic!()
+macro_rules! err {
+    ($($arg:tt)*) => {
+        ::std::boxed::Box::<dyn ::std::error::Error>::from(format!($($arg)*))
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct Import {
-    main: Path,
-    rest: Vec<Path>,
-}
-
-impl Import {
-    fn import(src: Path) {
-
-    }
-
-
-}
+mod assets;
+mod import;
