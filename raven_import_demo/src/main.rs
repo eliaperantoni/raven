@@ -15,6 +15,7 @@ use raven_core::glam::{Vec2, Vec3};
 use raven_core::io::Serializable;
 use raven_core::resource::*;
 use raven_ecs::*;
+use raven_core::component::{MeshComponent, TransformComponent, HierarchyComponent};
 
 const PROJECT_ROOT_RUNE: &'static str = "$/";
 const IMPORT_DIR: &'static str = ".import";
@@ -188,13 +189,26 @@ impl<'a> SceneImporter<'a> {
             .ok_or_else(|| Box::<dyn Error>::from("no root node"))?;
         let root = &*RefCell::borrow(Rc::borrow(root));
 
-        importer.process_node(root, NodeTraversal::start(&root.name))
+        importer.process_node(root, NodeTraversal::start(&root.name))?;
+
+        importer.world.save(as_fs_abs(import_root.join("main.scn")))?;
+
+        Ok(())
     }
 
-    fn process_node(&mut self, node: &assimp::Node, traversal: NodeTraversal) -> Result<()> {
+    fn process_node(&mut self, node: &assimp::Node, traversal: NodeTraversal) -> Result<Entity> {
         let entity = self.world.create();
 
+        // TODO Apply node's transform
+        self.world.attach(entity, TransformComponent::default());
+        self.world.attach(entity, HierarchyComponent::default());
+
         for mesh_idx in &node.meshes {
+            let mut mesh_component = MeshComponent {
+                mesh: None,
+                mat: None,
+            };
+
             let mesh = &self.scene.meshes[*mesh_idx as usize];
 
             {
@@ -205,12 +219,14 @@ impl<'a> SceneImporter<'a> {
                 Digest::update(&mut hasher, &mesh.name);
 
                 let mesh_file = format!("{:x}.mesh", hasher.finalize());
-                imported_mesh.save(as_fs_abs(self.import_root.join(mesh_file)))?;
+                imported_mesh.save(as_fs_abs(self.import_root.join(&mesh_file)))?;
+
+                mesh_component.mesh = Some(self.import_root.join(&mesh_file));
             }
 
-            let mat = &self.scene.materials[mesh.material_index as usize];
-
             {
+                let mat = &self.scene.materials[mesh.material_index as usize];
+
                 let mat_name = mat
                     .properties
                     .iter()
@@ -254,16 +270,31 @@ impl<'a> SceneImporter<'a> {
                 }
 
                 let mat_file = format!("{:x}.mat", hasher.finalize());
-                imported_mat.save(as_fs_abs(self.import_root.join(mat_file)))?;
+                imported_mat.save(as_fs_abs(self.import_root.join(&mat_file)))?;
+
+                mesh_component.mat = Some(self.import_root.join(&mat_file));
             }
+
+            self.world.attach(entity, mesh_component);
         }
+
+        // Collects entities of children that we will later insert into the HierarchyComponent for this node
+        let mut children_entities = Vec::new();
 
         for child in &node.children {
             let child = &*RefCell::borrow(Rc::borrow(child));
-            self.process_node(child, traversal.descend(&child.name))?;
+            let child_entity = self.process_node(child, traversal.descend(&child.name))?;
+
+            let mut hierarchy_component = self.world.get_one_mut::<HierarchyComponent>(child_entity).unwrap();
+            hierarchy_component.parent = Some(entity);
+
+            children_entities.push(child_entity);
         }
 
-        Ok(())
+        let mut hierarchy_component = self.world.get_one_mut::<HierarchyComponent>(entity).unwrap();
+        hierarchy_component.children = children_entities;
+
+        Ok(entity)
     }
 
     fn extract_mesh(&self, mesh: &assimp::Mesh) -> Result<Mesh> {

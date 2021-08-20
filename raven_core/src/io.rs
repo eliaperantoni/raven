@@ -5,6 +5,8 @@ use std::path::Path;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+use raven_ecs::World;
+
 use crate::resource::*;
 
 pub trait Serializable: Sized {
@@ -69,6 +71,16 @@ impl Serializable for Mesh {
 }
 
 impl Serializable for Material {
+    fn save<P: AsRef<Path>>(&self, at: P) -> Result<(), Box<dyn Error>> {
+        save_text(self, at)
+    }
+
+    fn load<P: AsRef<Path>>(at: P) -> Result<Self, Box<dyn Error>> {
+        load_text(at)
+    }
+}
+
+impl Serializable for World {
     fn save<P: AsRef<Path>>(&self, at: P) -> Result<(), Box<dyn Error>> {
         save_text(self, at)
     }
