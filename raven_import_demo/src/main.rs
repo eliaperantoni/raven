@@ -34,7 +34,7 @@ mod assimp {
 }
 
 fn main() -> Result<()> {
-    import("$/ferris/cuddlyferris.png")?;
+    import("$/ferris/ferris.fbx")?;
     Ok(())
 }
 
@@ -50,7 +50,7 @@ fn import<P: AsRef<Path>>(path: P) -> Result<()> {
 
     match ext {
         Some("png" | "jpg" | "jpeg") => import_tex(path.as_ref()).map(|_| ()),
-        //Some("fbx" | "obj") => SceneImporter::import(path.as_ref()),
+        Some("fbx" | "obj") => SceneImporter::import(path.as_ref()),
         _ => return Err(Box::<dyn Error>::from("unknown extension")),
     }?;
 
@@ -134,11 +134,11 @@ fn import_tex<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     Ok(PathBuf::from(import_root.join("main.tex")))
 }
 
-/*
+
 struct SceneImporter<'a> {
     original_path: &'a Path,
+    import_root: &'a Path,
     scene: &'a assimp::Scene,
-    import_root: PathBuf,
 }
 
 struct NodeTraversal(Vec<String>);
@@ -161,14 +161,14 @@ impl NodeTraversal {
 
 impl<'a> SceneImporter<'a> {
     fn import<P: AsRef<Path>>(path: P) -> Result<()> {
-        let import_root = prepare_import_root(path.as_ref())?;
+        let import_root = prepare_import_root_for(path.as_ref())?;
 
-        let abs_path = as_abs(path.as_ref());
-        let abs_path = abs_path
+        let fs_abs_path = as_fs_abs(path.as_ref());
+        let fs_abs_path = fs_abs_path
             .to_str()
             .ok_or_else(|| Box::<dyn Error>::from("assimp requires unicode path"))?;
 
-        let scene = assimp::Scene::from_file(abs_path, vec![
+        let scene = assimp::Scene::from_file(fs_abs_path, vec![
             assimp::PostProcess::GenerateNormals,
             assimp::PostProcess::Triangulate,
         ])?;
@@ -176,7 +176,7 @@ impl<'a> SceneImporter<'a> {
         let importer = SceneImporter {
             original_path: path.as_ref(),
             scene: &scene,
-            import_root
+            import_root: &import_root,
         };
 
         let root = scene
@@ -200,7 +200,7 @@ impl<'a> SceneImporter<'a> {
                 Digest::update(&mut hasher, &mesh.name);
 
                 let mesh_file = format!("{:x}.mesh", hasher.finalize());
-                imported_mesh.save(self.import_root.join(mesh_file))?;
+                imported_mesh.save(as_fs_abs(self.import_root.join(mesh_file)))?;
             }
 
             let mat = &self.scene.materials[mesh.material_index as usize];
@@ -246,7 +246,7 @@ impl<'a> SceneImporter<'a> {
                 }
 
                 let mat_file = format!("{:x}.mat", hasher.finalize());
-                imported_mat.save(self.import_root.join(mat_file))?;
+                imported_mat.save(as_fs_abs(self.import_root.join(mat_file)))?;
             }
         }
 
@@ -298,4 +298,3 @@ impl<'a> SceneImporter<'a> {
         Ok(Mesh { vertices, indices })
     }
 }
-*/
