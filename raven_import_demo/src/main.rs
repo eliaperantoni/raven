@@ -16,6 +16,7 @@ use raven_core::io::Serializable;
 use raven_core::resource::*;
 use md5::{Digest, Md5};
 use md5::digest::DynDigest;
+use russimp::material::PropertyTypeInfo;
 
 const PROJECT_ROOT: &'static str = "/home/elia/code/raven_proj";
 const IMPORT_DIR: &'static str = ".import";
@@ -27,6 +28,7 @@ mod assimp {
     pub use russimp::mesh::Mesh;
     pub use russimp::node::Node;
     pub use russimp::scene::{PostProcess, Scene};
+    pub use russimp::texture::TextureType;
 }
 
 fn main() -> Result<()> {
@@ -41,7 +43,7 @@ fn import<P: AsRef<Path>>(path: P) -> Result<()> {
     };
 
     match ext {
-        Some("png" | "jpg" | "jpeg") => import_tex(path.as_ref()),
+        Some("png" | "jpg" | "jpeg") => import_tex(path.as_ref()).map(|_| ()),
         Some("fbx" | "obj") => SceneImporter::import(path.as_ref()),
         _ => return Err(Box::<dyn Error>::from("unknown extension")),
     }?;
@@ -51,7 +53,6 @@ fn import<P: AsRef<Path>>(path: P) -> Result<()> {
 
 fn as_import_root<P: AsRef<Path>>(path: P) -> PathBuf {
     let mut import_root = PathBuf::default();
-    import_root.push(PROJECT_ROOT);
     import_root.push(IMPORT_DIR);
     import_root.push(path.as_ref());
 
@@ -83,6 +84,8 @@ fn wipe_dir<P: AsRef<Path>>(path: P) -> Result<()> {
 
 fn prepare_import_root<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     let import_root = as_import_root(path);
+    let abs_import_root = 
+
     fs::create_dir_all(&import_root).map_err(|e| Box::<dyn Error>::from(e))?;
 
     // Make sure the import directory contains no file
@@ -91,7 +94,7 @@ fn prepare_import_root<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     Ok(import_root)
 }
 
-fn import_tex<P: AsRef<Path>>(path: P) -> Result<()> {
+fn import_tex<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     let import_root = prepare_import_root(path.as_ref())?;
 
     let abs_path = as_abs(path.as_ref());
@@ -104,12 +107,21 @@ fn import_tex<P: AsRef<Path>>(path: P) -> Result<()> {
     };
 
     let dst_path = import_root.join("main.tex");
-    tex.save(dst_path)?;
+    tex.save(&dst_path)?;
 
-    Ok(())
+    Ok({
+        let mut buf = PathBuf::default();
+        buf.push("/");
+        buf.push(match dst_path.strip_prefix(PROJECT_ROOT) {
+            Ok(imported_path) => imported_path,
+            Err(err) => return Err(Box::<dyn Error>::from(err)),
+        });
+        buf
+    })
 }
 
 struct SceneImporter<'a> {
+    original_path: &'a Path,
     scene: &'a assimp::Scene,
     import_root: PathBuf,
 }
@@ -147,6 +159,7 @@ impl<'a> SceneImporter<'a> {
         ])?;
 
         let importer = SceneImporter {
+            original_path: path.as_ref(),
             scene: &scene,
             import_root
         };
@@ -169,10 +182,56 @@ impl<'a> SceneImporter<'a> {
 
                 let mut hasher = Md5::default();
                 Digest::update(&mut hasher, traversal.as_bytes());
-                Digest::update(&mut hasher, mesh.name.as_bytes());
+                Digest::update(&mut hasher, &mesh.name);
 
                 let mesh_file = format!("{:x}.mesh", hasher.finalize());
                 imported_mesh.save(self.import_root.join(mesh_file))?;
+            }
+
+            let mat = &self.scene.materials[mesh.material_index as usize];
+
+            {
+                let mat_name = mat
+                    .properties
+                    .iter()
+                    .find(|prop| prop.key == "")
+                    .map(|prop| match &prop.data {
+                        PropertyTypeInfo::String(s) => s,
+                        _ => panic!("I expected the name of the material to be a string")
+                    });
+
+                let mut imported_mat = Material {
+                    diffuse_tex: None,
+                };
+
+                match mat.textures.get(&assimp::TextureType::Diffuse).map(|tex_vec| tex_vec.first()).flatten() {
+                    Some(tex) => {
+                        let tex_path = {
+                            let mut scene_wd = PathBuf::from(self.original_path);
+                            scene_wd.pop();
+                            scene_wd.push(&tex.path);
+                            scene_wd
+                        };
+
+                        imported_mat.diffuse_tex = Some(import_tex(tex_path)?);
+                    },
+                    _ => (),
+                }
+
+                let mut hasher = Md5::default();
+
+                if let Some(mat_name) = mat_name {
+                    // If the material has a name, use it as the hash
+                    Digest::update(&mut hasher, mat_name.as_bytes());
+                } else {
+                    // Otherwise use the same string used for the mesh but append "/MATERIAL"
+                    Digest::update(&mut hasher, traversal.as_bytes());
+                    Digest::update(&mut hasher, &mesh.name);
+                    Digest::update(&mut hasher, "/MATERIAL");
+                }
+
+                let mat_file = format!("{:x}.mat", hasher.finalize());
+                imported_mat.save(self.import_root.join(mat_file))?;
             }
         }
 

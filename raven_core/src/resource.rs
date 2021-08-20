@@ -10,7 +10,7 @@ pub struct Texture {
 
 #[derive(Serialize, Deserialize)]
 pub struct Material {
-    pub diffuse_tex: PathBuf,
+    pub diffuse_tex: Option<PathBuf>,
 }
 
 #[derive(Serialize, Deserialize)]
