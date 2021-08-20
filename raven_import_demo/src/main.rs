@@ -9,11 +9,13 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use itertools::izip;
+use itertools::{izip, Itertools};
 
 use raven_core::glam::{Vec2, Vec3};
 use raven_core::io::Serializable;
 use raven_core::resource::*;
+use md5::{Digest, Md5};
+use md5::digest::DynDigest;
 
 const PROJECT_ROOT: &'static str = "/home/elia/code/raven_proj";
 const IMPORT_DIR: &'static str = ".import";
@@ -112,6 +114,24 @@ struct SceneImporter<'a> {
     import_root: PathBuf,
 }
 
+struct NodeTraversal(Vec<String>);
+
+impl NodeTraversal {
+    fn start<S: AsRef<str>>(root: S) -> NodeTraversal {
+        NodeTraversal(vec![root.as_ref().to_owned()])
+    }
+
+    fn descend<S: AsRef<str>>(&self, node: S) -> NodeTraversal {
+        let mut vec = self.0.clone();
+        vec.push(node.as_ref().to_owned());
+        NodeTraversal(vec)
+    }
+
+    fn as_bytes(&self) -> Vec<u8> {
+        self.0.join("/").into_bytes()
+    }
+}
+
 impl<'a> SceneImporter<'a> {
     fn import<P: AsRef<Path>>(path: P) -> Result<()> {
         let import_root = prepare_import_root(path.as_ref())?;
@@ -137,20 +157,28 @@ impl<'a> SceneImporter<'a> {
             .ok_or_else(|| Box::<dyn Error>::from("no root node"))?;
         let root = &*RefCell::borrow(Rc::borrow(root));
 
-        importer.process_node(root)
+        importer.process_node(root, NodeTraversal::start(&root.name))
     }
 
-    fn process_node(&self, node: &assimp::Node) -> Result<()> {
+    fn process_node(&self, node: &assimp::Node, traversal: NodeTraversal) -> Result<()> {
         for mesh_idx in &node.meshes {
             let mesh = &self.scene.meshes[*mesh_idx as usize];
 
-            let mesh = self.extract_mesh(mesh)?;
-            mesh.save(self.import_root.join("some.mesh"))?;
+            {
+                let imported_mesh = self.extract_mesh(mesh)?;
+
+                let mut hasher = Md5::default();
+                Digest::update(&mut hasher, traversal.as_bytes());
+                Digest::update(&mut hasher, mesh.name.as_bytes());
+
+                let mesh_file = format!("{:x}.mesh", hasher.finalize());
+                imported_mesh.save(self.import_root.join(mesh_file))?;
+            }
         }
 
         for child in &node.children {
             let child = &*RefCell::borrow(Rc::borrow(child));
-            self.process_node(child)?;
+            self.process_node(child, traversal.descend(&child.name))?;
         }
 
         Ok(())

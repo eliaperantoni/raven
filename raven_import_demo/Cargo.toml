@@ -10,3 +10,4 @@ raven_core = { path="../raven_core" }
 image = "0.23.14"
 russimp = "0.2.3"
 itertools = "0.10.1"
+md-5 = "0.9.1"
