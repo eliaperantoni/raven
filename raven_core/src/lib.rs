@@ -1,8 +1,4 @@
-macro_rules! err {
-    ($($arg:tt)*) => {
-        ::std::boxed::Box::<dyn ::std::error::Error>::from(format!($($arg)*))
-    }
-}
+#![feature(with_options)]
 
-mod assets;
-mod import;
+pub mod resource;
+pub mod io;
