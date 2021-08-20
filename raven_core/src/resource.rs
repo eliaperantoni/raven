@@ -23,5 +23,5 @@ pub struct Mesh {
 pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
-    pub uv: Vec2,
+    pub uv: Option<Vec2>,
 }
