@@ -18,8 +18,10 @@ use md5::{Digest, Md5};
 use md5::digest::DynDigest;
 use russimp::material::PropertyTypeInfo;
 
-const PROJECT_ROOT: &'static str = "/home/elia/code/raven_proj";
+const PROJECT_ROOT_RUNE: &'static str = "$/";
 const IMPORT_DIR: &'static str = ".import";
+
+const PROJECT_ROOT: &'static str = "/home/elia/code/raven_proj";
 
 type Result<T> = ::std::result::Result<T, Box<dyn Error>>;
 
@@ -32,11 +34,15 @@ mod assimp {
 }
 
 fn main() -> Result<()> {
-    import("ferris/ferris.fbx")?;
+    import("$/ferris/cuddlyferris.png")?;
     Ok(())
 }
 
 fn import<P: AsRef<Path>>(path: P) -> Result<()> {
+    if !path.as_ref().starts_with(PROJECT_ROOT_RUNE) {
+        panic!("support is for absolute paths only");
+    }
+
     let ext = match path.as_ref().extension() {
         Some(os_ext) => os_ext.to_str(),
         _ => return Err(Box::<dyn Error>::from("no extension")),
@@ -44,25 +50,43 @@ fn import<P: AsRef<Path>>(path: P) -> Result<()> {
 
     match ext {
         Some("png" | "jpg" | "jpeg") => import_tex(path.as_ref()).map(|_| ()),
-        Some("fbx" | "obj") => SceneImporter::import(path.as_ref()),
+        //Some("fbx" | "obj") => SceneImporter::import(path.as_ref()),
         _ => return Err(Box::<dyn Error>::from("unknown extension")),
     }?;
 
     Ok(())
 }
 
+fn strip_rune<P: AsRef<Path> + ?Sized>(path: &P) -> &Path {
+    path.as_ref().strip_prefix(PROJECT_ROOT_RUNE)
+        .expect("expected to find project root rune to strip it")
+}
+
+/// Given the absolute path to an asset, returns the path to the root directory for the imported files.
+///
+/// For instance:
+/// `$/ferris/ferris.fbx` becomes `$/.import/ferris/ferris.fbx`
 fn as_import_root<P: AsRef<Path>>(path: P) -> PathBuf {
+    assert!(path.as_ref().starts_with(PROJECT_ROOT_RUNE));
+
     let mut import_root = PathBuf::default();
+    import_root.push(PROJECT_ROOT_RUNE);
     import_root.push(IMPORT_DIR);
-    import_root.push(path.as_ref());
+    import_root.push(strip_rune(path.as_ref()));
 
     import_root
 }
 
-fn as_abs<P: AsRef<Path>>(path: P) -> PathBuf {
+/// Given the absolute path to an asset, returns the filesystem absolute path.
+///
+/// For instance:
+/// `$/ferris/ferris.fbx` becomes `$(pwd)/$PROJECT_DIR/ferris/ferris.fbx`
+fn as_fs_abs<P: AsRef<Path>>(path: P) -> PathBuf {
+    assert!(path.as_ref().starts_with(PROJECT_ROOT_RUNE));
+
     let mut abs_path = PathBuf::default();
     abs_path.push(PROJECT_ROOT);
-    abs_path.push(path.as_ref());
+    abs_path.push(strip_rune(path.as_ref()));
 
     abs_path
 }
@@ -82,44 +106,35 @@ fn wipe_dir<P: AsRef<Path>>(path: P) -> Result<()> {
     Ok(())
 }
 
-fn prepare_import_root<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-    let import_root = as_import_root(path);
-    let abs_import_root = 
+fn prepare_import_root_for<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
+    assert!(path.as_ref().starts_with(PROJECT_ROOT_RUNE));
 
-    fs::create_dir_all(&import_root).map_err(|e| Box::<dyn Error>::from(e))?;
+    let import_root = as_import_root(path);
+
+    fs::create_dir_all(as_fs_abs(&import_root)).map_err(|e| Box::<dyn Error>::from(e))?;
 
     // Make sure the import directory contains no file
-    wipe_dir(&import_root)?;
+    wipe_dir(as_fs_abs(&import_root))?;
 
     Ok(import_root)
 }
 
 fn import_tex<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-    let import_root = prepare_import_root(path.as_ref())?;
+    let import_root = prepare_import_root_for(path.as_ref())?;
 
-    let abs_path = as_abs(path.as_ref());
-
-    let tex = image::open(&abs_path)?;
+    let tex = image::open(as_fs_abs(path.as_ref()))?;
     let tex = tex.into_rgba8();
 
     let tex = Texture {
         raw: tex.into_raw(),
     };
 
-    let dst_path = import_root.join("main.tex");
-    tex.save(&dst_path)?;
+    tex.save(as_fs_abs(import_root.join("main.tex")))?;
 
-    Ok({
-        let mut buf = PathBuf::default();
-        buf.push("/");
-        buf.push(match dst_path.strip_prefix(PROJECT_ROOT) {
-            Ok(imported_path) => imported_path,
-            Err(err) => return Err(Box::<dyn Error>::from(err)),
-        });
-        buf
-    })
+    Ok(PathBuf::from(import_root.join("main.tex")))
 }
 
+/*
 struct SceneImporter<'a> {
     original_path: &'a Path,
     scene: &'a assimp::Scene,
@@ -283,3 +298,4 @@ impl<'a> SceneImporter<'a> {
         Ok(Mesh { vertices, indices })
     }
 }
+*/
