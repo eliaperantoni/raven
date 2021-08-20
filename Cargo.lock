@@ -1449,6 +1449,7 @@ dependencies = [
  "itertools",
  "md-5",
  "raven_core",
+ "raven_ecs",
  "russimp",
 ]
 

@@ -4,6 +4,8 @@
 #![feature(type_alias_impl_trait)]
 #![feature(stmt_expr_attributes)]
 
+use serde::{Serialize, Deserialize};
+
 #[doc(hidden)]
 pub use typetag;
 
@@ -22,7 +24,7 @@ mod world;
 type ID = usize;
 type Version = u32;
 
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Entity {
     id: ID,
     version: Version,

@@ -4,19 +4,17 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::error::Error;
 use std::fs;
-use std::iter;
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use itertools::{izip, Itertools};
+use itertools::izip;
+use md5::{Digest, Md5};
+use russimp::material::PropertyTypeInfo;
 
 use raven_core::glam::{Vec2, Vec3};
 use raven_core::io::Serializable;
 use raven_core::resource::*;
-use md5::{Digest, Md5};
-use md5::digest::DynDigest;
-use russimp::material::PropertyTypeInfo;
+use raven_ecs::*;
 
 const PROJECT_ROOT_RUNE: &'static str = "$/";
 const IMPORT_DIR: &'static str = ".import";
@@ -58,7 +56,8 @@ fn import<P: AsRef<Path>>(path: P) -> Result<()> {
 }
 
 fn strip_rune<P: AsRef<Path> + ?Sized>(path: &P) -> &Path {
-    path.as_ref().strip_prefix(PROJECT_ROOT_RUNE)
+    path.as_ref()
+        .strip_prefix(PROJECT_ROOT_RUNE)
         .expect("expected to find project root rune to strip it")
 }
 
@@ -134,11 +133,11 @@ fn import_tex<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     Ok(PathBuf::from(import_root.join("main.tex")))
 }
 
-
 struct SceneImporter<'a> {
     original_path: &'a Path,
     import_root: &'a Path,
     scene: &'a assimp::Scene,
+    world: World,
 }
 
 struct NodeTraversal(Vec<String>);
@@ -168,15 +167,19 @@ impl<'a> SceneImporter<'a> {
             .to_str()
             .ok_or_else(|| Box::<dyn Error>::from("assimp requires unicode path"))?;
 
-        let scene = assimp::Scene::from_file(fs_abs_path, vec![
-            assimp::PostProcess::GenerateNormals,
-            assimp::PostProcess::Triangulate,
-        ])?;
+        let scene = assimp::Scene::from_file(
+            fs_abs_path,
+            vec![
+                assimp::PostProcess::GenerateNormals,
+                assimp::PostProcess::Triangulate,
+            ],
+        )?;
 
-        let importer = SceneImporter {
+        let mut importer = SceneImporter {
             original_path: path.as_ref(),
             scene: &scene,
             import_root: &import_root,
+            world: World::default(),
         };
 
         let root = scene
@@ -188,7 +191,9 @@ impl<'a> SceneImporter<'a> {
         importer.process_node(root, NodeTraversal::start(&root.name))
     }
 
-    fn process_node(&self, node: &assimp::Node, traversal: NodeTraversal) -> Result<()> {
+    fn process_node(&mut self, node: &assimp::Node, traversal: NodeTraversal) -> Result<()> {
+        let entity = self.world.create();
+
         for mesh_idx in &node.meshes {
             let mesh = &self.scene.meshes[*mesh_idx as usize];
 
@@ -212,14 +217,17 @@ impl<'a> SceneImporter<'a> {
                     .find(|prop| prop.key == "")
                     .map(|prop| match &prop.data {
                         PropertyTypeInfo::String(s) => s,
-                        _ => panic!("I expected the name of the material to be a string")
+                        _ => panic!("I expected the name of the material to be a string"),
                     });
 
-                let mut imported_mat = Material {
-                    diffuse_tex: None,
-                };
+                let mut imported_mat = Material { diffuse_tex: None };
 
-                match mat.textures.get(&assimp::TextureType::Diffuse).map(|tex_vec| tex_vec.first()).flatten() {
+                match mat
+                    .textures
+                    .get(&assimp::TextureType::Diffuse)
+                    .map(|tex_vec| tex_vec.first())
+                    .flatten()
+                {
                     Some(tex) => {
                         let tex_path = {
                             let mut scene_wd = PathBuf::from(self.original_path);
@@ -229,7 +237,7 @@ impl<'a> SceneImporter<'a> {
                         };
 
                         imported_mat.diffuse_tex = Some(import_tex(tex_path)?);
-                    },
+                    }
                     _ => (),
                 }
 
@@ -265,10 +273,7 @@ impl<'a> SceneImporter<'a> {
             vec
         };
 
-        let iter = izip!(
-            mesh.vertices.iter(),
-            mesh.normals.iter(),
-        );
+        let iter = izip!(mesh.vertices.iter(), mesh.normals.iter());
 
         let vertices: Vec<_> = iter
             .enumerate()
