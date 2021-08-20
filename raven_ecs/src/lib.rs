@@ -4,8 +4,7 @@
 #![feature(type_alias_impl_trait)]
 #![feature(stmt_expr_attributes)]
 
-use serde::{Serialize, Deserialize};
-
+use serde::{Deserialize, Serialize};
 #[doc(hidden)]
 pub use typetag;
 

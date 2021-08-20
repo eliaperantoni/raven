@@ -1,7 +1,9 @@
-use raven_ecs::Entity;
-use serde::{Serialize, Deserialize};
-use glam::Mat4;
 use std::path::PathBuf;
+
+use glam::Mat4;
+use serde::{Deserialize, Serialize};
+
+use raven_ecs::Entity;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct TransformComponent(Mat4);

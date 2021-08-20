@@ -3,12 +3,12 @@ use std::ffi::CString;
 use std::time::{Duration, Instant};
 
 use gl;
+use glutin::ContextBuilder;
 use glutin::dpi::{LogicalSize, Size};
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
-use glutin::ContextBuilder;
-use imgui::{im_str, Context, Window};
+use imgui::{Context, im_str, Window};
 use imgui_opengl_renderer::Renderer;
 use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -207,7 +207,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             imgui::TextureId::new(framebuffer.get_tex_id() as _),
                             [width, height],
                         )
-                        .build(&ui);
+                            .build(&ui);
                     });
 
                 style_stack.pop(&ui);
