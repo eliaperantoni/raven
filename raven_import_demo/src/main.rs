@@ -11,11 +11,11 @@ use itertools::izip;
 use md5::{Digest, Md5};
 use russimp::material::PropertyTypeInfo;
 
-use raven_core::glam::{Vec2, Vec3};
+use raven_core::component::{HierarchyComponent, MeshComponent, TransformComponent};
+use raven_core::glam::{Mat4, Vec2, Vec3, Vec4};
 use raven_core::io::Serializable;
 use raven_core::resource::*;
 use raven_ecs::*;
-use raven_core::component::{MeshComponent, TransformComponent, HierarchyComponent};
 
 const PROJECT_ROOT_RUNE: &'static str = "$/";
 const IMPORT_DIR: &'static str = ".import";
@@ -199,8 +199,15 @@ impl<'a> SceneImporter<'a> {
     fn process_node(&mut self, node: &assimp::Node, traversal: NodeTraversal) -> Result<Entity> {
         let entity = self.world.create();
 
-        // TODO Apply node's transform
-        self.world.attach(entity, TransformComponent::default());
+        self.world.attach(entity, TransformComponent({
+            let t = node.transformation;
+            Mat4::from_cols(
+                Vec4::new(t.a1, t.a2, t.a3, t.a4),
+                Vec4::new(t.b1, t.b2, t.b3, t.b4),
+                Vec4::new(t.c1, t.c2, t.c3, t.c4),
+                Vec4::new(t.d1, t.d2, t.d3, t.d4),
+            )
+        }));
         self.world.attach(entity, HierarchyComponent::default());
 
         for mesh_idx in &node.meshes {
