@@ -5,8 +5,6 @@ use std::path::Path;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use raven_ecs::World;
-
 use crate::resource::*;
 
 pub trait Serializable: Sized {
@@ -80,7 +78,7 @@ impl Serializable for Material {
     }
 }
 
-impl Serializable for World {
+impl Serializable for Scene {
     fn save<P: AsRef<Path>>(&self, at: P) -> Result<(), Box<dyn Error>> {
         save_text(self, at)
     }

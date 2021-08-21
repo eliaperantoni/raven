@@ -15,7 +15,7 @@ use raven_core::component::{HierarchyComponent, MeshComponent, TransformComponen
 use raven_core::glam::{Mat4, Vec2, Vec3, Vec4};
 use raven_core::io::Serializable;
 use raven_core::resource::*;
-use raven_ecs::*;
+use raven_core::Entity;
 
 const PROJECT_ROOT_RUNE: &'static str = "$/";
 const IMPORT_DIR: &'static str = ".import";
@@ -138,7 +138,7 @@ struct SceneImporter<'a> {
     original_path: &'a Path,
     import_root: &'a Path,
     scene: &'a assimp::Scene,
-    world: World,
+    importing_scene: Scene,
 }
 
 struct NodeTraversal(Vec<String>);
@@ -178,9 +178,9 @@ impl<'a> SceneImporter<'a> {
 
         let mut importer = SceneImporter {
             original_path: path.as_ref(),
-            scene: &scene,
             import_root: &import_root,
-            world: World::default(),
+            scene: &scene,
+            importing_scene: Default::default(),
         };
 
         let root = scene
@@ -191,15 +191,15 @@ impl<'a> SceneImporter<'a> {
 
         importer.process_node(root, NodeTraversal::start(&root.name))?;
 
-        importer.world.save(as_fs_abs(import_root.join("main.scn")))?;
+        importer.importing_scene.save(as_fs_abs(import_root.join("main.scn")))?;
 
         Ok(())
     }
 
     fn process_node(&mut self, node: &assimp::Node, traversal: NodeTraversal) -> Result<Entity> {
-        let entity = self.world.create();
+        let entity = self.importing_scene.create();
 
-        self.world.attach(entity, TransformComponent({
+        self.importing_scene.attach(entity, TransformComponent({
             let t = node.transformation;
             Mat4::from_cols(
                 Vec4::new(t.a1, t.a2, t.a3, t.a4),
@@ -208,7 +208,7 @@ impl<'a> SceneImporter<'a> {
                 Vec4::new(t.d1, t.d2, t.d3, t.d4),
             )
         }));
-        self.world.attach(entity, HierarchyComponent::default());
+        self.importing_scene.attach(entity, HierarchyComponent::default());
 
         for mesh_idx in &node.meshes {
             let mut mesh_component = MeshComponent {
@@ -282,7 +282,7 @@ impl<'a> SceneImporter<'a> {
                 mesh_component.mat = Some(self.import_root.join(&mat_file));
             }
 
-            self.world.attach(entity, mesh_component);
+            self.importing_scene.attach(entity, mesh_component);
         }
 
         // Collects entities of children that we will later insert into the HierarchyComponent for this node
@@ -292,13 +292,13 @@ impl<'a> SceneImporter<'a> {
             let child = &*RefCell::borrow(Rc::borrow(child));
             let child_entity = self.process_node(child, traversal.descend(&child.name))?;
 
-            let mut hierarchy_component = self.world.get_one_mut::<HierarchyComponent>(child_entity).unwrap();
+            let mut hierarchy_component = self.importing_scene.get_one_mut::<HierarchyComponent>(child_entity).unwrap();
             hierarchy_component.parent = Some(entity);
 
             children_entities.push(child_entity);
         }
 
-        let mut hierarchy_component = self.world.get_one_mut::<HierarchyComponent>(entity).unwrap();
+        let mut hierarchy_component = self.importing_scene.get_one_mut::<HierarchyComponent>(entity).unwrap();
         hierarchy_component.children = children_entities;
 
         Ok(entity)
