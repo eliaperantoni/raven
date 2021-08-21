@@ -25,6 +25,12 @@ macro_rules! count {
     }
 }
 
+/// I needed a way to create an n-tuple of usize given n different idents. But you must use the argument $t in some way
+/// so this is the best solution I came out with
+macro_rules! repeat {
+    ($t:ident, $tok:tt) => { $tok };
+}
+
 /// Given a reference to a world and a type, evaluates to a reference to the pool of that type or else returns an empty
 /// view
 macro_rules! pool_or_return {
@@ -103,6 +109,11 @@ macro_rules! next_shallow {
                 $(
                     paste!{[< $pool_type:lower >]},
                 )*
+            ), (
+                // Because this query is shallow, the components returned are always the 0-th
+                $(
+                    repeat!($pool_type, 0),
+                )*
             )));
         }
     }
@@ -146,7 +157,9 @@ macro_rules! next_deep {
 
             let mut i = 0;
             $(
-                let paste!{[< $pool_type:lower >]} = paste!{[< pool_ $pool_type:snake >]}.$get_nth_x(entity_id, deep_state.1[i].0).unwrap();
+                #[allow(non_snake_case)]
+                let paste!{[< $pool_type:lower __n >]} = deep_state.1[i].0;
+                let paste!{[< $pool_type:lower >]} = paste!{[< pool_ $pool_type:snake >]}.$get_nth_x(entity_id, paste!{[< $pool_type:lower __n >]}).unwrap();
                 #[allow(unused)]
                 i += 1;
             )*
@@ -172,6 +185,10 @@ macro_rules! next_deep {
             Some((entity, (
                 $(
                     paste!{[< $pool_type:lower >]},
+                )*
+            ), (
+                $(
+                    paste!{[< $pool_type:lower __n >]},
                 )*
             )))
         }
@@ -227,6 +244,7 @@ macro_rules! query_facilities {
             type Item = (
                 Entity,
                 ( $( impl Deref<Target=$t>, )* ),
+                ( $( repeat!($t, usize), )* ),
             );
 
             fn next(&mut self) -> Option<Self::Item> {
@@ -242,6 +260,7 @@ macro_rules! query_facilities {
             type Item = (
                 Entity,
                 ( $( impl DerefMut<Target=$t>, )* ),
+                ( $( repeat!($t, usize), )* ),
             );
 
             fn next(&mut self) -> Option<Self::Item> {
@@ -293,11 +312,15 @@ mod test {
         ];
 
         assert_eq!(<(CompX, CompY)>::query_shallow(&w).count(), want.len());
-        for (i, (e, (x, y))) in <(CompX, CompY)>::query_shallow(&w).enumerate() {
+        for (i, (e, (x, y), (x_n, y_n))) in <(CompX, CompY)>::query_shallow(&w).enumerate() {
             let (want_e, (want_x, want_y)) = want[i].clone();
             assert_eq!(e, want_e);
             assert_eq!(*x, want_x);
             assert_eq!(*y, want_y);
+            assert_eq!(x_n, 0);
+            assert_eq!(y_n, 0);
+            assert_eq!(*w.get_nth::<CompX>(e, x_n).unwrap(), *x);
+            assert_eq!(*w.get_nth::<CompY>(e, y_n).unwrap(), *y);
         }
     }
 
@@ -320,7 +343,7 @@ mod test {
         w.attach::<CompX>(e3, CompX::new("G"));
         w.attach::<CompX>(e3, CompX::new("H"));
 
-        for (_e, (mut x, mut y)) in <(CompX, CompY)>::query_shallow_mut(&mut w) {
+        for (_e, (mut x, mut y), _) in <(CompX, CompY)>::query_shallow_mut(&mut w) {
             x.f = x.f.to_ascii_lowercase();
             y.f = y.f.to_ascii_lowercase();
         }
@@ -331,11 +354,15 @@ mod test {
         ];
 
         assert_eq!(<(CompX, CompY)>::query_shallow(&w).count(), want.len());
-        for (i, (e, (x, y))) in <(CompX, CompY)>::query_shallow(&w).enumerate() {
+        for (i, (e, (x, y), (x_n, y_n))) in <(CompX, CompY)>::query_shallow(&w).enumerate() {
             let (want_e, (want_x, want_y)) = want[i].clone();
             assert_eq!(e, want_e);
             assert_eq!(*x, want_x);
-            assert_eq!(y.clone(), want_y);
+            assert_eq!(*y, want_y);
+            assert_eq!(x_n, 0);
+            assert_eq!(y_n, 0);
+            assert_eq!(*w.get_nth::<CompX>(e, x_n).unwrap(), *x);
+            assert_eq!(*w.get_nth::<CompY>(e, y_n).unwrap(), *y);
         }
     }
 
@@ -355,20 +382,24 @@ mod test {
         w.attach::<CompY>(e2, CompY::new("G"));
 
         let want = vec![
-            (e1, (CompX::new("A"), CompY::new("C"))),
-            (e1, (CompX::new("B"), CompY::new("C"))),
-            (e2, (CompX::new("D"), CompY::new("F"))),
-            (e2, (CompX::new("D"), CompY::new("G"))),
-            (e2, (CompX::new("E"), CompY::new("F"))),
-            (e2, (CompX::new("E"), CompY::new("G"))),
+            (e1, (CompX::new("A"), CompY::new("C")), (0, 0)),
+            (e1, (CompX::new("B"), CompY::new("C")), (1, 0)),
+            (e2, (CompX::new("D"), CompY::new("F")), (0, 0)),
+            (e2, (CompX::new("D"), CompY::new("G")), (0, 1)),
+            (e2, (CompX::new("E"), CompY::new("F")), (1, 0)),
+            (e2, (CompX::new("E"), CompY::new("G")), (1, 1)),
         ];
 
         assert_eq!(<(CompX, CompY)>::query_deep(&w).count(), want.len());
-        for (i, (e, (x, y))) in <(CompX, CompY)>::query_deep(&w).enumerate() {
-            let (want_e, (want_x, want_y)) = want[i].clone();
+        for (i, (e, (x, y), (x_n, y_n))) in <(CompX, CompY)>::query_deep(&w).enumerate() {
+            let (want_e, (want_x, want_y), (want_x_n, want_y_n)) = want[i].clone();
             assert_eq!(e, want_e);
             assert_eq!(*x, want_x);
             assert_eq!(*y, want_y);
+            assert_eq!(x_n, want_x_n);
+            assert_eq!(y_n, want_y_n);
+            assert_eq!(*w.get_nth::<CompX>(e, x_n).unwrap(), *x);
+            assert_eq!(*w.get_nth::<CompY>(e, y_n).unwrap(), *y);
         }
     }
 
@@ -389,27 +420,31 @@ mod test {
 
         {
             let mut view = <(CompX, CompY)>::query_deep_mut(&mut w);
-            let (_, (mut x, mut y)) = view.nth(2).unwrap();
+            let (_, (mut x, mut y), _) = view.nth(2).unwrap();
             // 2nd result is (D,F). Should make every D and F lowercase
             x.f = x.f.to_ascii_lowercase();
             y.f = y.f.to_ascii_lowercase();
         }
 
         let want = vec![
-            (e1, (CompX::new("A"), CompY::new("C"))),
-            (e1, (CompX::new("B"), CompY::new("C"))),
-            (e2, (CompX::new("d"), CompY::new("f"))),
-            (e2, (CompX::new("d"), CompY::new("G"))),
-            (e2, (CompX::new("E"), CompY::new("f"))),
-            (e2, (CompX::new("E"), CompY::new("G"))),
+            (e1, (CompX::new("A"), CompY::new("C")), (0, 0)),
+            (e1, (CompX::new("B"), CompY::new("C")), (1, 0)),
+            (e2, (CompX::new("d"), CompY::new("f")), (0, 0)),
+            (e2, (CompX::new("d"), CompY::new("G")), (0, 1)),
+            (e2, (CompX::new("E"), CompY::new("f")), (1, 0)),
+            (e2, (CompX::new("E"), CompY::new("G")), (1, 1)),
         ];
 
         assert_eq!(<(CompX, CompY)>::query_deep(&w).count(), want.len());
-        for (i, (e, (x, y))) in <(CompX, CompY)>::query_deep(&w).enumerate() {
-            let (want_e, (want_x, want_y)) = want[i].clone();
+        for (i, (e, (x, y), (x_n, y_n))) in <(CompX, CompY)>::query_deep(&w).enumerate() {
+            let (want_e, (want_x, want_y), (want_x_n, want_y_n)) = want[i].clone();
             assert_eq!(e, want_e);
             assert_eq!(*x, want_x);
             assert_eq!(*y, want_y);
+            assert_eq!(x_n, want_x_n);
+            assert_eq!(y_n, want_y_n);
+            assert_eq!(*w.get_nth::<CompX>(e, x_n).unwrap(), *x);
+            assert_eq!(*w.get_nth::<CompY>(e, y_n).unwrap(), *y);
         }
     }
 
