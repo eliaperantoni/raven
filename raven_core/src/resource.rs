@@ -20,14 +20,14 @@ pub struct Material {
 #[derive(Serialize, Deserialize)]
 pub struct Mesh {
     pub vertices: Vec<Vertex>,
-    pub indices: Vec<usize>,
+    pub indices: Vec<u32>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Vertex {
     pub position: Vec3,
     pub normal: Vec3,
-    pub uv: Option<Vec2>,
+    pub uv: Vec2,
 }
 
 #[derive(Serialize, Deserialize, Default)]

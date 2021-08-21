@@ -300,25 +300,17 @@ impl<'a> SceneImporter<'a> {
     }
 
     fn extract_mesh(&self, mesh: &assimp::Mesh) -> Result<Mesh> {
-        let uvs = try {
-            let vec = mesh.texture_coords.get(0)?;
-            let vec = vec.as_ref()?;
-            vec
-        };
-
-        let iter = izip!(mesh.vertices.iter(), mesh.normals.iter());
+        let iter = izip!(
+            mesh.vertices.iter(),
+            mesh.normals.iter(),
+            mesh.texture_coords[0].as_ref().expect("missing 0-th uv channel").iter(),
+        );
 
         let vertices: Vec<_> = iter
-            .enumerate()
-            .map(|(i, (position, normal))| Vertex {
+            .map(|(position, normal, uv)| Vertex {
                 position: Vec3::new(position.x, position.y, position.z),
                 normal: Vec3::new(normal.x, normal.y, normal.z),
-                uv: if let Some(uvs) = uvs {
-                    let uv = uvs[i];
-                    Some(Vec2::new(uv.x, uv.y))
-                } else {
-                    None
-                },
+                uv: Vec2::new(uv.x, uv.y),
             })
             .collect();
 
@@ -328,7 +320,7 @@ impl<'a> SceneImporter<'a> {
             .map(|face| {
                 // Should be true, we told Assimp to triangulate
                 assert_eq!(face.0.len(), 3);
-                face.0.iter().map(|idx| *idx as usize)
+                face.0.iter().map(|idx| *idx)
             })
             .flatten()
             .collect();

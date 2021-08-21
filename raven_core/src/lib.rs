@@ -89,10 +89,8 @@ impl Processor {
             let vao = mesh_comp.vao.as_ref().unwrap();
 
             let transform = self.combined_transform(entity);
-
-            dbg!(vao);
         }
 
-        todo!()
+        Ok(())
     }
 }
