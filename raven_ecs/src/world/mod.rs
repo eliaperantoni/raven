@@ -145,6 +145,24 @@ impl World {
         p.get_one_mut(entity.id)
     }
 
+    pub fn get_nth<T: Component>(&self, entity: Entity, n: usize) -> Option<impl Deref<Target=T> + '_> {
+        if !self.entity_exists(entity) {
+            return None;
+        }
+
+        let p = self.pool::<T>()?;
+        p.get_nth(entity.id, n)
+    }
+
+    pub fn get_nth_mut<T: Component>(&mut self, entity: Entity, n: usize) -> Option<impl DerefMut<Target=T> + '_> {
+        if !self.entity_exists(entity) {
+            return None;
+        }
+
+        let p = self.pool::<T>()?;
+        p.get_nth_mut(entity.id, n)
+    }
+
     pub fn get_all<T: Component>(&self, entity: Entity) -> Vec<impl Deref<Target=T> + '_> {
         if !self.entity_exists(entity) {
             return Vec::new();
@@ -328,6 +346,30 @@ mod test {
         }
 
         assert_eq!(w.get_one::<CompX>(e).as_deref(), Some(&CompX::new("a")));
+    }
+
+    #[test]
+    fn get_nth() {
+        let mut w = World::default();
+
+        let e = w.create();
+        w.attach(e, CompX::new("A"));
+        w.attach(e, CompX::new("B"));
+
+        assert_eq!(w.get_nth::<CompX>(e, 1).as_deref().unwrap(), &CompX::new("B"));
+    }
+
+    #[test]
+    fn get_nth_mut() {
+        let mut w = World::default();
+
+        let e = w.create();
+        w.attach(e, CompX::new("A"));
+        w.attach(e, CompX::new("B"));
+
+        *w.get_nth_mut(e, 1).as_deref_mut().unwrap() = CompX::new("Z");
+
+        assert_eq!(w.get_nth::<CompX>(e, 1).as_deref().unwrap(), &CompX::new("Z"));
     }
 
     #[test]
