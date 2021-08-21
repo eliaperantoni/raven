@@ -10,6 +10,8 @@ pub use ::raven_ecs::Entity;
 
 use crate::resource::{Resource, Scene};
 use std::error::Error;
+use crate::io::Serializable;
+use std::collections::hash_map::Entry;
 
 pub mod resource;
 pub mod component;
@@ -30,8 +32,14 @@ impl Processor {
         }
     }
 
-    fn get_or_load<P: AsRef<Path>>(&mut self, path: P) -> Result<Resource> {
-        todo!()
+    fn get_or_load<P: AsRef<Path>>(&mut self, path: P) -> Result<&mut Resource> {
+        let key = PathBuf::from(path.as_ref());
+        if !self.storage.contains_key(&key) {
+            let resource = Resource::load(path.as_ref())?;
+            self.storage.insert(key.clone(), resource);
+        }
+
+        Ok(self.storage.get_mut(&key).unwrap())
     }
 
     fn do_frame(&mut self) -> Result<()> {

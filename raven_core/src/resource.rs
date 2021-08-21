@@ -5,6 +5,7 @@ use glam::{Vec2, Vec3};
 use serde::{Deserialize, Serialize};
 
 use raven_ecs::World;
+use crate::io::Serializable;
 
 #[derive(Serialize, Deserialize)]
 pub struct Texture {
@@ -52,3 +53,5 @@ pub enum Resource {
     Mesh(Mesh),
     Scene(Scene),
 }
+
+
