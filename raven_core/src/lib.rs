@@ -70,29 +70,27 @@ impl Processor {
     fn do_frame(&mut self) -> Result<()> {
         self.clear_canvas();
 
-        for (entity, (mesh_comp,), (mesh_comp_n,))
+        // First of all, we need to initialize a VAO for each MeshComponent that we haven't seen yet
+        for (_, (mut mesh_comp,), _)
+        in <(MeshComponent, )>::query_deep_mut(&mut self.scene) {
+            if mesh_comp.vao.is_some() { continue; };
+
+            let mesh = Mesh::load(&mesh_comp.mesh)?;
+            let mat = Material::load(&mesh_comp.mat)?;
+
+            let vao = Vao::from(&mesh, &mat)?;
+
+            mesh_comp.vao = Some(vao);
+        }
+
+        // Now we can properly render them
+        for (entity, (mesh_comp,), _)
         in <(MeshComponent, )>::query_deep(&self.scene) {
-            let vao: &Vao = match mesh_comp.vao.as_ref() {
-                Some(vao) => vao,
-                None => {
-                    let mesh = Mesh::load(&mesh_comp.mesh)?;
-                    let mat = Material::load(&mesh_comp.mat)?;
+            let vao = mesh_comp.vao.as_ref().unwrap();
 
-                    let vao = Vao::from(&mesh, &mat)?;
-
-                    self.scene.get_nth_mut::<MeshComponent>(entity, mesh_comp_n);
-
-                    mesh_comp.vao = Some(vao);
-                    mesh_comp.vao.as_ref().unwrap()
-                },
-            };
-
-            // TODO Figure out a way to make this work you absolute ding dong
             let transform = self.combined_transform(entity);
 
             dbg!(vao);
-
-            todo!()
         }
 
         todo!()
