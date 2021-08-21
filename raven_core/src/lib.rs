@@ -1,48 +1,99 @@
 #![feature(with_options)]
 
-use std::collections::HashMap;
-use std::path::{PathBuf, Path};
-
-pub use ::glam;
-use gl::{self, types::*};
-
-pub use ::raven_ecs::Entity;
-
-use crate::resource::{Resource, Scene};
-use std::error::Error;
-use crate::io::Serializable;
 use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::error::Error;
+use std::path::{Path, PathBuf};
+
+use gl::{self, types::*};
+pub use glam;
+use glam::Mat4;
+
+use ecs::*;
+
+use crate::component::{HierarchyComponent, MeshComponent, TransformComponent};
+use crate::io::Serializable;
+use crate::resource::{Scene, Mesh, Material};
+use crate::vao::Vao;
+
+pub mod ecs {
+    pub use raven_ecs::*;
+}
 
 pub mod resource;
 pub mod component;
 pub mod io;
 
+mod vao;
+
 type Result<T> = ::std::result::Result<T, Box<dyn Error>>;
 
 pub struct Processor {
     scene: Scene,
-    storage: HashMap<PathBuf, Resource>,
 }
 
 impl Processor {
-    fn clear(&self) {
+    fn clear_canvas(&self) {
         unsafe {
             gl::ClearColor(0.1, 0.1, 0.1, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
     }
 
-    fn get_or_load<P: AsRef<Path>>(&mut self, path: P) -> Result<&mut Resource> {
-        let key = PathBuf::from(path.as_ref());
-        if !self.storage.contains_key(&key) {
-            let resource = Resource::load(path.as_ref())?;
-            self.storage.insert(key.clone(), resource);
+    fn combined_transform(&self, mut entity: Entity) -> Mat4 {
+        let mut transform_components = Vec::new();
+
+        loop {
+            let transform_component = self.scene.get_one::<TransformComponent>(entity)
+                .expect("entity does not have a transform component");
+            transform_components.push(transform_component);
+
+            let hierarchy_component = self.scene.get_one::<HierarchyComponent>(entity)
+                .expect("entity does not have a hierarchy component");
+
+            if let Some(parent_entity) = hierarchy_component.parent {
+                entity = parent_entity;
+            } else {
+                break;
+            }
         }
 
-        Ok(self.storage.get_mut(&key).unwrap())
+        let mut out = Mat4::IDENTITY;
+
+        for transform_component in transform_components.into_iter() {
+            out = out * transform_component.0;
+        }
+
+        out
     }
 
     fn do_frame(&mut self) -> Result<()> {
+        self.clear_canvas();
+
+        for (entity, (mut mesh_comp,))
+        in <(MeshComponent, )>::query_deep_mut(&mut self.scene) {
+            let vao: &Vao = match mesh_comp.vao.as_ref() {
+                Some(vao) => vao,
+                None => {
+                    let mesh = Mesh::load(&mesh_comp.mesh)?;
+                    let mat = Material::load(&mesh_comp.mat)?;
+
+                    let vao = Vao::from(&mesh, &mat)?;
+
+                    mesh_comp.vao = Some(vao);
+                    mesh_comp.vao.as_ref().unwrap()
+                },
+            };
+
+            dbg!(vao);
+
+            // TODO Figure out a way to make this work you absolute ding dong
+            let transform = self.combined_transform(entity);
+
+
+            todo!()
+        }
+
         todo!()
     }
 }

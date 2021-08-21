@@ -46,12 +46,3 @@ impl DerefMut for Scene {
         &mut self.0
     }
 }
-
-pub enum Resource {
-    Texture(Texture),
-    Material(Material),
-    Mesh(Mesh),
-    Scene(Scene),
-}
-
-

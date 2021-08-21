@@ -15,7 +15,7 @@ use raven_core::component::{HierarchyComponent, MeshComponent, TransformComponen
 use raven_core::glam::{Mat4, Vec2, Vec3, Vec4};
 use raven_core::io::Serializable;
 use raven_core::resource::*;
-use raven_core::Entity;
+use raven_core::ecs::Entity;
 
 const PROJECT_ROOT_RUNE: &'static str = "$/";
 const IMPORT_DIR: &'static str = ".import";
@@ -211,14 +211,9 @@ impl<'a> SceneImporter<'a> {
         self.importing_scene.attach(entity, HierarchyComponent::default());
 
         for mesh_idx in &node.meshes {
-            let mut mesh_component = MeshComponent {
-                mesh: None,
-                mat: None,
-            };
-
             let mesh = &self.scene.meshes[*mesh_idx as usize];
 
-            {
+            let mesh_path = {
                 let imported_mesh = self.extract_mesh(mesh)?;
 
                 let mut hasher = Md5::default();
@@ -228,10 +223,10 @@ impl<'a> SceneImporter<'a> {
                 let mesh_file = format!("{:x}.mesh", hasher.finalize());
                 imported_mesh.save(as_fs_abs(self.import_root.join(&mesh_file)))?;
 
-                mesh_component.mesh = Some(self.import_root.join(&mesh_file));
-            }
+                self.import_root.join(&mesh_file)
+            };
 
-            {
+            let mat_path = {
                 let mat = &self.scene.materials[mesh.material_index as usize];
 
                 let mat_name = mat
@@ -279,10 +274,10 @@ impl<'a> SceneImporter<'a> {
                 let mat_file = format!("{:x}.mat", hasher.finalize());
                 imported_mat.save(as_fs_abs(self.import_root.join(&mat_file)))?;
 
-                mesh_component.mat = Some(self.import_root.join(&mat_file));
-            }
+                self.import_root.join(&mat_file)
+            };
 
-            self.importing_scene.attach(entity, mesh_component);
+            self.importing_scene.attach(entity, MeshComponent::new(mesh_path, mat_path));
         }
 
         // Collects entities of children that we will later insert into the HierarchyComponent for this node

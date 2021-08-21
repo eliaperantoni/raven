@@ -87,29 +87,3 @@ impl Serializable for Scene {
         load_text(at)
     }
 }
-
-impl Serializable for Resource {
-    fn save<P: AsRef<Path>>(&self, at: P) -> Result<(), Box<dyn Error>> {
-        match self {
-            Resource::Texture(tex) => tex.save(at),
-            Resource::Material(mat) => mat.save(at),
-            Resource::Mesh(mesh) => mesh.save(at),
-            Resource::Scene(scene) => scene.save(at),
-        }
-    }
-
-    fn load<P: AsRef<Path>>(at: P) -> Result<Self, Box<dyn Error>> {
-        let ext = match at.as_ref().extension() {
-            Some(os_ext) => os_ext.to_str(),
-            None => return Err(Box::<dyn Error>::from("no extension")),
-        };
-
-        match ext {
-            Some("tex") => Texture::load(at).map(|tex| Resource::Texture(tex)),
-            Some("mat") => Material::load(at).map(|mat| Resource::Material(mat)),
-            Some("mesh") => Mesh::load(at).map(|mesh| Resource::Mesh(mesh)),
-            Some("scene") => Scene::load(at).map(|scene| Resource::Scene(scene)),
-            _ => return Err(Box::<dyn Error>::from("unknown extension"))
-        }
-    }
-}

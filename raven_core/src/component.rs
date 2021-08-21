@@ -4,6 +4,7 @@ use glam::Mat4;
 use serde::{Deserialize, Serialize};
 
 use raven_ecs::{Entity, Component};
+use crate::vao::Vao;
 
 #[derive(Component, Serialize, Deserialize, Clone, Default)]
 pub struct TransformComponent(pub Mat4);
@@ -14,8 +15,20 @@ pub struct HierarchyComponent {
     pub children: Vec<Entity>,
 }
 
-#[derive(Component, Serialize, Deserialize, Clone)]
+#[derive(Component, Serialize, Deserialize)]
 pub struct MeshComponent {
-    pub mesh: Option<PathBuf>,
-    pub mat: Option<PathBuf>,
+    pub mesh: PathBuf,
+    pub mat: PathBuf,
+    #[serde(skip)]
+    pub(crate) vao: Option<Vao>,
+}
+
+impl MeshComponent {
+    pub fn new(mesh_path: PathBuf, mat_path: PathBuf) -> MeshComponent {
+        MeshComponent {
+            mesh: mesh_path,
+            mat: mat_path,
+            vao: None,
+        }
+    }
 }
