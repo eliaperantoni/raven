@@ -70,8 +70,8 @@ impl Processor {
     fn do_frame(&mut self) -> Result<()> {
         self.clear_canvas();
 
-        for (entity, (mut mesh_comp,))
-        in <(MeshComponent, )>::query_deep_mut(&mut self.scene) {
+        for (entity, (mesh_comp,), (mesh_comp_n,))
+        in <(MeshComponent, )>::query_deep(&self.scene) {
             let vao: &Vao = match mesh_comp.vao.as_ref() {
                 Some(vao) => vao,
                 None => {
@@ -80,16 +80,17 @@ impl Processor {
 
                     let vao = Vao::from(&mesh, &mat)?;
 
+                    self.scene.get_nth_mut::<MeshComponent>(entity, mesh_comp_n);
+
                     mesh_comp.vao = Some(vao);
                     mesh_comp.vao.as_ref().unwrap()
                 },
             };
 
-            dbg!(vao);
-
             // TODO Figure out a way to make this work you absolute ding dong
             let transform = self.combined_transform(entity);
 
+            dbg!(vao);
 
             todo!()
         }
