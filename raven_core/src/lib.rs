@@ -15,6 +15,8 @@ use crate::component::{HierarchyComponent, MeshComponent, TransformComponent};
 use crate::io::Serializable;
 use crate::resource::{Scene, Mesh, Material};
 use crate::vao::Vao;
+use crate::shader::Shader;
+use crate::standard_shader::get_standard_shader;
 
 pub mod ecs {
     pub use raven_ecs::*;
@@ -25,14 +27,29 @@ pub mod component;
 pub mod io;
 
 mod vao;
+mod shader;
+mod standard_shader;
 
 type Result<T> = ::std::result::Result<T, Box<dyn Error>>;
 
 pub struct Processor {
     scene: Scene,
+    shader: Shader,
+
+    view_mat: Mat4,
+    proj_mat: Mat4,
 }
 
 impl Processor {
+    pub fn new(scene: Scene) -> Result<Processor> {
+        Ok(Processor {
+            scene,
+            shader: get_standard_shader()?,
+            view_mat: Mat4::default(),
+            proj_mat: Mat4::default(),
+        })
+    }
+
     fn clear_canvas(&self) {
         unsafe {
             gl::ClearColor(0.1, 0.1, 0.1, 1.0);
@@ -86,9 +103,16 @@ impl Processor {
         // Now we can properly render them
         for (entity, (mesh_comp,), _)
         in <(MeshComponent, )>::query_deep(&self.scene) {
+            self.clear_canvas();
+
             let vao = mesh_comp.vao.as_ref().unwrap();
 
-            let transform = self.combined_transform(entity);
+            self.shader.enable();
+            self.shader.set_mat4("model", self.combined_transform(entity));
+            self.shader.set_mat4("view", self.view_mat);
+            self.shader.set_mat4("projection", self.proj_mat);
+
+            vao.draw();
         }
 
         Ok(())
