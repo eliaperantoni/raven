@@ -11,12 +11,12 @@ use glam::Mat4;
 
 use ecs::*;
 
-use crate::component::{HierarchyComponent, MeshComponent, TransformComponent};
+use crate::component::{CameraComponent, HierarchyComponent, MeshComponent, TransformComponent};
 use crate::io::Serializable;
-use crate::resource::{Scene, Mesh, Material};
-use crate::vao::Vao;
+use crate::resource::{Material, Mesh, Scene};
 use crate::shader::Shader;
 use crate::standard_shader::get_standard_shader;
+use crate::vao::Vao;
 
 pub mod ecs {
     pub use raven_ecs::*;
@@ -34,10 +34,9 @@ type Result<T> = ::std::result::Result<T, Box<dyn Error>>;
 
 pub struct Processor {
     scene: Scene,
-    shader: Shader,
 
-    view_mat: Mat4,
-    proj_mat: Mat4,
+    shader: Shader,
+    camera_sys: CameraSystem,
 }
 
 impl Processor {
@@ -45,8 +44,7 @@ impl Processor {
         Ok(Processor {
             scene,
             shader: get_standard_shader()?,
-            view_mat: Mat4::default(),
-            proj_mat: Mat4::default(),
+            camera_sys: CameraSystem::default(),
         })
     }
 
@@ -88,7 +86,7 @@ impl Processor {
         self.clear_canvas();
 
         // First of all, we need to initialize a VAO for each MeshComponent that we haven't seen yet
-        for (_, (mut mesh_comp,), _)
+        for (_, (mut mesh_comp, ), _)
         in <(MeshComponent, )>::query_deep_mut(&mut self.scene) {
             if mesh_comp.vao.is_some() { continue; };
 
@@ -101,7 +99,7 @@ impl Processor {
         }
 
         // Now we can properly render them
-        for (entity, (mesh_comp,), _)
+        for (entity, (mesh_comp, ), _)
         in <(MeshComponent, )>::query_deep(&self.scene) {
             self.clear_canvas();
 
@@ -109,12 +107,41 @@ impl Processor {
 
             self.shader.enable();
             self.shader.set_mat4("model", self.combined_transform(entity));
-            self.shader.set_mat4("view", self.view_mat);
-            self.shader.set_mat4("projection", self.proj_mat);
+
+            let CameraMats {view_mat, projection_mat} = if let Some(mats) = &self.camera_sys.mats {
+                mats.clone()
+            } else {
+                return Err(Box::from("no camera"));
+            };
+
+            self.shader.set_mat4("view", view_mat);
+            self.shader.set_mat4("projection", projection_mat);
 
             vao.draw();
         }
 
         Ok(())
+    }
+}
+
+#[derive(Clone)]
+struct CameraMats {
+    view_mat: Mat4,
+    projection_mat: Mat4,
+}
+
+#[derive(Default)]
+struct CameraSystem {
+    mats: Option<CameraMats>,
+}
+
+impl CameraSystem {
+    fn update_mats(&mut self, p: &Processor) {
+        if let Some((entity, (camera_comp, ), _)) =
+        &<(CameraComponent, )>::query_deep(&p.scene).next() {
+            let transform = p.combined_transform(*entity);
+
+            todo!()
+        }
     }
 }
