@@ -7,7 +7,8 @@ use std::path::{Path, PathBuf};
 
 use gl::{self, types::*};
 pub use glam;
-use glam::Mat4;
+use glam::{Mat3, Mat4, Quat, Vec3};
+use mat4::decompose;
 
 use ecs::*;
 
@@ -35,16 +36,16 @@ type Result<T> = ::std::result::Result<T, Box<dyn Error>>;
 pub struct Processor {
     scene: Scene,
 
+    canvas_size: [u32; 2],
     shader: Shader,
-    camera_sys: CameraSystem,
 }
 
 impl Processor {
     pub fn new(scene: Scene) -> Result<Processor> {
         Ok(Processor {
             scene,
+            canvas_size: [800, 400],
             shader: get_standard_shader()?,
-            camera_sys: CameraSystem::default(),
         })
     }
 
@@ -85,6 +86,13 @@ impl Processor {
     fn do_frame(&mut self) -> Result<()> {
         self.clear_canvas();
 
+        {
+            let [width, height] = self.canvas_size;
+            unsafe {
+                gl::Viewport(0, 0, width as _, height as _);
+            }
+        }
+
         // First of all, we need to initialize a VAO for each MeshComponent that we haven't seen yet
         for (_, (mut mesh_comp, ), _)
         in <(MeshComponent, )>::query_deep_mut(&mut self.scene) {
@@ -98,6 +106,12 @@ impl Processor {
             mesh_comp.vao = Some(vao);
         }
 
+        let CameraMats { view_mat, projection_mat } = if let Some(mats) = self.compute_camera_mats() {
+            mats
+        } else {
+            return Err(Box::from("no camera"));
+        };
+
         // Now we can properly render them
         for (entity, (mesh_comp, ), _)
         in <(MeshComponent, )>::query_deep(&self.scene) {
@@ -106,16 +120,10 @@ impl Processor {
             let vao = mesh_comp.vao.as_ref().unwrap();
 
             self.shader.enable();
-            self.shader.set_mat4("model", self.combined_transform(entity));
+            self.shader.set_mat4("model", &self.combined_transform(entity));
 
-            let CameraMats {view_mat, projection_mat} = if let Some(mats) = &self.camera_sys.mats {
-                mats.clone()
-            } else {
-                return Err(Box::from("no camera"));
-            };
-
-            self.shader.set_mat4("view", view_mat);
-            self.shader.set_mat4("projection", projection_mat);
+            self.shader.set_mat4("view", &view_mat);
+            self.shader.set_mat4("projection", &projection_mat);
 
             vao.draw();
         }
@@ -124,24 +132,37 @@ impl Processor {
     }
 }
 
-#[derive(Clone)]
 struct CameraMats {
     view_mat: Mat4,
     projection_mat: Mat4,
 }
 
-#[derive(Default)]
-struct CameraSystem {
-    mats: Option<CameraMats>,
-}
+impl Processor {
+    fn compute_camera_mats(&self) -> Option<CameraMats> {
+        <(CameraComponent, )>::query_shallow(&self.scene).next().map(|(entity, _, _)| {
+            let transform = self.combined_transform(entity);
 
-impl CameraSystem {
-    fn update_mats(&mut self, p: &Processor) {
-        if let Some((entity, (camera_comp, ), _)) =
-        &<(CameraComponent, )>::query_deep(&p.scene).next() {
-            let transform = p.combined_transform(*entity);
+            CameraMats {
+                view_mat: {
+                    let mut position = Vec3::default();
+                    let mut scale = Vec3::default();
+                    let mut rotation = Quat::default();
 
-            todo!()
-        }
+                    decompose(transform.as_ref(), position.as_mut(), scale.as_mut(), rotation.as_mut());
+
+                    let forward = rotation.mul_vec3(-Vec3::Z).normalize();
+                    let target = (position + forward).normalize();
+                    let right = Vec3::cross(forward, Vec3::Y).normalize();
+                    let up = Vec3::cross(right, forward).normalize();
+
+                    Mat4::look_at_rh(position, target, up)
+                },
+                projection_mat: {
+                    let [width, height] = self.canvas_size;
+                    let aspect_ratio = width as f32 / height as f32;
+                    Mat4::perspective_rh_gl(45_f32.to_radians(), aspect_ratio, 0.1, 100.0)
+                },
+            }
+        })
     }
 }

@@ -150,6 +150,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cast_trait"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4f8d981c476baadf74cd52897866a1d279d3e14e2d5e2d9af045210e0ae6128"
+
+[[package]]
 name = "cc"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -928,6 +934,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mat4"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "978ec00941ccf854cb8cadc8e575c5850ba3a072e9b72501a1e0999baa6c83ac"
+dependencies = [
+ "num-traits",
+ "vec3",
+]
+
+[[package]]
 name = "maybe-uninit"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1393,6 +1409,7 @@ dependencies = [
  "bincode",
  "gl",
  "glam",
+ "mat4",
  "raven_ecs",
  "serde",
  "serde_json",
@@ -1794,6 +1811,16 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
+
+[[package]]
+name = "vec3"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ad952cfbcbc36c86769e13cf9ce2203b6ce9271fa54a03f259a35d1930449e1"
+dependencies = [
+ "cast_trait",
+ "num-traits",
+]
 
 [[package]]
 name = "vec_map"

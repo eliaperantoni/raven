@@ -34,6 +34,4 @@ impl MeshComponent {
 }
 
 #[derive(Component, Serialize, Deserialize)]
-pub struct CameraComponent {
-    pub fov: f32,
-}
+pub struct CameraComponent {}

@@ -63,7 +63,7 @@ impl Shader {
         }
     }
 
-    pub fn set_mat4<T: AsRef<str>>(&self, name: T, mat: Mat4) {
+    pub fn set_mat4<T: AsRef<str>>(&self, name: T, mat: &Mat4) {
         unsafe {
             let s = CString::new(name.as_ref()).unwrap();
             let loc = gl::GetUniformLocation(self.id, s.as_ptr());
