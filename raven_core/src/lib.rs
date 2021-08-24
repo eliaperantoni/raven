@@ -83,7 +83,7 @@ impl Processor {
         out
     }
 
-    fn do_frame(&mut self) -> Result<()> {
+    pub fn do_frame(&mut self) -> Result<()> {
         self.clear_canvas();
 
         {

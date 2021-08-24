@@ -1472,6 +1472,11 @@ dependencies = [
 [[package]]
 name = "raven_runtime"
 version = "0.1.0"
+dependencies = [
+ "gl",
+ "glutin",
+ "raven_core",
+]
 
 [[package]]
 name = "raw-window-handle"
