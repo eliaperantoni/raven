@@ -14,9 +14,6 @@ use raven_core::resource::*;
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 fn main() -> Result<()> {
-    let scene = Scene::load("/home/elia/code/raven_proj/.import/ferris/ferris.fbx/main.scn")?;
-    let mut processor = Processor::new(scene)?;
-
     let el = EventLoop::new();
     let wb = WindowBuilder::new().with_title("Raven");
 
@@ -25,6 +22,9 @@ fn main() -> Result<()> {
     let windowed_context = unsafe { windowed_context.make_current().unwrap() };
 
     gl::load_with(|symbol| windowed_context.get_proc_address(symbol));
+
+    let scene = Scene::load("/home/elia/code/raven_proj/.import/ferris/ferris.fbx/main.scn")?;
+    let mut processor = Processor::new(scene)?;
 
     el.run(move |event, _, control_flow| {
         match event {
