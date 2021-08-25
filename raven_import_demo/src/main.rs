@@ -17,10 +17,7 @@ use raven_core::io::Serializable;
 use raven_core::resource::*;
 use raven_core::ecs::Entity;
 
-const PROJECT_ROOT_RUNE: &'static str = "$/";
 const IMPORT_DIR: &'static str = ".import";
-
-const PROJECT_ROOT: &'static str = "/home/elia/code/raven_proj";
 
 type Result<T> = ::std::result::Result<T, Box<dyn Error>>;
 
@@ -56,12 +53,6 @@ fn import<P: AsRef<Path>>(path: P) -> Result<()> {
     Ok(())
 }
 
-fn strip_rune<P: AsRef<Path> + ?Sized>(path: &P) -> &Path {
-    path.as_ref()
-        .strip_prefix(PROJECT_ROOT_RUNE)
-        .expect("expected to find project root rune to strip it")
-}
-
 /// Given the absolute path to an asset, returns the path to the root directory for the imported files.
 ///
 /// For instance:
@@ -75,20 +66,6 @@ fn as_import_root<P: AsRef<Path>>(path: P) -> PathBuf {
     import_root.push(strip_rune(path.as_ref()));
 
     import_root
-}
-
-/// Given the absolute path to an asset, returns the filesystem absolute path.
-///
-/// For instance:
-/// `$/ferris/ferris.fbx` becomes `$(pwd)/$PROJECT_DIR/ferris/ferris.fbx`
-fn as_fs_abs<P: AsRef<Path>>(path: P) -> PathBuf {
-    assert!(path.as_ref().starts_with(PROJECT_ROOT_RUNE));
-
-    let mut abs_path = PathBuf::default();
-    abs_path.push(PROJECT_ROOT);
-    abs_path.push(strip_rune(path.as_ref()));
-
-    abs_path
 }
 
 fn wipe_dir<P: AsRef<Path>>(path: P) -> Result<()> {

@@ -26,6 +26,7 @@ pub mod ecs {
 pub mod resource;
 pub mod component;
 pub mod io;
+pub mod path;
 
 mod vao;
 mod shader;
@@ -34,19 +35,31 @@ mod standard_shader;
 type Result<T> = ::std::result::Result<T, Box<dyn Error>>;
 
 pub struct Processor {
-    scene: Scene,
+    project_root: String,
+
+    scene: Option<Scene>,
 
     canvas_size: [u32; 2],
     shader: Shader,
 }
 
 impl Processor {
-    pub fn new(scene: Scene) -> Result<Processor> {
+    pub fn new<S: AsRef<str>>(project_root: S) -> Result<Processor> {
         Ok(Processor {
-            scene,
+            project_root: project_root.as_ref().to_owned(),
+
+            scene: None,
+
             canvas_size: [800, 400],
             shader: get_standard_shader()?,
         })
+    }
+
+    pub fn load_scene<P: AsRef<Path>>(&mut self, scene_path: P) -> Result<()> {
+        let scene_path = path::as_fs_abs(&self.project_root, scene_path);
+
+        self.scene = Some(Scene::load(scene_path)?);
+        Ok(())
     }
 
     fn clear_canvas(&self) {
@@ -56,15 +69,23 @@ impl Processor {
         }
     }
 
+    fn must_scene(&self) -> &Scene {
+        self.scene.as_ref().expect("no scene loaded")
+    }
+
+    fn must_scene_mut(&mut self) -> &mut Scene {
+        self.scene.as_mut().expect("no scene loaded")
+    }
+
     fn combined_transform(&self, mut entity: Entity) -> Mat4 {
         let mut transform_components = Vec::new();
 
         loop {
-            let transform_component = self.scene.get_one::<TransformComponent>(entity)
+            let transform_component = self.must_scene().get_one::<TransformComponent>(entity)
                 .expect("entity does not have a transform component");
             transform_components.push(transform_component);
 
-            let hierarchy_component = self.scene.get_one::<HierarchyComponent>(entity)
+            let hierarchy_component = self.must_scene().get_one::<HierarchyComponent>(entity)
                 .expect("entity does not have a hierarchy component");
 
             if let Some(parent_entity) = hierarchy_component.parent {
@@ -84,6 +105,10 @@ impl Processor {
     }
 
     pub fn do_frame(&mut self) -> Result<()> {
+        if self.scene.is_none() {
+            return Ok(());
+        }
+
         self.clear_canvas();
 
         {
@@ -95,11 +120,11 @@ impl Processor {
 
         // First of all, we need to initialize a VAO for each MeshComponent that we haven't seen yet
         for (_, (mut mesh_comp, ), _)
-        in <(MeshComponent, )>::query_deep_mut(&mut self.scene) {
+        in <(MeshComponent, )>::query_deep_mut(self.must_scene_mut()) {
             if mesh_comp.vao.is_some() { continue; };
 
-            let mesh = Mesh::load(&mesh_comp.mesh)?;
-            let mat = Material::load(&mesh_comp.mat)?;
+            let mesh = Mesh::load(path::as_fs_abs(&self.project_root, &mesh_comp.mesh))?;
+            let mat = Material::load(path::as_fs_abs(&self.project_root, &mesh_comp.mat))?;
 
             let vao = Vao::from(&mesh, &mat)?;
 
@@ -114,7 +139,7 @@ impl Processor {
 
         // Now we can properly render them
         for (entity, (mesh_comp, ), _)
-        in <(MeshComponent, )>::query_deep(&self.scene) {
+        in <(MeshComponent, )>::query_deep(self.must_scene()) {
             self.clear_canvas();
 
             let vao = mesh_comp.vao.as_ref().unwrap();
@@ -139,7 +164,7 @@ struct CameraMats {
 
 impl Processor {
     fn compute_camera_mats(&self) -> Option<CameraMats> {
-        <(CameraComponent, )>::query_shallow(&self.scene).next().map(|(entity, _, _)| {
+        <(CameraComponent, )>::query_shallow(self.must_scene()).next().map(|(entity, _, _)| {
             let transform = self.combined_transform(entity);
 
             CameraMats {
