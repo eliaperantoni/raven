@@ -123,7 +123,7 @@ macro_rules! next_deep {
     ($self:expr, $get_nth_x:tt, $( $pool_type:ident ),* ) => {
         {
             $(
-                let paste!{[< pool_ $pool_type:snake >]} = $self.w.pool::<$pool_type>().unwrap();
+                let paste!{[< pool_ $pool_type:snake >]} = $self.w.pool::<$pool_type>()?;
             )*
 
             if $self.deep_state.is_none() {
@@ -465,5 +465,19 @@ mod test {
         w.attach::<CompY>(e2, CompY::new("G"));
 
         <(CompX, CompY)>::query_deep_mut(&mut w).collect::<Vec<_>>().into_iter().for_each(drop);
+    }
+
+    #[test]
+    fn empty() {
+        let mut w = World::default();
+
+        let mut counter = 0;
+
+        for _ in <(CompX,)>::query_shallow(&w)         { counter += 1; };
+        for _ in <(CompX,)>::query_shallow_mut(&mut w) { counter += 1; };
+        for _ in <(CompX,)>::query_deep(&w)            { counter += 1; };
+        for _ in <(CompX,)>::query_deep_mut(&mut w)    { counter += 1; };
+
+        assert_eq!(counter, 0);
     }
 }

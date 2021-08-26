@@ -108,7 +108,7 @@ impl Processor {
             }
 
             Processor::process_scene(scene_comp.loaded.as_mut().unwrap(), state, Context {
-                transform: transform_comp.0 * ctx.transform,
+                transform: ctx.transform * transform_comp.0,
             })?;
         }
 
@@ -130,7 +130,7 @@ impl Processor {
             let vao = mesh_comp.vao.as_ref().unwrap();
 
             state.shader.enable();
-            state.shader.set_mat4("model", &(combined_transform(scene, entity) * ctx.transform));
+            state.shader.set_mat4("model", &(ctx.transform * combined_transform(scene, entity)));
 
             let CameraMats{view_mat, projection_mat} = state.camera_mats.as_ref().unwrap();
 
@@ -196,7 +196,7 @@ fn combined_transform(scene: &Scene, mut entity: Entity) -> Mat4 {
 
     let mut out = Mat4::IDENTITY;
 
-    for transform_component in transform_components.into_iter() {
+    for transform_component in transform_components.into_iter().rev() {
         out = out * transform_component.0;
     }
 
