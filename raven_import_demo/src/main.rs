@@ -11,12 +11,17 @@ use itertools::izip;
 use md5::{Digest, Md5};
 use russimp::material::PropertyTypeInfo;
 
-use raven_core::component::{HierarchyComponent, MeshComponent, TransformComponent};
-use raven_core::glam::{Mat4, Vec2, Vec3, Vec4};
-use raven_core::io::Serializable;
-use raven_core::resource::*;
+use raven_core::component::{CameraComponent, HierarchyComponent, MeshComponent, TransformComponent};
 use raven_core::ecs::Entity;
+use raven_core::glam::{Mat4, Vec2, Vec3, Vec4, Quat};
+use raven_core::io::Serializable;
+use raven_core::mat4::compose;
+use raven_core::path;
+use raven_core::resource::*;
 
+const ADD_CAMERA: bool = true;
+
+const PROJECT_ROOT_DIR: &'static str = "/home/elia/code/raven_proj";
 const IMPORT_DIR: &'static str = ".import";
 
 type Result<T> = ::std::result::Result<T, Box<dyn Error>>;
@@ -35,7 +40,7 @@ fn main() -> Result<()> {
 }
 
 fn import<P: AsRef<Path>>(path: P) -> Result<()> {
-    if !path.as_ref().starts_with(PROJECT_ROOT_RUNE) {
+    if !path::is_valid(path.as_ref()) {
         panic!("support is for absolute paths only");
     }
 
@@ -58,12 +63,12 @@ fn import<P: AsRef<Path>>(path: P) -> Result<()> {
 /// For instance:
 /// `$/ferris/ferris.fbx` becomes `$/.import/ferris/ferris.fbx`
 fn as_import_root<P: AsRef<Path>>(path: P) -> PathBuf {
-    assert!(path.as_ref().starts_with(PROJECT_ROOT_RUNE));
+    assert!(path::is_valid(path.as_ref()));
 
     let mut import_root = PathBuf::default();
-    import_root.push(PROJECT_ROOT_RUNE);
+    import_root.push(path::PROJECT_ROOT_RUNE);
     import_root.push(IMPORT_DIR);
-    import_root.push(strip_rune(path.as_ref()));
+    import_root.push(path::strip_rune(path.as_ref()));
 
     import_root
 }
@@ -84,14 +89,14 @@ fn wipe_dir<P: AsRef<Path>>(path: P) -> Result<()> {
 }
 
 fn prepare_import_root_for<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
-    assert!(path.as_ref().starts_with(PROJECT_ROOT_RUNE));
+    assert!(path::is_valid(path.as_ref()));
 
     let import_root = as_import_root(path);
 
-    fs::create_dir_all(as_fs_abs(&import_root)).map_err(|e| Box::<dyn Error>::from(e))?;
+    fs::create_dir_all(path::as_fs_abs(PROJECT_ROOT_DIR, &import_root)).map_err(|e| Box::<dyn Error>::from(e))?;
 
     // Make sure the import directory contains no file
-    wipe_dir(as_fs_abs(&import_root))?;
+    wipe_dir(path::as_fs_abs(PROJECT_ROOT_DIR, &import_root))?;
 
     Ok(import_root)
 }
@@ -99,14 +104,14 @@ fn prepare_import_root_for<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
 fn import_tex<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     let import_root = prepare_import_root_for(path.as_ref())?;
 
-    let tex = image::open(as_fs_abs(path.as_ref()))?;
+    let tex = image::open(path::as_fs_abs(PROJECT_ROOT_DIR, path.as_ref()))?;
     let tex = tex.into_rgba8();
 
     let tex = Texture {
         raw: tex.into_raw(),
     };
 
-    tex.save(as_fs_abs(import_root.join("main.tex")))?;
+    tex.save(path::as_fs_abs(PROJECT_ROOT_DIR, import_root.join("main.tex")))?;
 
     Ok(PathBuf::from(import_root.join("main.tex")))
 }
@@ -140,7 +145,7 @@ impl<'a> SceneImporter<'a> {
     fn import<P: AsRef<Path>>(path: P) -> Result<()> {
         let import_root = prepare_import_root_for(path.as_ref())?;
 
-        let fs_abs_path = as_fs_abs(path.as_ref());
+        let fs_abs_path = path::as_fs_abs(PROJECT_ROOT_DIR, path.as_ref());
         let fs_abs_path = fs_abs_path
             .to_str()
             .ok_or_else(|| Box::<dyn Error>::from("assimp requires unicode path"))?;
@@ -166,9 +171,28 @@ impl<'a> SceneImporter<'a> {
             .ok_or_else(|| Box::<dyn Error>::from("no root node"))?;
         let root = &*RefCell::borrow(Rc::borrow(root));
 
-        importer.process_node(root, NodeTraversal::start(&root.name))?;
+        let root_entity = importer.process_node(root, NodeTraversal::start(&root.name))?;
 
-        importer.importing_scene.save(as_fs_abs(import_root.join("main.scn")))?;
+        if ADD_CAMERA {
+            let w = &mut importer.importing_scene;
+
+            let e = w.create();
+            w.attach(e, {
+                let mut transform = TransformComponent::default();
+
+                let position = Vec3::new(0.0, 0.0, 5.0);
+                compose(transform.0.as_mut(), position.as_ref(), Vec3::ONE.as_ref(), Quat::IDENTITY.as_ref());
+
+                transform
+            });
+            w.attach(e, HierarchyComponent {
+                parent: Some(root_entity),
+                children: Vec::new(),
+            });
+            w.attach(e, CameraComponent {});
+        }
+
+        importer.importing_scene.save(path::as_fs_abs(PROJECT_ROOT_DIR, import_root.join("main.scn")))?;
 
         Ok(())
     }
@@ -179,11 +203,12 @@ impl<'a> SceneImporter<'a> {
         self.importing_scene.attach(entity, TransformComponent({
             let t = node.transformation;
             Mat4::from_cols(
-                Vec4::new(t.a1, t.a2, t.a3, t.a4),
-                Vec4::new(t.b1, t.b2, t.b3, t.b4),
-                Vec4::new(t.c1, t.c2, t.c3, t.c4),
-                Vec4::new(t.d1, t.d2, t.d3, t.d4),
-            )
+                Vec4::new(t.a1, t.b1, t.c1, t.d1),
+                Vec4::new(t.a2, t.b2, t.c2, t.d2),
+                Vec4::new(t.a3, t.b3, t.c3, t.d3),
+                Vec4::new(t.a4, t.b4, t.c4, t.d4),
+            );
+            Mat4::default()
         }));
         self.importing_scene.attach(entity, HierarchyComponent::default());
 
@@ -198,7 +223,7 @@ impl<'a> SceneImporter<'a> {
                 Digest::update(&mut hasher, &mesh.name);
 
                 let mesh_file = format!("{:x}.mesh", hasher.finalize());
-                imported_mesh.save(as_fs_abs(self.import_root.join(&mesh_file)))?;
+                imported_mesh.save(path::as_fs_abs(PROJECT_ROOT_DIR, self.import_root.join(&mesh_file)))?;
 
                 self.import_root.join(&mesh_file)
             };
@@ -249,7 +274,7 @@ impl<'a> SceneImporter<'a> {
                 }
 
                 let mat_file = format!("{:x}.mat", hasher.finalize());
-                imported_mat.save(as_fs_abs(self.import_root.join(&mat_file)))?;
+                imported_mat.save(path::as_fs_abs(PROJECT_ROOT_DIR, self.import_root.join(&mat_file)))?;
 
                 self.import_root.join(&mat_file)
             };

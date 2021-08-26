@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use gl;
 pub use glam;
+pub use mat4;
 use glam::{Mat4, Quat, Vec3};
 use mat4::decompose;
 
@@ -58,6 +59,10 @@ impl Processor {
 
         self.scene = Some(Scene::load(scene_path)?);
         Ok(())
+    }
+
+    pub fn set_canvas_size(&mut self, width: u32, height: u32) {
+        self.canvas_size = [width, height];
     }
 
     fn clear_canvas(&self) {
@@ -178,7 +183,8 @@ impl Processor {
                     decompose(transform.as_ref(), position.as_mut(), scale.as_mut(), rotation.as_mut());
 
                     let forward = rotation.mul_vec3(-Vec3::Z).normalize();
-                    let target = (position + forward).normalize();
+                    let target = position + forward;
+
                     let right = Vec3::cross(forward, Vec3::Y).normalize();
                     let up = Vec3::cross(right, forward).normalize();
 
@@ -187,7 +193,7 @@ impl Processor {
                 projection_mat: {
                     let [width, height] = self.canvas_size;
                     let aspect_ratio = width as f32 / height as f32;
-                    Mat4::perspective_rh_gl(45_f32.to_radians(), aspect_ratio, 0.1, 100.0)
+                    Mat4::perspective_rh_gl(90_f32.to_radians(), aspect_ratio, 0.01, 100.0)
                 },
             }
         })

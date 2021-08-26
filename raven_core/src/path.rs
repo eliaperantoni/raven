@@ -2,6 +2,10 @@ use std::path::{Path, PathBuf};
 
 pub const PROJECT_ROOT_RUNE: &'static str = "$/";
 
+pub fn is_valid<P: AsRef<Path>>(path: P) -> bool {
+    path.as_ref().starts_with(PROJECT_ROOT_RUNE)
+}
+
 pub fn strip_rune<P: AsRef<Path> + ?Sized>(path: &P) -> &Path {
     path.as_ref()
         .strip_prefix(PROJECT_ROOT_RUNE)
