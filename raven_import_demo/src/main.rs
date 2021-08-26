@@ -181,33 +181,6 @@ impl<'a> SceneImporter<'a> {
             let mat: &mut Mat4 = &mut transform.0;
 
             *mat = Mat4::from_scale(Vec3::ONE * scale_factor) * *mat;
-
-            let mut position = Vec3::default();
-            let mut scale = Vec3::default();
-            let mut rotation = Quat::default();
-
-            decompose(transform.0.as_ref(), position.as_mut(), scale.as_mut(), rotation.as_mut());
-
-            dbg!(&scale);
-        }
-
-        if ADD_CAMERA {
-            let w = &mut importer.importing_scene;
-
-            let e = w.create();
-            w.attach(e, {
-                let mut transform = TransformComponent::default();
-
-                let position = Vec3::new(0.0, 0.0, 5.0);
-                compose(transform.0.as_mut(), position.as_ref(), Vec3::ONE.as_ref(), Quat::IDENTITY.as_ref());
-
-                transform
-            });
-            w.attach(e, HierarchyComponent {
-                parent: Some(root_entity),
-                children: Vec::new(),
-            });
-            w.attach(e, CameraComponent {});
         }
 
         importer.importing_scene.save(path::as_fs_abs(PROJECT_ROOT_DIR, import_root.join("main.scn")))?;

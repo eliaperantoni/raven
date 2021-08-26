@@ -35,3 +35,8 @@ impl MeshComponent {
 
 #[derive(Component, Serialize, Deserialize)]
 pub struct CameraComponent {}
+
+#[derive(Component, Serialize, Deserialize)]
+pub struct SceneComponent {
+    pub scene: PathBuf,
+}
