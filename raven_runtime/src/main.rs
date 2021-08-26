@@ -1,3 +1,5 @@
+#![feature(duration_constants)]
+
 use std::error::Error;
 
 use glutin::ContextBuilder;
@@ -6,8 +8,13 @@ use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 
 use raven_core::Processor;
+use std::time::{Instant, Duration};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
+
+mod fps;
+
+use fps::FpsCounter;
 
 fn main() -> Result<()> {
     let el = EventLoop::new();
@@ -21,6 +28,8 @@ fn main() -> Result<()> {
 
     let mut processor = Processor::new("/home/elia/code/raven_proj")?;
     processor.load_scene("$/.import/ferris/ferris.fbx/main.scn")?;
+
+    let mut fps_counter = FpsCounter::default();
 
     el.run(move |event, _, control_flow| {
         match event {
@@ -39,6 +48,11 @@ fn main() -> Result<()> {
             Event::RedrawRequested(_) => {
                 processor.do_frame().unwrap();
                 windowed_context.swap_buffers().unwrap();
+
+                if let Some(stats) = fps_counter.on_frame() {
+                    println!("{:?}", stats);
+                }
+
             }
             _ => (),
         }
