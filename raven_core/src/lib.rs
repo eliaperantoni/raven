@@ -34,11 +34,11 @@ mod standard_shader;
 type Result<T> = ::std::result::Result<T, Box<dyn Error>>;
 
 pub struct Processor {
-    state: State,
+    state: ProcessorState,
     scene: Option<Scene>,
 }
 
-struct State {
+struct ProcessorState {
     project_root: PathBuf,
     canvas_size: [u32; 2],
     shader: Shader,
@@ -50,10 +50,15 @@ struct CameraMats {
     projection_mat: Mat4,
 }
 
+#[derive(Default)]
+struct Context {
+    transform: Mat4,
+}
+
 impl Processor {
     pub fn new<R: AsRef<Path>>(project_root: R) -> Result<Processor> {
         Ok(Processor {
-            state: State {
+            state: ProcessorState {
                 project_root: project_root.as_ref().to_owned(),
                 canvas_size: [800, 400],
                 shader: get_standard_shader()?,
@@ -90,19 +95,21 @@ impl Processor {
 
         self.state.camera_mats = Some(self.compute_camera_mats().ok_or_else(|| Box::<dyn Error>::from("no camera"))?);
 
-        Processor::process_scene(self.scene.as_mut().unwrap(), &mut self.state)?;
+        Processor::process_scene(self.scene.as_mut().unwrap(), &mut self.state, Context::default())?;
 
         Ok(())
     }
 
-    fn process_scene(scene: &mut Scene, state: &mut State) -> Result<()> {
-        for (_, (mut scene_comp, ), _)
-        in <(SceneComponent, )>::query_shallow_mut(scene) {
+    fn process_scene(scene: &mut Scene, state: &mut ProcessorState, ctx: Context) -> Result<()> {
+        for (_, (mut scene_comp, transform_comp), _)
+        in <(SceneComponent, TransformComponent)>::query_shallow_mut(scene) {
             if scene_comp.loaded.is_none() {
                 scene_comp.loaded = Some(Scene::load(path::as_fs_abs(&state.project_root, &scene_comp.scene))?);
             }
 
-            Processor::process_scene(scene_comp.loaded.as_mut().unwrap(), state)?;
+            Processor::process_scene(scene_comp.loaded.as_mut().unwrap(), state, Context {
+                transform: transform_comp.0 * ctx.transform,
+            })?;
         }
 
         for (_, (mut mesh_comp, ), _)
@@ -123,9 +130,7 @@ impl Processor {
             let vao = mesh_comp.vao.as_ref().unwrap();
 
             state.shader.enable();
-            // TODO Currently only applies transform of this scene. `process_scene` should recursively carry over the
-            //      transform from the parent scene
-            state.shader.set_mat4("model", &combined_transform(scene, entity));
+            state.shader.set_mat4("model", &(combined_transform(scene, entity) * ctx.transform));
 
             let CameraMats{view_mat, projection_mat} = state.camera_mats.as_ref().unwrap();
 
