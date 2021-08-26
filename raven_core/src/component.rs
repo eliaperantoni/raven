@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use glam::Mat4;
 use serde::{Deserialize, Serialize};
 
-use raven_ecs::{Entity, Component};
+use raven_ecs::{Component, Entity};
+
+use crate::resource::Scene;
 use crate::vao::Vao;
 
 #[derive(Component, Serialize, Deserialize, Clone, Default)]
@@ -39,4 +41,6 @@ pub struct CameraComponent {}
 #[derive(Component, Serialize, Deserialize)]
 pub struct SceneComponent {
     pub scene: PathBuf,
+    #[serde(skip)]
+    pub(crate) loaded: Option<Scene>,
 }

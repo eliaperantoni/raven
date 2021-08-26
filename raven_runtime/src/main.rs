@@ -8,7 +8,6 @@ use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 
 use raven_core::Processor;
-use std::time::{Instant, Duration};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
