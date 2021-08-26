@@ -23,7 +23,7 @@ impl Drop for Vao {
 }
 
 impl Vao {
-    pub fn from(mesh: &Mesh, mat: &Material) -> Result<Vao> {
+    pub fn from(mesh: &Mesh, _mat: &Material) -> Result<Vao> {
         let mut vao_id: u32 = 0;
 
         // Setup VAO

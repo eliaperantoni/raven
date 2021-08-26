@@ -12,6 +12,3 @@ members = [
 [patch.crates-io]
 imgui = { git = "https://github.com/NoxWings/imgui-rs", tag = "1.81dock" }
 imgui-sys = { git = "https://github.com/NoxWings/imgui-rs", tag = "1.81dock" }
-
-[profile.dev]
-lto = true

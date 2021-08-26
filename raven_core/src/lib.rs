@@ -1,13 +1,11 @@
 #![feature(with_options)]
 
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use gl::{self, types::*};
+use gl;
 pub use glam;
-use glam::{Mat3, Mat4, Quat, Vec3};
+use glam::{Mat4, Quat, Vec3};
 use mat4::decompose;
 
 use ecs::*;
@@ -35,7 +33,7 @@ mod standard_shader;
 type Result<T> = ::std::result::Result<T, Box<dyn Error>>;
 
 pub struct Processor {
-    project_root: String,
+    project_root: PathBuf,
 
     scene: Option<Scene>,
 
@@ -44,7 +42,7 @@ pub struct Processor {
 }
 
 impl Processor {
-    pub fn new<S: AsRef<str>>(project_root: S) -> Result<Processor> {
+    pub fn new<R: AsRef<Path>>(project_root: R) -> Result<Processor> {
         Ok(Processor {
             project_root: project_root.as_ref().to_owned(),
 
@@ -92,16 +90,20 @@ impl Processor {
         }
 
         // First of all, we need to initialize a VAO for each MeshComponent that we haven't seen yet
-        for (_, (mut mesh_comp, ), _)
-        in <(MeshComponent, )>::query_deep_mut(self.must_scene_mut()) {
-            if mesh_comp.vao.is_some() { continue; };
+        {
+            let project_root = self.project_root.clone();
 
-            let mesh = Mesh::load(path::as_fs_abs(&self.project_root, &mesh_comp.mesh))?;
-            let mat = Material::load(path::as_fs_abs(&self.project_root, &mesh_comp.mat))?;
+            for (_, (mut mesh_comp, ), _)
+            in <(MeshComponent, )>::query_deep_mut(self.must_scene_mut()) {
+                if mesh_comp.vao.is_some() { continue; };
 
-            let vao = Vao::from(&mesh, &mat)?;
+                let mesh = Mesh::load(path::as_fs_abs(&project_root, &mesh_comp.mesh))?;
+                let mat = Material::load(path::as_fs_abs(&project_root, &mesh_comp.mat))?;
 
-            mesh_comp.vao = Some(vao);
+                let vao = Vao::from(&mesh, &mat)?;
+
+                mesh_comp.vao = Some(vao);
+            }
         }
 
         let CameraMats { view_mat, projection_mat } = if let Some(mats) = self.compute_camera_mats() {

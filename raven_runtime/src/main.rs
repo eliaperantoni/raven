@@ -5,15 +5,9 @@ use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 
-use raven_core::component::*;
-use raven_core::ecs::Component;
-use raven_core::io::Serializable;
 use raven_core::Processor;
-use raven_core::resource::*;
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
-
-const PROJECT_ROOT: &'static str = "/home/elia/code/raven_proj";
 
 fn main() -> Result<()> {
     let el = EventLoop::new();
