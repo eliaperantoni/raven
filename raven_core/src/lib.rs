@@ -193,7 +193,7 @@ impl Processor {
                 projection_mat: {
                     let [width, height] = self.canvas_size;
                     let aspect_ratio = width as f32 / height as f32;
-                    Mat4::perspective_rh_gl(90_f32.to_radians(), aspect_ratio, 0.01, 100.0)
+                    Mat4::perspective_rh_gl(90_f32.to_radians(), aspect_ratio, 0.1, 100.0)
                 },
             }
         })

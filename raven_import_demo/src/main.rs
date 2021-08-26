@@ -15,10 +15,11 @@ use raven_core::component::{CameraComponent, HierarchyComponent, MeshComponent, 
 use raven_core::ecs::Entity;
 use raven_core::glam::{Mat4, Vec2, Vec3, Vec4, Quat};
 use raven_core::io::Serializable;
-use raven_core::mat4::compose;
+use raven_core::mat4::{compose, decompose};
 use raven_core::path;
 use raven_core::resource::*;
 
+const SCALE_FACTOR: Option<f32> = Some(0.01);
 const ADD_CAMERA: bool = true;
 
 const PROJECT_ROOT_DIR: &'static str = "/home/elia/code/raven_proj";
@@ -173,6 +174,23 @@ impl<'a> SceneImporter<'a> {
 
         let root_entity = importer.process_node(root, NodeTraversal::start(&root.name))?;
 
+        if let Some(scale_factor) = SCALE_FACTOR {
+            let w = &mut importer.importing_scene;
+
+            let mut transform = w.get_one_mut::<TransformComponent>(root_entity).unwrap();
+            let mat: &mut Mat4 = &mut transform.0;
+
+            *mat = Mat4::from_scale(Vec3::ONE * scale_factor) * *mat;
+
+            let mut position = Vec3::default();
+            let mut scale = Vec3::default();
+            let mut rotation = Quat::default();
+
+            decompose(transform.0.as_ref(), position.as_mut(), scale.as_mut(), rotation.as_mut());
+
+            dbg!(&scale);
+        }
+
         if ADD_CAMERA {
             let w = &mut importer.importing_scene;
 
@@ -207,8 +225,7 @@ impl<'a> SceneImporter<'a> {
                 Vec4::new(t.a2, t.b2, t.c2, t.d2),
                 Vec4::new(t.a3, t.b3, t.c3, t.d3),
                 Vec4::new(t.a4, t.b4, t.c4, t.d4),
-            );
-            Mat4::default()
+            )
         }));
         self.importing_scene.attach(entity, HierarchyComponent::default());
 
