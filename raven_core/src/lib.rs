@@ -77,38 +77,7 @@ impl Processor {
         self.scene.as_mut().expect("no scene loaded")
     }
 
-    fn combined_transform(&self, mut entity: Entity) -> Mat4 {
-        let mut transform_components = Vec::new();
-
-        loop {
-            let transform_component = self.must_scene().get_one::<TransformComponent>(entity)
-                .expect("entity does not have a transform component");
-            transform_components.push(transform_component);
-
-            let hierarchy_component = self.must_scene().get_one::<HierarchyComponent>(entity)
-                .expect("entity does not have a hierarchy component");
-
-            if let Some(parent_entity) = hierarchy_component.parent {
-                entity = parent_entity;
-            } else {
-                break;
-            }
-        }
-
-        let mut out = Mat4::IDENTITY;
-
-        for transform_component in transform_components.into_iter() {
-            out = out * transform_component.0;
-        }
-
-        out
-    }
-
     pub fn do_frame(&mut self) -> Result<()> {
-        if self.scene.is_none() {
-            return Ok(());
-        }
-
         self.clear_canvas();
 
         {
@@ -116,6 +85,10 @@ impl Processor {
             unsafe {
                 gl::Viewport(0, 0, width as _, height as _);
             }
+        }
+
+        if self.scene.is_none() {
+            return Ok(());
         }
 
         // First of all, we need to initialize a VAO for each MeshComponent that we haven't seen yet
@@ -154,6 +127,33 @@ impl Processor {
         }
 
         Ok(())
+    }
+
+    fn combined_transform(&self, mut entity: Entity) -> Mat4 {
+        let mut transform_components = Vec::new();
+
+        loop {
+            let transform_component = self.must_scene().get_one::<TransformComponent>(entity)
+                .expect("entity does not have a transform component");
+            transform_components.push(transform_component);
+
+            let hierarchy_component = self.must_scene().get_one::<HierarchyComponent>(entity)
+                .expect("entity does not have a hierarchy component");
+
+            if let Some(parent_entity) = hierarchy_component.parent {
+                entity = parent_entity;
+            } else {
+                break;
+            }
+        }
+
+        let mut out = Mat4::IDENTITY;
+
+        for transform_component in transform_components.into_iter() {
+            out = out * transform_component.0;
+        }
+
+        out
     }
 }
 

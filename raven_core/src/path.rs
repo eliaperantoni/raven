@@ -8,10 +8,10 @@ pub fn strip_rune<P: AsRef<Path> + ?Sized>(path: &P) -> &Path {
         .expect("expected to find project root rune to strip it")
 }
 
-/// Given the absolute path to an asset, returns the filesystem absolute path.
+/// Given the absolute path to the project root and the absolute path to an asset, returns the filesystem absolute path.
 ///
 /// For instance:
-/// `$/ferris/ferris.fbx` becomes `$(pwd)/$project_root/ferris/ferris.fbx`
+/// `$/ferris/ferris.fbx` becomes `/project/ferris/ferris.fbx` given that `project_root` is `/project`
 pub fn as_fs_abs<R: AsRef<Path>, P: AsRef<Path>>(project_root: R, path: P) -> PathBuf {
     assert!(path.as_ref().starts_with(PROJECT_ROOT_RUNE));
 
