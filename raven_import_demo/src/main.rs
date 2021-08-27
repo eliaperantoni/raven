@@ -11,16 +11,15 @@ use itertools::izip;
 use md5::{Digest, Md5};
 use russimp::material::PropertyTypeInfo;
 
-use raven_core::component::{CameraComponent, HierarchyComponent, MeshComponent, TransformComponent};
+use raven_core::component::{HierarchyComponent, MeshComponent, TransformComponent};
 use raven_core::ecs::Entity;
-use raven_core::glam::{Mat4, Vec2, Vec3, Vec4, Quat};
+use raven_core::glam::{Mat4, Vec2, Vec3, Vec4};
 use raven_core::io::Serializable;
-use raven_core::mat4::{compose, decompose};
 use raven_core::path;
 use raven_core::resource::*;
+use image::GenericImageView;
 
 const SCALE_FACTOR: Option<f32> = Some(0.01);
-const ADD_CAMERA: bool = true;
 
 const PROJECT_ROOT_DIR: &'static str = "/home/elia/code/raven_proj";
 const IMPORT_DIR: &'static str = ".import";
@@ -106,11 +105,12 @@ fn import_tex<P: AsRef<Path>>(path: P) -> Result<PathBuf> {
     let import_root = prepare_import_root_for(path.as_ref())?;
 
     let tex = image::open(path::as_fs_abs(PROJECT_ROOT_DIR, path.as_ref()))?;
+
+    let size = [tex.width(), tex.height()];
+
     let tex = tex.into_rgba8();
 
-    let tex = Texture {
-        raw: tex.into_raw(),
-    };
+    let tex = Texture::new(tex.into_raw(), size);
 
     tex.save(path::as_fs_abs(PROJECT_ROOT_DIR, import_root.join("main.tex")))?;
 
@@ -230,7 +230,7 @@ impl<'a> SceneImporter<'a> {
                         _ => panic!("I expected the name of the material to be a string"),
                     });
 
-                let mut imported_mat = Material { diffuse_tex: None };
+                let mut imported_mat = Material { tex: None };
 
                 match mat
                     .textures
@@ -246,7 +246,7 @@ impl<'a> SceneImporter<'a> {
                             scene_wd
                         };
 
-                        imported_mat.diffuse_tex = Some(import_tex(tex_path)?);
+                        imported_mat.tex = Some(import_tex(tex_path)?);
                     }
                     _ => (),
                 }

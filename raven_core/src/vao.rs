@@ -1,9 +1,9 @@
-use crate::resource::{Material, Mesh};
-use crate::Result;
-
 use std::mem;
 
 use gl;
+
+use crate::resource::Mesh;
+use crate::Result;
 
 // 3 for the position
 // 3 for the normal
@@ -11,19 +11,26 @@ use gl;
 const FLOATS_PER_VERT: usize = 3 + 3 + 2;
 
 #[derive(Debug)]
-pub struct Vao {
-    id: u32,
+pub(crate) struct Vao {
+    vao_id: u32,
+    vbo_id: u32,
+    ebo_id: u32,
+
     n_indices: usize,
 }
 
 impl Drop for Vao {
     fn drop(&mut self) {
-        dbg!("dropping vao");
+        unsafe {
+            gl::DeleteVertexArrays(1, &self.vao_id);
+            gl::DeleteBuffers(1, &self.vbo_id);
+            gl::DeleteBuffers(1, &self.ebo_id);
+        }
     }
 }
 
 impl Vao {
-    pub fn from(mesh: &Mesh, _mat: &Material) -> Result<Vao> {
+    pub(crate) fn from(mesh: &Mesh) -> Result<Vao> {
         let mut vao_id: u32 = 0;
 
         // Setup VAO
@@ -108,9 +115,7 @@ impl Vao {
             );
         }
 
-        // TODO Load textures
-
-        // Unbind buffers
+        // Unbind
         unsafe {
             gl::BindVertexArray(0);
 
@@ -119,20 +124,25 @@ impl Vao {
         }
 
         Ok(Vao {
-            id: vao_id,
+            vao_id,
+            vbo_id,
+            ebo_id,
+
             n_indices: indices_vec.len(),
         })
     }
 
-    pub fn draw(&self) {
+    pub(crate) fn draw(&self) {
         unsafe {
-            gl::BindVertexArray(self.id);
+            gl::BindVertexArray(self.vao_id);
+
             gl::DrawElements(
                 gl::TRIANGLES,
                 self.n_indices as _,
                 gl::UNSIGNED_INT,
                 0 as _,
             );
+
             gl::BindVertexArray(0);
         }
     }

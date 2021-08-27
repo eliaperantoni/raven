@@ -9,11 +9,25 @@ use raven_ecs::World;
 #[derive(Serialize, Deserialize)]
 pub struct Texture {
     pub raw: Vec<u8>,
+    pub size: [u32; 2],
+
+    #[serde(skip)]
+    pub(crate) id: Option<u32>,
+}
+
+impl Texture {
+    pub fn new(raw: Vec<u8>, size: [u32; 2]) -> Texture {
+        Texture {
+            raw,
+            size,
+            id: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Material {
-    pub diffuse_tex: Option<PathBuf>,
+    pub tex: Option<PathBuf>,
 }
 
 #[derive(Serialize, Deserialize)]

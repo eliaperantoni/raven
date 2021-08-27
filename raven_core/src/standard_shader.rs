@@ -33,8 +33,15 @@ in vec2 uv;
 
 out vec4 color;
 
+uniform bool useSampler;
+uniform sampler2D sampler;
+
 void main() {
-    color = vec4(0.0, 0.0, 1.0, 1.0);
+    if (useSampler) {
+        color = texture(sampler, uv);
+    } else {
+        color = vec4(0.4, 0.4, 0.4, 1.0);
+    }
 }
 ";
 

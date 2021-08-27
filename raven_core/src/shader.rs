@@ -63,11 +63,24 @@ impl Shader {
         }
     }
 
-    pub fn set_mat4<T: AsRef<str>>(&mut self, name: T, mat: &Mat4) {
+    fn get_loc<T: AsRef<str>>(&self, name: T) -> i32 {
         unsafe {
             let s = CString::new(name.as_ref()).unwrap();
-            let loc = gl::GetUniformLocation(self.id, s.as_ptr());
-            gl::UniformMatrix4fv(loc, 1, gl::FALSE, mat.as_ref() as _);
+            gl::GetUniformLocation(self.id, s.as_ptr())
+        }
+    }
+
+    pub fn set_bool<T: AsRef<str>>(&mut self, name: T, val: bool) {
+        unsafe {
+            let loc = self.get_loc(name.as_ref());
+            gl::Uniform1i(loc, i32::from(val));
+        }
+    }
+
+    pub fn set_mat4<T: AsRef<str>>(&mut self, name: T, val: &Mat4) {
+        unsafe {
+            let loc = self.get_loc(name.as_ref());
+            gl::UniformMatrix4fv(loc, 1, gl::FALSE, val.as_ref() as _);
         }
     }
 }

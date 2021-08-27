@@ -13,7 +13,7 @@ use ecs::*;
 
 use crate::component::{CameraComponent, HierarchyComponent, MeshComponent, SceneComponent, TransformComponent};
 use crate::io::Serializable;
-use crate::resource::{Material, Mesh, Scene};
+use crate::resource::{Material, Mesh, Scene, Texture};
 use crate::shader::Shader;
 use crate::standard_shader::get_standard_shader;
 use crate::vao::Vao;
@@ -28,6 +28,7 @@ pub mod io;
 pub mod path;
 
 mod vao;
+mod tex;
 mod shader;
 mod standard_shader;
 
@@ -38,7 +39,7 @@ pub struct Processor {
     scene: Option<Scene>,
 }
 
-struct ProcessorState {
+pub(crate) struct ProcessorState {
     project_root: PathBuf,
     canvas_size: [u32; 2],
     shader: Shader,
@@ -88,6 +89,10 @@ impl Processor {
             return Ok(());
         }
 
+        unsafe {
+            // gl::Enable(gl::DEPTH_TEST);
+        }
+
         Processor::load_downstream_scenes(self.scene.as_mut().unwrap(), &self.state)?;
 
         self.state.camera_mats = Some(compute_camera_mats(self.scene.as_ref().unwrap(), Mat4::default(), &self.state.canvas_size)
@@ -123,9 +128,15 @@ impl Processor {
             let mesh = Mesh::load(path::as_fs_abs(&state.project_root, &mesh_comp.mesh))?;
             let mat = Material::load(path::as_fs_abs(&state.project_root, &mesh_comp.mat))?;
 
-            let vao = Vao::from(&mesh, &mat)?;
+            let vao = Vao::from(&mesh)?;
 
             mesh_comp.vao = Some(vao);
+
+            if let Some(tex_path) = mat.tex {
+                let mut tex = Texture::load(path::as_fs_abs(&state.project_root, &tex_path))?;
+                tex.load_gl();
+                mesh_comp.tex = Some(tex);
+            }
         }
 
         // Now we can properly render them
@@ -140,6 +151,8 @@ impl Processor {
 
             state.shader.set_mat4("view", view_mat);
             state.shader.set_mat4("projection", projection_mat);
+
+            Texture::use_tex(mesh_comp.tex.as_ref(), &mut state.shader);
 
             vao.draw();
         }
