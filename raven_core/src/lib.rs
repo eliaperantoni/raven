@@ -90,7 +90,7 @@ impl Processor {
         }
 
         unsafe {
-            // gl::Enable(gl::DEPTH_TEST);
+            gl::Enable(gl::DEPTH_TEST);
         }
 
         Processor::load_downstream_scenes(self.scene.as_mut().unwrap(), &self.state)?;
@@ -228,6 +228,6 @@ fn combined_transform(scene: &Scene, mut entity: Entity) -> Mat4 {
 fn clear_canvas() {
     unsafe {
         gl::ClearColor(0.1, 0.1, 0.1, 1.0);
-        gl::Clear(gl::COLOR_BUFFER_BIT);
+        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
     }
 }
