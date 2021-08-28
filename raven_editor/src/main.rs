@@ -1,10 +1,8 @@
 use std::error::Error;
 use std::ffi::CString;
-use std::time::{Duration, Instant};
 
 use gl;
 use glutin::ContextBuilder;
-use glutin::dpi::{LogicalSize, Size};
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
@@ -13,24 +11,19 @@ use imgui_opengl_renderer::Renderer;
 use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
-use raven_core::component::CameraComponent;
-use raven_core::entity::Entity;
 use raven_core::framebuffer::Framebuffer;
-use raven_core::model::ModelLoader;
-use raven_core::Raven;
+use raven_core::Processor;
 
-fn main() -> Result<(), Box<dyn Error>> {
+const PROJECT_ROOT: &'static str = "/home/elia/code/raven_proj";
+
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
+
+fn main() -> Result<()> {
     let el = EventLoop::new();
 
-    let wb = WindowBuilder::new()
-        .with_inner_size(Size::Logical(LogicalSize {
-            width: 1024_f64,
-            height: 768_f64,
-        }))
-        .with_title("Raven");
+    let wb = WindowBuilder::new().with_title("Raven");
 
     let windowed_context = ContextBuilder::new()
-        .with_vsync(true)
         .build_windowed(wb, &el)
         .unwrap();
 
@@ -41,33 +34,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     imgui.io_mut().config_flags |= imgui::ConfigFlags::DOCKING_ENABLE;
 
     let mut platform = WinitPlatform::init(&mut imgui);
-    platform.attach_window(imgui.io_mut(), windowed_context.window(), HiDpiMode::Rounded);
+    platform.attach_window(imgui.io_mut(), windowed_context.window(), HiDpiMode::Locked(1.0));
 
     let renderer = Renderer::new(&mut imgui, |symbol| windowed_context.get_proc_address(symbol));
     gl::load_with(|symbol| windowed_context.get_proc_address(symbol));
 
-    let mut last_frame = Instant::now();
-    let mut delta_time = Duration::ZERO;
+    let mut processor = Processor::new(PROJECT_ROOT)?;
+    processor.load_scene("$/main.scn")?;
 
-    let mut raven = Raven::new()?;
-    let mut scene = build_demo_scene()?;
-
-    let mut framebuffer: Option<([f32; 2], Framebuffer)> = None;
+    let mut framebuffer: Option<([i32; 2], Framebuffer)> = None;
 
     el.run(move |event, _, control_flow| {
         match event {
-            Event::NewEvents(_) => {
-                let now = Instant::now();
-
-                delta_time = now - last_frame;
-                imgui.io_mut().update_delta_time(delta_time);
-
-                last_frame = now;
-            }
             Event::MainEventsCleared => {
                 platform
                     .prepare_frame(imgui.io_mut(), windowed_context.window())
-                    .expect("Failed to prepare frame");
+                    .expect("failed to prepare frame");
                 windowed_context.window().request_redraw();
             }
             Event::RedrawRequested(_) => {
@@ -181,15 +163,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                         let [width, height] = ui.content_region_avail();
 
                         // Resizes OpenGL viewport and sets camera aspect ratio
-                        raven.set_size([width, height]);
+                        processor.set_canvas_size(width as _, height as _);
 
                         // If no framebuffer is present or the panel's size has changed
                         if match &framebuffer {
-                            Some((current_size, _)) => current_size != &[width, height],
+                            Some((current_size, _)) => current_size != &[width as i32, height as i32],
                             None => true,
                         } {
-                            framebuffer.insert((
-                                [width, height],
+                            framebuffer = Some((
+                                [width as _, height as _],
                                 Framebuffer::new((width as _, height as _)),
                             ));
                         }
@@ -198,16 +180,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                         let (_, framebuffer) = framebuffer.as_ref().unwrap();
 
                         // Render a frame inside the framebuffer
-                        framebuffer.with(|| {
-                            raven.do_frame(&mut scene);
-                        });
+                        framebuffer.bind();
+                        processor.do_frame().expect("couldn't do frame");
+                        framebuffer.unbind();
 
                         // Display it
                         imgui::Image::new(
                             imgui::TextureId::new(framebuffer.get_tex_id() as _),
                             [width, height],
-                        )
-                            .build(&ui);
+                        ).build(&ui);
                     });
 
                 style_stack.pop(&ui);
@@ -243,23 +224,18 @@ fn main() -> Result<(), Box<dyn Error>> {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
+            Event::WindowEvent {
+                event: WindowEvent::Resized(physical_size),
+                ..
+            } => {
+                windowed_context.resize(physical_size);
+                imgui.io_mut().display_size = {
+                    let width = physical_size.width;
+                    let height = physical_size.height;
+                    [width as f32, height as f32]
+                };
+            },
             ev => platform.handle_event(imgui.io_mut(), windowed_context.window(), &ev),
         }
     });
-}
-
-fn build_demo_scene() -> Result<Entity, Box<dyn Error>> {
-    let mut scene = Entity::default();
-    scene.add_child({
-        let mut camera_entity = Entity::default();
-
-        camera_entity.transform.position.z += 9.0;
-
-        camera_entity.add_component(CameraComponent::default().into());
-
-        camera_entity
-    });
-    scene.add_child(ModelLoader::from_file("models/cube/cube.obj")?);
-
-    Ok(scene)
 }
