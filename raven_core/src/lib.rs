@@ -26,6 +26,7 @@ pub mod resource;
 pub mod component;
 pub mod io;
 pub mod path;
+pub mod framebuffer;
 
 mod vao;
 mod tex;
