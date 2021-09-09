@@ -27,10 +27,7 @@ fn main() -> Result<()> {
     let el = EventLoop::new();
 
     let wb = WindowBuilder::new()
-        .with_inner_size(glutin::dpi::LogicalSize {
-            width: 500.0,
-            height: 100.0,
-        })
+        .with_maximized(true)
         .with_title("Raven");
 
     let windowed_context = ContextBuilder::new()
@@ -62,11 +59,17 @@ fn main() -> Result<()> {
             Event::RedrawRequested(_) => {
                 let ui = imgui.frame();
 
-                if !match proj_state.as_mut() {
-                    Some(proj_state) => draw_editor_window(&ui, proj_state),
-                    None => draw_select_project_window(&ui, &mut proj_state),
-                } {
-                    *control_flow = ControlFlow::Exit;
+                match proj_state.as_mut() {
+                    Some(proj_state) => {
+                        if !draw_editor_window(&ui, proj_state) {
+                            *control_flow = ControlFlow::Exit;
+                        }
+                    },
+                    None => {
+                        if let Some(some_proj_state) = draw_select_project_window(&ui) {
+                            proj_state.insert(some_proj_state);
+                        }
+                    },
                 }
 
                 unsafe {
@@ -99,57 +102,39 @@ fn main() -> Result<()> {
     });
 }
 
-fn draw_select_project_window(ui: &imgui::Ui, proj_state: &mut Option<ProjectState>) -> bool {
-    let viewport = unsafe { imgui_sys::igGetMainViewport() };
+fn draw_select_project_window(ui: &imgui::Ui) -> Option<Result<ProjectState>> {
+    const BTN_SIZE: [f32; 2] = [200.0, 30.0];
 
-    unsafe {
-        imgui_sys::igSetNextWindowPos(
-            (*viewport).Pos,
-            imgui_sys::ImGuiCond_Always as _,
-            imgui_sys::ImVec2::default(),
-        );
-        imgui_sys::igSetNextWindowSize(
-            (*viewport).Size,
-            imgui_sys::ImGuiCond_Always as _,
-        );
-        imgui_sys::igSetNextWindowViewport((*viewport).ID);
-    }
+    Window::new(im_str!("ProjectPicker"))
+        .title_bar(false)
+        .resizable(false)
+        .collapsible(false)
+        .movable(false)
+        .position({
+            let [width, height] = ui.io().display_size;
+            [0.5 * width, 0.5 * height]
+        }, imgui::Condition::Always)
+        .position_pivot([0.5, 0.5])
+        .build(ui, || {
+            if ui.button(im_str!("Open existing project"), BTN_SIZE) {
+                match nfd::open_pick_folder(None) {
+                    Ok(nfd::Response::Okay(path)) => {
+                        let mut processor = match Processor::new(path) {
+                            Err(err) => return Some(Err(err)),
+                        };
 
-    let w_flags = {
-        use imgui::WindowFlags;
-        let mut w_flags = WindowFlags::empty();
-        for w_flag in vec![
-            WindowFlags::NO_TITLE_BAR,
-            WindowFlags::NO_COLLAPSE,
-            WindowFlags::NO_RESIZE,
-            WindowFlags::NO_MOVE,
-            WindowFlags::NO_BRING_TO_FRONT_ON_FOCUS,
-            WindowFlags::NO_NAV_FOCUS,
-            WindowFlags::NO_BACKGROUND,
-        ] {
-            w_flags.insert(w_flag);
-        }
-        w_flags
-    };
+                        return Some(ProjectState {
+                            processor,
+                        });
+                    }
+                    _ => (),
+                }
+            }
 
-    let style_stack = {
-        use imgui::StyleVar::*;
-        ui.push_style_vars(vec![
-            &WindowRounding(0.0),
-            &WindowBorderSize(0.0),
-            &WindowPadding([0.0, 0.0]),
-        ])
-    };
-
-    Window::new(im_str!("Select project"))
-        .flags(w_flags)
-        .build(&ui, || {
-            ui.button(im_str!("New project"), [500.0, 50.0]);
-            ui.button(im_str!("Open project"), [500.0, 50.0]);
+            ui.button(im_str!("Create new project"), BTN_SIZE);
         });
-    style_stack.pop(&ui);
 
-    true
+    None
 }
 
 fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> bool {
