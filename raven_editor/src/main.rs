@@ -46,6 +46,8 @@ fn main() -> Result<()> {
     let renderer = Renderer::new(&mut imgui, |symbol| windowed_context.get_proc_address(symbol));
     gl::load_with(|symbol| windowed_context.get_proc_address(symbol));
 
+    let mut err: Option<Box<dyn Error>> = None;
+
     let mut proj_state: Option<ProjectState> = None;
 
     el.run(move |event, _, control_flow| {
@@ -59,15 +61,39 @@ fn main() -> Result<()> {
             Event::RedrawRequested(_) => {
                 let ui = imgui.frame();
 
+                if err.is_some() {
+                    // TODO Disable docking
+
+                    Window::new(im_str!("Error")).build(&ui, || {
+                        ui.text("An error occurred:");
+                        ui.text(err.as_ref().unwrap().to_string());
+
+                        if ui.button(im_str!("Ok"), [50.0, 20.0]) {
+                            err = None;
+                        }
+                    });
+                }
+
                 match proj_state.as_mut() {
                     Some(proj_state) => {
-                        if !draw_editor_window(&ui, proj_state) {
-                            *control_flow = ControlFlow::Exit;
+                        let res = draw_editor_window(&ui, proj_state);
+                        match res {
+                            Ok(should_run) => {
+                                if !should_run {
+                                    *control_flow = ControlFlow::Exit;
+                                }
+                            },
+                            Err(new_err) => err = Some(new_err),
                         }
                     },
                     None => {
-                        if let Some(some_proj_state) = draw_select_project_window(&ui) {
-                            proj_state.insert(some_proj_state);
+                        let res = draw_select_project_window(&ui);
+                        match res {
+                            Ok(opt) => match opt {
+                                Some(some_proj_state) => proj_state = Some(some_proj_state),
+                                None => (),
+                            },
+                            Err(new_err) => err = Some(new_err),
                         }
                     },
                 }
@@ -102,10 +128,10 @@ fn main() -> Result<()> {
     });
 }
 
-fn draw_select_project_window(ui: &imgui::Ui) -> Option<ProjectState> {
+fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
     const BTN_SIZE: [f32; 2] = [200.0, 30.0];
 
-    let mut project_state = None;
+    let mut out = Ok(None);
 
     Window::new(im_str!("ProjectPicker"))
         .title_bar(false)
@@ -124,13 +150,26 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Option<ProjectState> {
                         // TODO Do this in another thread
                         // TODO Show loading indicator
 
-                        let mut processor =  Processor::new(path).expect("creating processor");
-                        processor.load_scene("$/main.scn").expect("loading main scene");
+                        let mut processor =  match Processor::new(path) {
+                            Ok(processor) => processor,
+                            Err(err) => {
+                                out = Err(err);
+                                return;
+                            },
+                        };
 
-                        project_state = Some(ProjectState {
+                        match processor.load_scene("$/main.scn") {
+                            Ok(_) => (),
+                            Err(err) => {
+                                out = Err(err);
+                                return;
+                            },
+                        }
+
+                        out = Ok(Some(ProjectState {
                             processor,
                             framebuffer: None,
-                        });
+                        }));
                     }
                     _ => (),
                 }
@@ -139,10 +178,12 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Option<ProjectState> {
             ui.button(im_str!("Create new project"), BTN_SIZE);
         });
 
-    project_state
+    out
 }
 
-fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> bool {
+fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<bool> {
+    let mut out = Ok(true);
+
     let viewport = unsafe { imgui_sys::igGetMainViewport() };
 
     unsafe {
@@ -268,8 +309,15 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> bool {
 
             // Render a frame inside the framebuffer
             framebuffer.bind();
-            proj_state.processor.do_frame().expect("couldn't do frame");
+            match proj_state.processor.do_frame() {
+                Ok(_) => (),
+                Err(err) => out = Err(err)
+            }
             framebuffer.unbind();
+
+            if out.is_err() {
+                return;
+            }
 
             // Display it
             imgui::Image::new(
@@ -293,5 +341,5 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> bool {
         main_window.end(&ui);
     }
 
-    true
+    out
 }
