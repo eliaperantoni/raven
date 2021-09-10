@@ -14,8 +14,6 @@ use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use raven_core::framebuffer::Framebuffer;
 use raven_core::Processor;
 
-const PROJECT_ROOT: &'static str = "/home/elia/code/raven_proj";
-
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 struct ProjectState {
