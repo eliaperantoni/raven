@@ -102,8 +102,10 @@ fn main() -> Result<()> {
     });
 }
 
-fn draw_select_project_window(ui: &imgui::Ui) -> Option<Result<ProjectState>> {
+fn draw_select_project_window(ui: &imgui::Ui) -> Option<ProjectState> {
     const BTN_SIZE: [f32; 2] = [200.0, 30.0];
+
+    let mut project_state = None;
 
     Window::new(im_str!("ProjectPicker"))
         .title_bar(false)
@@ -119,12 +121,12 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Option<Result<ProjectState>> {
             if ui.button(im_str!("Open existing project"), BTN_SIZE) {
                 match nfd::open_pick_folder(None) {
                     Ok(nfd::Response::Okay(path)) => {
-                        let mut processor = match Processor::new(path) {
-                            Err(err) => return Some(Err(err)),
-                        };
+                        let mut processor =  Processor::new(path).expect("creating processor");
+                        processor.load_scene("$/main.scn").expect("loading main scene");
 
-                        return Some(ProjectState {
+                        project_state = Some(ProjectState {
                             processor,
+                            framebuffer: None,
                         });
                     }
                     _ => (),
@@ -134,7 +136,7 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Option<Result<ProjectState>> {
             ui.button(im_str!("Create new project"), BTN_SIZE);
         });
 
-    None
+    project_state
 }
 
 fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> bool {
