@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::ffi::CString;
+use std::fs;
 
 use gl;
 use glutin::ContextBuilder;
@@ -159,13 +160,15 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
                         // TODO Do this in another thread
                         // TODO Show loading indicator
 
-                        let mut processor =  match Processor::new(path) {
+                        let mut processor =  match Processor::new(&path) {
                             Ok(processor) => processor,
                             Err(err) => {
                                 out = Err(err);
                                 return;
                             },
                         };
+
+                        // TODO Do not load any scene by default
 
                         match processor.load_scene("$/main.scn") {
                             Ok(_) => (),
@@ -184,7 +187,36 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
                 }
             }
 
-            ui.button(im_str!("Create new project"), BTN_SIZE);
+            if ui.button(im_str!("Create new project"), BTN_SIZE) {
+                match nfd::open_pick_folder(None) {
+                    Ok(nfd::Response::Okay(path)) => {
+                        match fs::create_dir_all(&path) {
+                            Ok(_) => (),
+                            Err(err) => {
+                                out = Err(Box::new(err));
+                                return;
+                            }
+                        }
+
+                        // TODO Do this in another thread
+                        // TODO Show loading indicator
+
+                        let processor =  match Processor::new(&path) {
+                            Ok(processor) => processor,
+                            Err(err) => {
+                                out = Err(err);
+                                return;
+                            },
+                        };
+
+                        out = Ok(Some(ProjectState {
+                            processor,
+                            framebuffer: None,
+                        }));
+                    }
+                    _ => (),
+                }
+            }
         });
 
     out
