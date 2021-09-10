@@ -121,6 +121,9 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Option<ProjectState> {
             if ui.button(im_str!("Open existing project"), BTN_SIZE) {
                 match nfd::open_pick_folder(None) {
                     Ok(nfd::Response::Okay(path)) => {
+                        // TODO Do this in another thread
+                        // TODO Show loading indicator
+
                         let mut processor =  Processor::new(path).expect("creating processor");
                         processor.load_scene("$/main.scn").expect("loading main scene");
 
