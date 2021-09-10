@@ -62,14 +62,25 @@ fn main() -> Result<()> {
                 if err.is_some() {
                     // TODO Disable docking
 
-                    Window::new(im_str!("Error")).build(&ui, || {
-                        ui.text("An error occurred:");
-                        ui.text(err.as_ref().unwrap().to_string());
+                    Window::new(im_str!("Error"))
+                        .resizable(false)
+                        .collapsible(false)
+                        .position({
+                            let [width, height] = ui.io().display_size;
+                            [0.5 * width, 0.5 * height]
+                        }, imgui::Condition::Once)
+                        .position_pivot([0.5, 0.5])
+                        .build(&ui, || {
+                            ui.text("An error occurred:");
+                            ui.text(err.as_ref().unwrap().to_string());
 
-                        if ui.button(im_str!("Ok"), [50.0, 20.0]) {
-                            err = None;
-                        }
-                    });
+                            // Spacing
+                            ui.dummy([0.0, 10.0]);
+
+                            if ui.button(im_str!("Ok"), [ui.content_region_avail()[0], 25.0]) {
+                                err = None;
+                            }
+                        });
                 }
 
                 match proj_state.as_mut() {
