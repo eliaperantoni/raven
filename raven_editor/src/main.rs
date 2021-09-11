@@ -3,13 +3,15 @@
 use std::error::Error;
 use std::ffi::CString;
 use std::fs;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 use gl;
-use glutin::ContextBuilder;
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
-use imgui::{Context, im_str, Window};
+use glutin::ContextBuilder;
+use imgui::{im_str, Context, Window};
 use imgui_opengl_renderer::Renderer;
 use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -17,7 +19,7 @@ use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use raven_core::framebuffer::Framebuffer;
 use raven_core::Processor;
 
-type Result<T> = std::result::Result<T, Box<dyn Error>>;
+type Result<T> = std::result::Result<T, Box<dyn Error + Send>>;
 
 struct ProjectState {
     processor: Processor,
@@ -51,9 +53,14 @@ fn main() -> Result<()> {
     });
     gl::load_with(|symbol| windowed_context.get_proc_address(symbol));
 
+    // Error currently displayed
     let mut err: Option<Box<dyn Error>> = None;
 
+    // Currently loaded project
     let mut proj_state: Option<ProjectState> = None;
+
+    // Windows
+    let select_project_window = SelectProjectWindow::default();
 
     el.run(move |event, _, control_flow| {
         match event {
@@ -65,6 +72,14 @@ fn main() -> Result<()> {
             }
             Event::RedrawRequested(_) => {
                 let ui = imgui.frame();
+
+                match select_project_window.get_new_proj_state() {
+                    Some(res) => match res {
+                        Ok(new_proj_state) => proj_state = Some(new_proj_state),
+                        Err(new_err) => err = Some(new_err),
+                    },
+                    _ => (),
+                }
 
                 if err.is_some() {
                     // TODO Disable docking
@@ -97,24 +112,11 @@ fn main() -> Result<()> {
                     Some(proj_state) => {
                         let res = draw_editor_window(&ui, proj_state);
                         match res {
-                            Ok(should_run) => {
-                                if !should_run {
-                                    *control_flow = ControlFlow::Exit;
-                                }
-                            }
+                            Ok(_) => (),
                             Err(new_err) => err = Some(new_err),
                         }
                     }
-                    None => {
-                        let res = draw_select_project_window(&ui);
-                        match res {
-                            Ok(opt) => match opt {
-                                Some(some_proj_state) => proj_state = Some(some_proj_state),
-                                None => (),
-                            },
-                            Err(new_err) => err = Some(new_err),
-                        }
-                    }
+                    None => select_project_window.draw(&ui),
                 }
 
                 unsafe {
@@ -147,77 +149,77 @@ fn main() -> Result<()> {
     });
 }
 
-fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
-    const BTN_SIZE: [f32; 2] = [200.0, 30.0];
+struct SelectProjectWindow {
+    // The thread that loads a new project puts the state here, the mutex is checked each frame for new results
+    new_proj_state: Arc<Mutex<Option<Result<ProjectState>>>>,
+    loading: Arc<Mutex<bool>>,
+}
 
-    let mut out: Result<Option<ProjectState>> = Ok(None);
+impl Default for SelectProjectWindow {
+    fn default() -> Self {
+        SelectProjectWindow {
+            new_proj_state: Arc::new(Mutex::new(None)),
+            loading: Arc::new(Mutex::new(false)),
+        }
+    }
+}
 
-    Window::new(im_str!("ProjectPicker"))
-        .title_bar(false)
-        .resizable(false)
-        .collapsible(false)
-        .movable(false)
-        .position(
-            {
-                let [width, height] = ui.io().display_size;
-                [0.5 * width, 0.5 * height]
-            },
-            imgui::Condition::Always,
-        )
-        .position_pivot([0.5, 0.5])
-        .build(ui, || {
-            let maybe_err: Result<()> = try {
+impl SelectProjectWindow {
+    pub fn draw(&self, ui: &imgui::Ui) {
+        const BTN_SIZE: [f32; 2] = [200.0, 30.0];
+
+        Window::new(im_str!("ProjectPicker"))
+            .title_bar(false)
+            .resizable(false)
+            .collapsible(false)
+            .movable(false)
+            .position(
+                {
+                    let [width, height] = ui.io().display_size;
+                    [0.5 * width, 0.5 * height]
+                },
+                imgui::Condition::Always,
+            )
+            .position_pivot([0.5, 0.5])
+            .build(ui, || {
+                let loading = *self.loading.lock().unwrap();
+
                 if ui.button(im_str!("Open existing project"), BTN_SIZE) {
                     match nfd::open_pick_folder(None) {
                         Ok(nfd::Response::Okay(path)) => {
-                            // TODO Do this in another thread
-                            // TODO Show loading indicator
-
-                            let mut processor = Processor::new(&path)?;
-
-                            // TODO Do not load any scene by default
-
-                            processor.load_scene("$/main.scn")?;
-
-                            out = Ok(Some(ProjectState {
-                                processor,
-                                framebuffer: None,
-                            }));
-                        }
-                        _ => (),
-                    }
-                }
-
-                if ui.button(im_str!("Create new project"), BTN_SIZE) {
-                    match nfd::open_pick_folder(None) {
-                        Ok(nfd::Response::Okay(path)) => {
-                            fs::create_dir_all(&path)?;
+                            *self.loading.lock().unwrap() = true;
 
                             // TODO Do this in another thread
                             // TODO Show loading indicator
 
-                            let processor = Processor::new(&path)?;
+                            let new_proj_state = self.new_proj_state.clone();
+                            let loading = self.loading.clone();
+                            thread::spawn(move || {
+                                let mut processor = Processor::new(&path).unwrap();
 
-                            out = Ok(Some(ProjectState {
-                                processor,
-                                framebuffer: None,
-                            }));
+                                // TODO Do not load any scene by default
+
+                                processor.load_scene("$/main.scn").unwrap();
+
+                                *new_proj_state.lock().unwrap() = Some(Ok(ProjectState {
+                                    processor,
+                                    framebuffer: None,
+                                }));
+                                *loading.lock().unwrap() = false;
+                            });
                         }
                         _ => (),
                     }
                 }
-            };
+            });
+    }
 
-            match maybe_err {
-                Err(err) => out = Err(err),
-                _ => (),
-            }
-        });
-
-    out
+    pub fn get_new_proj_state(&self) -> Option<Result<ProjectState>> {
+        self.new_proj_state.lock().unwrap().take()
+    }
 }
 
-fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<bool> {
+fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<()> {
     let mut out = Ok(true);
 
     let viewport = unsafe { imgui_sys::igGetMainViewport() };
@@ -356,7 +358,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<b
                 imgui::TextureId::new(framebuffer.get_tex_id() as _),
                 [width, height],
             )
-                .build(&ui);
+            .build(&ui);
         });
 
     style_stack.pop(&ui);
@@ -374,5 +376,5 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<b
         main_window.end(&ui);
     }
 
-    out
+    Ok(())
 }

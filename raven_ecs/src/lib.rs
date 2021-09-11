@@ -30,6 +30,6 @@ pub struct Entity {
 }
 
 #[typetag::serde(tag = "type")]
-pub trait Component: 'static {
+pub trait Component: 'static + Send {
     fn inject(self: Box<Self>, w: &mut World, e: Entity);
 }

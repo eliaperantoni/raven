@@ -216,7 +216,7 @@ impl<T: Component> Pool<T> {
     }
 }
 
-pub trait AnyPool {
+pub trait AnyPool: Send {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn clear_entity(&mut self, entity_id: ID);
