@@ -1,4 +1,4 @@
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 pub struct FpsCounter {
     count: u32,
@@ -25,7 +25,7 @@ impl FpsCounter {
         self.count += 1;
 
         if self.last_reset.elapsed() >= Duration::SECOND {
-            let stats = Stats{
+            let stats = Stats {
                 fps: self.count,
                 time_per_frame: Duration::from_nanos((Duration::SECOND.as_nanos() / self.count as u128) as u64),
             };

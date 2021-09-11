@@ -31,9 +31,7 @@ fn main() -> Result<()> {
         .with_maximized(true)
         .with_title("Raven");
 
-    let windowed_context = ContextBuilder::new()
-        .build_windowed(wb, &el)
-        .unwrap();
+    let windowed_context = ContextBuilder::new().build_windowed(wb, &el).unwrap();
 
     let windowed_context = unsafe { windowed_context.make_current().unwrap() };
 
@@ -42,9 +40,15 @@ fn main() -> Result<()> {
     imgui.io_mut().config_flags |= imgui::ConfigFlags::DOCKING_ENABLE;
 
     let mut platform = WinitPlatform::init(&mut imgui);
-    platform.attach_window(imgui.io_mut(), windowed_context.window(), HiDpiMode::Locked(1.0));
+    platform.attach_window(
+        imgui.io_mut(),
+        windowed_context.window(),
+        HiDpiMode::Locked(1.0),
+    );
 
-    let renderer = Renderer::new(&mut imgui, |symbol| windowed_context.get_proc_address(symbol));
+    let renderer = Renderer::new(&mut imgui, |symbol| {
+        windowed_context.get_proc_address(symbol)
+    });
     gl::load_with(|symbol| windowed_context.get_proc_address(symbol));
 
     let mut err: Option<Box<dyn Error>> = None;
@@ -68,10 +72,13 @@ fn main() -> Result<()> {
                     Window::new(im_str!("Error"))
                         .resizable(false)
                         .collapsible(false)
-                        .position({
-                            let [width, height] = ui.io().display_size;
-                            [0.5 * width, 0.5 * height]
-                        }, imgui::Condition::Once)
+                        .position(
+                            {
+                                let [width, height] = ui.io().display_size;
+                                [0.5 * width, 0.5 * height]
+                            },
+                            imgui::Condition::Once,
+                        )
                         .position_pivot([0.5, 0.5])
                         .build(&ui, || {
                             ui.text("An error occurred:");
@@ -94,10 +101,10 @@ fn main() -> Result<()> {
                                 if !should_run {
                                     *control_flow = ControlFlow::Exit;
                                 }
-                            },
+                            }
                             Err(new_err) => err = Some(new_err),
                         }
-                    },
+                    }
                     None => {
                         let res = draw_select_project_window(&ui);
                         match res {
@@ -107,7 +114,7 @@ fn main() -> Result<()> {
                             },
                             Err(new_err) => err = Some(new_err),
                         }
-                    },
+                    }
                 }
 
                 unsafe {
@@ -150,10 +157,13 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
         .resizable(false)
         .collapsible(false)
         .movable(false)
-        .position({
-            let [width, height] = ui.io().display_size;
-            [0.5 * width, 0.5 * height]
-        }, imgui::Condition::Always)
+        .position(
+            {
+                let [width, height] = ui.io().display_size;
+                [0.5 * width, 0.5 * height]
+            },
+            imgui::Condition::Always,
+        )
         .position_pivot([0.5, 0.5])
         .build(ui, || {
             let maybe_err: Result<()> = try {
@@ -200,7 +210,7 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
 
             match maybe_err {
                 Err(err) => out = Err(err),
-                _ => ()
+                _ => (),
             }
         });
 
@@ -218,10 +228,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<b
             imgui_sys::ImGuiCond_Always as _,
             imgui_sys::ImVec2::default(),
         );
-        imgui_sys::igSetNextWindowSize(
-            (*viewport).Size,
-            imgui_sys::ImGuiCond_Always as _,
-        );
+        imgui_sys::igSetNextWindowSize((*viewport).Size, imgui_sys::ImGuiCond_Always as _);
         imgui_sys::igSetNextWindowViewport((*viewport).ID);
     }
 
@@ -261,10 +268,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<b
         let id = imgui_sys::igGetIDStr(dock_name.as_ptr());
 
         if imgui_sys::igDockBuilderGetNode(id).is_null() {
-            imgui_sys::igDockBuilderAddNode(
-                id,
-                imgui_sys::ImGuiDockNodeFlags_DockSpace,
-            );
+            imgui_sys::igDockBuilderAddNode(id, imgui_sys::ImGuiDockNodeFlags_DockSpace);
             imgui_sys::igDockBuilderSetNodeSize(id, (*viewport).Size);
 
             let mut hierarchy_id = 0;
@@ -317,7 +321,9 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<b
             let [width, height] = ui.content_region_avail();
 
             // Resizes OpenGL viewport and sets camera aspect ratio
-            proj_state.processor.set_canvas_size(width as _, height as _);
+            proj_state
+                .processor
+                .set_canvas_size(width as _, height as _);
 
             // If no framebuffer is present or the panel's size has changed
             if match &proj_state.framebuffer {
@@ -326,7 +332,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<b
             } {
                 proj_state.framebuffer = Some((
                     [width as _, height as _],
-                    Framebuffer::new((width as _, height as _))
+                    Framebuffer::new((width as _, height as _)),
                 ));
             }
 
@@ -337,7 +343,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<b
             framebuffer.bind();
             match proj_state.processor.do_frame() {
                 Ok(_) => (),
-                Err(err) => out = Err(err)
+                Err(err) => out = Err(err),
             }
             framebuffer.unbind();
 
@@ -349,7 +355,8 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<b
             imgui::Image::new(
                 imgui::TextureId::new(framebuffer.get_tex_id() as _),
                 [width, height],
-            ).build(&ui);
+            )
+                .build(&ui);
         });
 
     style_stack.pop(&ui);

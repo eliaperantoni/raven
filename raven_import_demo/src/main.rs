@@ -7,6 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use image::GenericImageView;
 use itertools::izip;
 use md5::{Digest, Md5};
 use russimp::material::PropertyTypeInfo;
@@ -17,7 +18,6 @@ use raven_core::glam::{Mat4, Vec2, Vec3, Vec4};
 use raven_core::io::Serializable;
 use raven_core::path;
 use raven_core::resource::*;
-use image::GenericImageView;
 
 const SCALE_FACTOR: Option<f32> = Some(0.01);
 

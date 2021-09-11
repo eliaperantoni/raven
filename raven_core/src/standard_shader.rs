@@ -1,5 +1,5 @@
-use crate::shader::{Shader, ShaderComponent, ShaderComponentType};
 use crate::Result;
+use crate::shader::{Shader, ShaderComponent, ShaderComponentType};
 
 const STANDARD_VERT_SHADER: &'static str = r"
 #version 330 core

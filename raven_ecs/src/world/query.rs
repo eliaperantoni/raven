@@ -473,10 +473,10 @@ mod test {
 
         let mut counter = 0;
 
-        for _ in <(CompX,)>::query_shallow(&w)         { counter += 1; };
-        for _ in <(CompX,)>::query_shallow_mut(&mut w) { counter += 1; };
-        for _ in <(CompX,)>::query_deep(&w)            { counter += 1; };
-        for _ in <(CompX,)>::query_deep_mut(&mut w)    { counter += 1; };
+        for _ in <(CompX, )>::query_shallow(&w) { counter += 1; };
+        for _ in <(CompX, )>::query_shallow_mut(&mut w) { counter += 1; };
+        for _ in <(CompX, )>::query_deep(&w) { counter += 1; };
+        for _ in <(CompX, )>::query_deep_mut(&mut w) { counter += 1; };
 
         assert_eq!(counter, 0);
     }

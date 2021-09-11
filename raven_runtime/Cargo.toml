@@ -7,6 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raven_core = { path="../raven_core" }
+raven_core = { path = "../raven_core" }
 glutin = "0.27.0"
 gl = "0.14.0"

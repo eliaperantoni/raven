@@ -105,8 +105,8 @@ impl Processor {
     }
 
     fn load_downstream_scenes(scene: &mut Scene, state: &ProcessorState) -> Result<()> {
-        for (_, (mut scene_comp,), _)
-        in <(SceneComponent,)>::query_shallow_mut(scene) {
+        for (_, (mut scene_comp, ), _)
+        in <(SceneComponent, )>::query_shallow_mut(scene) {
             if scene_comp.loaded.is_none() {
                 scene_comp.loaded = Some(Scene::load(path::as_fs_abs(&state.project_root, &scene_comp.scene))?);
             }
@@ -171,7 +171,7 @@ fn compute_camera_mats(scene: &Scene, base_transform: Mat4, canvas_size: &[u32; 
         }
     }
 
-    <(CameraComponent,)> ::query_shallow(scene).next().map(|(entity, _, _)| {
+    <(CameraComponent, )>::query_shallow(scene).next().map(|(entity, _, _)| {
         let transform = combined_transform(scene, entity);
 
         CameraMats {

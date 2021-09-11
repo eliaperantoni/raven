@@ -7,13 +7,12 @@ use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 
+use fps::FpsCounter;
 use raven_core::Processor;
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 mod fps;
-
-use fps::FpsCounter;
 
 fn main() -> Result<()> {
     let el = EventLoop::new();
@@ -37,7 +36,7 @@ fn main() -> Result<()> {
                 WindowEvent::Resized(physical_size) => {
                     windowed_context.resize(physical_size);
                     processor.set_canvas_size(physical_size.width, physical_size.height);
-                },
+                }
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 _ => (),
             },
@@ -51,7 +50,6 @@ fn main() -> Result<()> {
                 if let Some(stats) = fps_counter.on_frame() {
                     println!("{:?}", stats);
                 }
-
             }
             _ => (),
         }
