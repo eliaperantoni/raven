@@ -1,3 +1,5 @@
+#![feature(try_blocks)]
+
 use std::error::Error;
 use std::ffi::CString;
 use std::fs;
@@ -141,7 +143,7 @@ fn main() -> Result<()> {
 fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
     const BTN_SIZE: [f32; 2] = [200.0, 30.0];
 
-    let mut out = Ok(None);
+    let mut out: Result<Option<ProjectState>> = Ok(None);
 
     Window::new(im_str!("ProjectPicker"))
         .title_bar(false)
@@ -154,68 +156,51 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
         }, imgui::Condition::Always)
         .position_pivot([0.5, 0.5])
         .build(ui, || {
-            if ui.button(im_str!("Open existing project"), BTN_SIZE) {
-                match nfd::open_pick_folder(None) {
-                    Ok(nfd::Response::Okay(path)) => {
-                        // TODO Do this in another thread
-                        // TODO Show loading indicator
+            let maybe_err: Result<()> = try {
+                if ui.button(im_str!("Open existing project"), BTN_SIZE) {
+                    match nfd::open_pick_folder(None) {
+                        Ok(nfd::Response::Okay(path)) => {
+                            // TODO Do this in another thread
+                            // TODO Show loading indicator
 
-                        let mut processor =  match Processor::new(&path) {
-                            Ok(processor) => processor,
-                            Err(err) => {
-                                out = Err(err);
-                                return;
-                            },
-                        };
+                            let mut processor = Processor::new(&path)?;
 
-                        // TODO Do not load any scene by default
+                            // TODO Do not load any scene by default
 
-                        match processor.load_scene("$/main.scn") {
-                            Ok(_) => (),
-                            Err(err) => {
-                                out = Err(err);
-                                return;
-                            },
+                            processor.load_scene("$/main.scn")?;
+
+                            out = Ok(Some(ProjectState {
+                                processor,
+                                framebuffer: None,
+                            }));
                         }
-
-                        out = Ok(Some(ProjectState {
-                            processor,
-                            framebuffer: None,
-                        }));
+                        _ => (),
                     }
-                    _ => (),
                 }
-            }
 
-            if ui.button(im_str!("Create new project"), BTN_SIZE) {
-                match nfd::open_pick_folder(None) {
-                    Ok(nfd::Response::Okay(path)) => {
-                        match fs::create_dir_all(&path) {
-                            Ok(_) => (),
-                            Err(err) => {
-                                out = Err(Box::new(err));
-                                return;
-                            }
+                if ui.button(im_str!("Create new project"), BTN_SIZE) {
+                    match nfd::open_pick_folder(None) {
+                        Ok(nfd::Response::Okay(path)) => {
+                            fs::create_dir_all(&path)?;
+
+                            // TODO Do this in another thread
+                            // TODO Show loading indicator
+
+                            let processor = Processor::new(&path)?;
+
+                            out = Ok(Some(ProjectState {
+                                processor,
+                                framebuffer: None,
+                            }));
                         }
-
-                        // TODO Do this in another thread
-                        // TODO Show loading indicator
-
-                        let processor =  match Processor::new(&path) {
-                            Ok(processor) => processor,
-                            Err(err) => {
-                                out = Err(err);
-                                return;
-                            },
-                        };
-
-                        out = Ok(Some(ProjectState {
-                            processor,
-                            framebuffer: None,
-                        }));
+                        _ => (),
                     }
-                    _ => (),
                 }
+            };
+
+            match maybe_err {
+                Err(err) => out = Err(err),
+                _ => ()
             }
         });
 
