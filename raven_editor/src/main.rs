@@ -19,7 +19,7 @@ use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use raven_core::framebuffer::Framebuffer;
 use raven_core::Processor;
 
-type Result<T> = std::result::Result<T, Box<dyn Error + Send>>;
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 struct ProjectState {
     processor: Processor,
@@ -59,9 +59,6 @@ fn main() -> Result<()> {
     // Currently loaded project
     let mut proj_state: Option<ProjectState> = None;
 
-    // Windows
-    let select_project_window = SelectProjectWindow::default();
-
     el.run(move |event, _, control_flow| {
         match event {
             Event::MainEventsCleared => {
@@ -72,14 +69,6 @@ fn main() -> Result<()> {
             }
             Event::RedrawRequested(_) => {
                 let ui = imgui.frame();
-
-                match select_project_window.get_new_proj_state() {
-                    Some(res) => match res {
-                        Ok(new_proj_state) => proj_state = Some(new_proj_state),
-                        Err(new_err) => err = Some(new_err),
-                    },
-                    _ => (),
-                }
 
                 if err.is_some() {
                     // TODO Disable docking
@@ -108,15 +97,19 @@ fn main() -> Result<()> {
                         });
                 }
 
-                match proj_state.as_mut() {
-                    Some(proj_state) => {
-                        let res = draw_editor_window(&ui, proj_state);
-                        match res {
-                            Ok(_) => (),
-                            Err(new_err) => err = Some(new_err),
-                        }
+                match try {
+                    match proj_state.as_mut() {
+                        Some(proj_state) => draw_editor_window(&ui, proj_state)?,
+                        None => {
+                            match draw_select_project_window(&ui)? {
+                                Some(new_proj_state) => proj_state = Some(new_proj_state),
+                                None => (),
+                            }
+                        },
                     }
-                    None => select_project_window.draw(&ui),
+                } {
+                    Ok(_) => (),
+                    Err(new_err) => err = Some(new_err)
                 }
 
                 unsafe {
@@ -149,74 +142,49 @@ fn main() -> Result<()> {
     });
 }
 
-struct SelectProjectWindow {
-    // The thread that loads a new project puts the state here, the mutex is checked each frame for new results
-    new_proj_state: Arc<Mutex<Option<Result<ProjectState>>>>,
-    loading: Arc<Mutex<bool>>,
-}
+fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
+    const BTN_SIZE: [f32; 2] = [200.0, 30.0];
 
-impl Default for SelectProjectWindow {
-    fn default() -> Self {
-        SelectProjectWindow {
-            new_proj_state: Arc::new(Mutex::new(None)),
-            loading: Arc::new(Mutex::new(false)),
-        }
-    }
-}
+    let mut out = Ok(None);
 
-impl SelectProjectWindow {
-    pub fn draw(&self, ui: &imgui::Ui) {
-        const BTN_SIZE: [f32; 2] = [200.0, 30.0];
-
-        Window::new(im_str!("ProjectPicker"))
-            .title_bar(false)
-            .resizable(false)
-            .collapsible(false)
-            .movable(false)
-            .position(
-                {
-                    let [width, height] = ui.io().display_size;
-                    [0.5 * width, 0.5 * height]
-                },
-                imgui::Condition::Always,
-            )
-            .position_pivot([0.5, 0.5])
-            .build(ui, || {
-                let loading = *self.loading.lock().unwrap();
-
+    Window::new(im_str!("ProjectPicker"))
+        .title_bar(false)
+        .resizable(false)
+        .collapsible(false)
+        .movable(false)
+        .position(
+            {
+                let [width, height] = ui.io().display_size;
+                [0.5 * width, 0.5 * height]
+            },
+            imgui::Condition::Always,
+        )
+        .position_pivot([0.5, 0.5])
+        .build(ui, || {
+            let maybe_err: Result<()> = try {
                 if ui.button(im_str!("Open existing project"), BTN_SIZE) {
                     match nfd::open_pick_folder(None) {
                         Ok(nfd::Response::Okay(path)) => {
-                            *self.loading.lock().unwrap() = true;
+                            let mut processor = Processor::new(&path).unwrap();
+                            processor.load_scene("$/main.scn").unwrap();
 
-                            // TODO Do this in another thread
-                            // TODO Show loading indicator
-
-                            let new_proj_state = self.new_proj_state.clone();
-                            let loading = self.loading.clone();
-                            thread::spawn(move || {
-                                let mut processor = Processor::new(&path).unwrap();
-
-                                // TODO Do not load any scene by default
-
-                                processor.load_scene("$/main.scn").unwrap();
-
-                                *new_proj_state.lock().unwrap() = Some(Ok(ProjectState {
-                                    processor,
-                                    framebuffer: None,
-                                }));
-                                *loading.lock().unwrap() = false;
-                            });
+                            out = Ok(Some(ProjectState {
+                                processor,
+                                framebuffer: None,
+                            }))
                         }
                         _ => (),
                     }
                 }
-            });
-    }
+            };
 
-    pub fn get_new_proj_state(&self) -> Option<Result<ProjectState>> {
-        self.new_proj_state.lock().unwrap().take()
-    }
+            match maybe_err {
+                Ok(_) => (),
+                Err(err) => out = Err(err),
+            }
+        });
+
+    out
 }
 
 fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<()> {
