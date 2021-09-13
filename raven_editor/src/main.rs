@@ -3,25 +3,30 @@
 use std::error::Error;
 use std::ffi::CString;
 use std::fs;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
 use gl;
+use glutin::ContextBuilder;
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
-use glutin::ContextBuilder;
-use imgui::{im_str, Context, Window};
+use imgui::{Context, im_str, Window};
 use imgui_opengl_renderer::Renderer;
 use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
 use raven_core::framebuffer::Framebuffer;
+use raven_core::path;
 use raven_core::Processor;
+
+mod import;
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 struct ProjectState {
+    root_path: PathBuf,
     processor: Processor,
     framebuffer: Option<([u32; 2], Framebuffer)>,
 }
@@ -169,6 +174,7 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
                             processor.load_scene("$/main.scn").unwrap();
 
                             out = Ok(Some(ProjectState {
+                                root_path: PathBuf::from(&path),
                                 processor,
                                 framebuffer: None,
                             }))
@@ -229,8 +235,44 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<(
     };
 
     // Don't check if `begin` was successful because we always want to pop the style
-    let main_window = Window::new(im_str!("Raven")).flags(w_flags).begin(&ui);
+    let main_window = Window::new(im_str!("Raven")).flags(w_flags).begin(&ui).ok_or_else(|| Box::<dyn Error>::from("couldn't create main window"))?;
     style_stack.pop(&ui);
+
+    let mut res: Result<()> = Ok(());
+
+    if let Some(menu_bar) = ui.begin_main_menu_bar() {
+        if let Some(menu) = ui.begin_menu(im_str!("File"), true) {
+            res = try {
+                if imgui::MenuItem::new(im_str!("Import")).build(ui) {
+                    match nfd::open_file_dialog(None, None) {
+                        Ok(nfd::Response::Okay(fs_path)) => {
+                            let fs_path = PathBuf::from(fs_path);
+
+                            let file_name = fs_path.file_name().ok_or_else(|| Box::<dyn Error>::from("Invalid path"))?;
+
+                            let mut project_path = PathBuf::default();
+                            project_path.push(path::PROJECT_ROOT_RUNE);
+                            project_path.push(file_name);
+
+                            fs::copy(fs_path, path::as_fs_abs(&proj_state.root_path, &project_path))?;
+                        }
+                        _ => (),
+                    }
+                }
+            };
+
+            menu.end(ui);
+        }
+        menu_bar.end(ui);
+    }
+
+    match res {
+        Err(err) => {
+            main_window.end(&ui);
+            return Err(err);
+        }
+        _ => ()
+    }
 
     // Setup docking and dock windows
     unsafe {
@@ -339,10 +381,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<(
         ui.text("Hello I'm the hierarchy");
     });
 
-    // If window was created (should always be the case) then end it
-    if let Some(main_window) = main_window {
-        main_window.end(&ui);
-    }
+    main_window.end(&ui);
 
     Ok(())
 }
