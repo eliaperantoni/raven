@@ -25,7 +25,7 @@ mod import;
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
-struct ProjectState {
+struct OpenProjectState {
     root_path: PathBuf,
     processor: Processor,
     framebuffer: Option<([u32; 2], Framebuffer)>,
@@ -62,7 +62,7 @@ fn main() -> Result<()> {
     let mut err: Option<Box<dyn Error>> = None;
 
     // Currently loaded project
-    let mut proj_state: Option<ProjectState> = None;
+    let mut proj_state: Option<OpenProjectState> = None;
 
     el.run(move |event, _, control_flow| {
         match event {
@@ -147,7 +147,7 @@ fn main() -> Result<()> {
     });
 }
 
-fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
+fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>> {
     const BTN_SIZE: [f32; 2] = [200.0, 30.0];
 
     let mut out = Ok(None);
@@ -173,7 +173,7 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
                             let mut processor = Processor::new(&path).unwrap();
                             processor.load_scene("$/main.scn").unwrap();
 
-                            out = Ok(Some(ProjectState {
+                            out = Ok(Some(OpenProjectState {
                                 root_path: PathBuf::from(&path),
                                 processor,
                                 framebuffer: None,
@@ -193,7 +193,7 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<ProjectState>> {
     out
 }
 
-fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<()> {
+fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Result<()> {
     let mut out = Ok(true);
 
     let viewport = unsafe { imgui_sys::igGetMainViewport() };
@@ -255,6 +255,8 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut ProjectState) -> Result<(
                             project_path.push(file_name);
 
                             fs::copy(fs_path, path::as_fs_abs(&proj_state.root_path, &project_path))?;
+
+                            import::import(&project_path, proj_state)?;
                         }
                         _ => (),
                     }

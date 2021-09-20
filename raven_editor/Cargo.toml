@@ -15,3 +15,7 @@ imgui-opengl-renderer = "0.11.0"
 imgui-winit-support = { version = "0.7.1", default-features = false, features = ["winit-25"] }
 raven_core = { path = "../raven_core" }
 nfd = "0.0.4"
+image = "0.23.14"
+russimp = "0.2.3"
+itertools = "0.10.1"
+md-5 = "0.9.1"
