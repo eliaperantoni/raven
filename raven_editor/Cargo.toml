@@ -7,12 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-imgui = "0.7.0"
-imgui-sys = "0.7.0"
+imgui = "0.8.0"
+imgui-sys = "0.8.0"
 glutin = "0.27.0"
 gl = "0.14.0"
-imgui-opengl-renderer = "0.11.0"
-imgui-winit-support = { version = "0.7.1", default-features = false, features = ["winit-25"] }
+imgui-opengl-renderer = { git = "https://github.com/eliaperantoni/rust-imgui-opengl-renderer" }
+imgui-winit-support = { version = "0.8.0", default-features = false, features = ["winit-25"] }
 raven_core = { path = "../raven_core" }
 nfd = "0.0.4"
 image = "0.23.14"

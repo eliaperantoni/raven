@@ -770,8 +770,9 @@ dependencies = [
 
 [[package]]
 name = "imgui"
-version = "0.7.0"
-source = "git+https://github.com/NoxWings/imgui-rs?tag=1.81dock#5991a3afa5b14a7e6b623aff032ff014c2d173b8"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4edc4023dc7b1161e25ec9bcee478173f97d6f618a1d04eced2d559ce03119b4"
 dependencies = [
  "bitflags",
  "imgui-sys",
@@ -781,8 +782,7 @@ dependencies = [
 [[package]]
 name = "imgui-opengl-renderer"
 version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "562c7be8f6c93a0846b68535b53b4ede180d82860f7b656354f9ce07d4994992"
+source = "git+https://github.com/eliaperantoni/rust-imgui-opengl-renderer#e80b5f21cefea355b9f8932f895f5592bd02a4ee"
 dependencies = [
  "gl_generator",
  "imgui",
@@ -790,8 +790,9 @@ dependencies = [
 
 [[package]]
 name = "imgui-sys"
-version = "0.7.0"
-source = "git+https://github.com/NoxWings/imgui-rs?tag=1.81dock#5991a3afa5b14a7e6b623aff032ff014c2d173b8"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0914d5ebaec1086300b970defc7ed71edc2cf102bdc3dd75fd51179549d4455b"
 dependencies = [
  "cc",
  "chlorine",
@@ -799,9 +800,9 @@ dependencies = [
 
 [[package]]
 name = "imgui-winit-support"
-version = "0.7.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22ae881a42852470216c77fba5835b9701815adac24dfaa8d4ebf3a368376756"
+checksum = "86a8c368182829141da5d22c352684d01e64359daa1a4550df4a2976836aa8e3"
 dependencies = [
  "imgui",
  "winit",

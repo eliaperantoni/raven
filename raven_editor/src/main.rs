@@ -10,7 +10,7 @@ use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 use glutin::ContextBuilder;
-use imgui::{im_str, Context, Window};
+use imgui::{Context, Window};
 use imgui_opengl_renderer::Renderer;
 use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -81,7 +81,7 @@ fn main() -> Result<()> {
                 if err.is_some() {
                     // TODO Disable docking
 
-                    Window::new(im_str!("Error"))
+                    Window::new("Error")
                         .resizable(false)
                         .collapsible(false)
                         .position(
@@ -99,7 +99,7 @@ fn main() -> Result<()> {
                             // Spacing
                             ui.dummy([0.0, 10.0]);
 
-                            if ui.button(im_str!("Ok"), [ui.content_region_avail()[0], 25.0]) {
+                            if ui.button_with_size("Ok", [ui.content_region_avail()[0], 25.0]) {
                                 err = None;
                             }
                         });
@@ -153,7 +153,7 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
 
     let mut out = Ok(None);
 
-    Window::new(im_str!("ProjectPicker"))
+    Window::new("ProjectPicker")
         .title_bar(false)
         .resizable(false)
         .collapsible(false)
@@ -168,7 +168,7 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
         .position_pivot([0.5, 0.5])
         .build(ui, || {
             let maybe_err: Result<()> = try {
-                if ui.button(im_str!("Open existing project"), BTN_SIZE) {
+                if ui.button_with_size("Open existing project", BTN_SIZE) {
                     match nfd::open_pick_folder(None) {
                         Ok(nfd::Response::Okay(path)) => {
                             let mut processor = Processor::new(&path).unwrap();
@@ -230,26 +230,24 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
     let style_stack = {
         use imgui::StyleVar::*;
-        ui.push_style_vars(vec![
-            &WindowRounding(0.0),
-            &WindowBorderSize(0.0),
-            &WindowPadding([0.0, 0.0]),
-        ])
+        ui.push_style_var(WindowRounding(0.0));
+        ui.push_style_var(WindowBorderSize(0.0));
+        ui.push_style_var(WindowPadding([0.0, 0.0]))
     };
 
     // Don't check if `begin` was successful because we always want to pop the style
-    let main_window = Window::new(im_str!("Raven"))
+    let main_window = Window::new("Raven")
         .flags(w_flags)
         .begin(&ui)
         .ok_or_else(|| Box::<dyn Error>::from("couldn't create main window"))?;
-    style_stack.pop(&ui);
+    style_stack.pop();
 
     let mut res: Result<()> = Ok(());
 
     if let Some(menu_bar) = ui.begin_main_menu_bar() {
-        if let Some(menu) = ui.begin_menu(im_str!("File"), true) {
+        if let Some(menu) = ui.begin_menu("File") {
             res = try {
-                if imgui::MenuItem::new(im_str!("Import external")).build(ui) {
+                if imgui::MenuItem::new("Import external").build(ui) {
                     match nfd::open_file_dialog(None, None) {
                         Ok(nfd::Response::Okay(fs_path)) => {
                             let fs_path = PathBuf::from(fs_path);
@@ -274,14 +272,14 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 }
             };
 
-            menu.end(ui);
+            menu.end();
         }
-        menu_bar.end(ui);
+        menu_bar.end();
     }
 
     match res {
         Err(err) => {
-            main_window.end(&ui);
+            main_window.end();
             return Err(err);
         }
         _ => (),
@@ -337,10 +335,10 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
     let style_stack = {
         use imgui::StyleVar::*;
-        ui.push_style_vars(vec![&WindowPadding([0.0, 0.0])])
+        ui.push_style_var(WindowPadding([0.0, 0.0]))
     };
 
-    Window::new(im_str!("Viewport"))
+    Window::new("Viewport")
         .size([800.0, 600.0], imgui::Condition::Once)
         .build(&ui, || {
             let [width, height] = ui.content_region_avail();
@@ -384,13 +382,13 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             .build(&ui);
         });
 
-    style_stack.pop(&ui);
+    style_stack.pop();
 
-    Window::new(im_str!("Content browser")).build(&ui, || {
+    Window::new("Content browser").build(&ui, || {
         ui.text("Hello I'm the content browser");
     });
 
-    Window::new(im_str!("Hierarchy")).build(&ui, || {
+    Window::new("Hierarchy").build(&ui, || {
         let scene = match proj_state.processor.get_scene() {
             Some(scene) => scene,
             None => return,
@@ -419,7 +417,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 .selected(*ctx.selection == Some(ent))
                 .leaf(hier_comp.children.is_empty())
                 .build(ctx.ui, || {
-                    if ctx.ui.is_item_clicked(imgui::MouseButton::Left) && !ctx.ui.is_item_toggled_open() {
+                    if ctx.ui.is_item_clicked() {
                         *ctx.selection = Some(ent);
                     }
 
@@ -447,7 +445,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
         }
     });
 
-    main_window.end(&ui);
+    main_window.end();
 
     Ok(())
 }
