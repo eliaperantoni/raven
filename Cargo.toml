@@ -6,7 +6,6 @@ members = [
     "raven_ecs_example",
     "raven_editor",
     "raven_runtime",
-    "raven_import_demo",
 ]
 
 [patch.crates-io]

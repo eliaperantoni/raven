@@ -4,8 +4,6 @@ use std::error::Error;
 use std::ffi::CString;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
-use std::thread;
 
 use gl;
 use glutin::ContextBuilder;
@@ -243,20 +241,20 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
     if let Some(menu_bar) = ui.begin_main_menu_bar() {
         if let Some(menu) = ui.begin_menu(im_str!("File"), true) {
             res = try {
-                if imgui::MenuItem::new(im_str!("Import")).build(ui) {
+                if imgui::MenuItem::new(im_str!("Import external")).build(ui) {
                     match nfd::open_file_dialog(None, None) {
                         Ok(nfd::Response::Okay(fs_path)) => {
                             let fs_path = PathBuf::from(fs_path);
 
                             let file_name = fs_path.file_name().ok_or_else(|| Box::<dyn Error>::from("Invalid path"))?;
 
-                            let mut project_path = PathBuf::default();
-                            project_path.push(path::PROJECT_ROOT_RUNE);
-                            project_path.push(file_name);
+                            let mut raven_path = PathBuf::default();
+                            raven_path.push(path::PROJECT_ROOT_RUNE);
+                            raven_path.push(file_name);
 
-                            fs::copy(fs_path, path::as_fs_abs(&proj_state.root_path, &project_path))?;
+                            fs::copy(fs_path, path::as_fs_abs(&proj_state.root_path, &raven_path))?;
 
-                            import::import(&project_path, proj_state)?;
+                            import::import(&raven_path, proj_state)?;
                         }
                         _ => (),
                     }
