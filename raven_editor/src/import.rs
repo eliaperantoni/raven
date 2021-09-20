@@ -86,11 +86,11 @@ fn prepare_import_root_for(path: &Path, state: &OpenProjectState) -> Result<Path
 
     let import_root = as_import_root(path);
 
-    fs::create_dir_all(path_pkg::as_fs_abs(&state.root_path, &import_root))
+    fs::create_dir_all(path_pkg::as_fs_abs(&state.project_root, &import_root))
         .map_err(|e| Box::<dyn Error>::from(e))?;
 
     // Make sure the import directory contains no file
-    wipe_dir(&path_pkg::as_fs_abs(&state.root_path, &import_root))?;
+    wipe_dir(&path_pkg::as_fs_abs(&state.project_root, &import_root))?;
 
     Ok(import_root)
 }
@@ -98,7 +98,7 @@ fn prepare_import_root_for(path: &Path, state: &OpenProjectState) -> Result<Path
 fn import_tex(path: &Path, state: &OpenProjectState) -> Result<()> {
     let import_root = prepare_import_root_for(path, state)?;
 
-    let tex = image::open(path_pkg::as_fs_abs(&state.root_path, path))?;
+    let tex = image::open(path_pkg::as_fs_abs(&state.project_root, path))?;
 
     let size = [tex.width(), tex.height()];
 
@@ -107,7 +107,7 @@ fn import_tex(path: &Path, state: &OpenProjectState) -> Result<()> {
     let tex = Texture::new(tex.into_raw(), size);
 
     tex.save(path_pkg::as_fs_abs(
-        &state.root_path,
+        &state.project_root,
         import_root.join("main.tex"),
     ))?;
 
@@ -142,7 +142,7 @@ impl<'me> SceneImporter<'me> {
     fn import(path: &Path, state: &OpenProjectState) -> Result<()> {
         let import_root = prepare_import_root_for(path, state)?;
 
-        let fs_abs_path = path_pkg::as_fs_abs(&state.root_path, path);
+        let fs_abs_path = path_pkg::as_fs_abs(&state.project_root, path);
         let fs_abs_path = fs_abs_path
             .to_str()
             .ok_or_else(|| Box::<dyn Error>::from("assimp requires unicode path"))?;
@@ -179,7 +179,7 @@ impl<'me> SceneImporter<'me> {
         }
 
         importer.importing_scene.save(path_pkg::as_fs_abs(
-            &state.root_path,
+            &state.project_root,
             import_root.join("main.scn"),
         ))?;
 
@@ -221,7 +221,7 @@ impl<'me> SceneImporter<'me> {
 
                 let mesh_file = format!("{:x}.mesh", hasher.finalize());
                 imported_mesh.save(path_pkg::as_fs_abs(
-                    &state.root_path,
+                    &state.project_root,
                     self.import_root.join(&mesh_file),
                 ))?;
 
@@ -293,7 +293,7 @@ impl<'me> SceneImporter<'me> {
 
                 let mat_file = format!("{:x}.mat", hasher.finalize());
                 imported_mat.save(path_pkg::as_fs_abs(
-                    &state.root_path,
+                    &state.project_root,
                     self.import_root.join(&mat_file),
                 ))?;
 

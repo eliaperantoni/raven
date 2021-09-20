@@ -24,7 +24,7 @@ mod import;
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 struct OpenProjectState {
-    root_path: PathBuf,
+    project_root: PathBuf,
     processor: Processor,
     framebuffer: Option<([u32; 2], Framebuffer)>,
 }
@@ -172,7 +172,7 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
                             processor.load_scene("$/main.scn").unwrap();
 
                             out = Ok(Some(OpenProjectState {
-                                root_path: PathBuf::from(&path),
+                                project_root: PathBuf::from(&path),
                                 processor,
                                 framebuffer: None,
                             }))
@@ -252,7 +252,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                             raven_path.push(path::PROJECT_ROOT_RUNE);
                             raven_path.push(file_name);
 
-                            fs::copy(fs_path, path::as_fs_abs(&proj_state.root_path, &raven_path))?;
+                            fs::copy(fs_path, path::as_fs_abs(&proj_state.project_root, &raven_path))?;
 
                             import::import(&raven_path, proj_state)?;
                         }
@@ -378,7 +378,14 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
     });
 
     Window::new(im_str!("Hierarchy")).build(&ui, || {
-        ui.text("Hello I'm the hierarchy");
+        imgui::TreeNode::new(im_str!("entities")).build(ui, || {
+            imgui::TreeNode::new(im_str!("x")).build(ui, || {
+                ui.text("X");
+            });
+            imgui::TreeNode::new(im_str!("x")).build(ui, || {
+                ui.text("Y");
+            });
+        });
     });
 
     main_window.end(&ui);
