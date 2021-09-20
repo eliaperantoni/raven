@@ -9,7 +9,7 @@ use image::GenericImageView;
 use itertools::izip;
 use md5::{Digest, Md5};
 
-use raven_core::component::{HierarchyComponent, MeshComponent, TransformComponent};
+use raven_core::component::{HierarchyComponent, MeshComponent, NameComponent, TransformComponent};
 use raven_core::ecs::Entity;
 use raven_core::glam::{Mat4, Vec2, Vec3, Vec4};
 use raven_core::io::Serializable;
@@ -194,6 +194,8 @@ impl<'me> SceneImporter<'me> {
     ) -> Result<Entity> {
         let entity = self.importing_scene.create();
 
+        self.importing_scene
+            .attach(entity, NameComponent(node.name.clone()));
         self.importing_scene.attach(
             entity,
             TransformComponent({
