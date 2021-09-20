@@ -11,6 +11,9 @@ use crate::vao::Vao;
 #[derive(Component, Serialize, Deserialize, Clone, Default)]
 pub struct TransformComponent(pub Mat4);
 
+#[derive(Component, Serialize, Deserialize, Clone)]
+pub struct NameComponent(pub String);
+
 #[derive(Component, Serialize, Deserialize, Clone, Default)]
 pub struct HierarchyComponent {
     pub parent: Option<Entity>,

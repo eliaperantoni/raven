@@ -6,18 +6,21 @@ use std::fs;
 use std::path::PathBuf;
 
 use gl;
-use glutin::ContextBuilder;
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
-use imgui::{Context, im_str, Window};
+use glutin::ContextBuilder;
+use imgui::{im_str, Context, Window};
 use imgui_opengl_renderer::Renderer;
 use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
+use raven_core::component::{HierarchyComponent, NameComponent};
+use raven_core::ecs::{Query, Entity};
 use raven_core::framebuffer::Framebuffer;
 use raven_core::path;
 use raven_core::Processor;
+use raven_core::resource::Scene;
 
 mod import;
 
@@ -103,16 +106,14 @@ fn main() -> Result<()> {
                 match try {
                     match proj_state.as_mut() {
                         Some(proj_state) => draw_editor_window(&ui, proj_state)?,
-                        None => {
-                            match draw_select_project_window(&ui)? {
-                                Some(new_proj_state) => proj_state = Some(new_proj_state),
-                                None => (),
-                            }
+                        None => match draw_select_project_window(&ui)? {
+                            Some(new_proj_state) => proj_state = Some(new_proj_state),
+                            None => (),
                         },
                     }
                 } {
                     Ok(_) => (),
-                    Err(new_err) => err = Some(new_err)
+                    Err(new_err) => err = Some(new_err),
                 }
 
                 unsafe {
@@ -233,7 +234,10 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
     };
 
     // Don't check if `begin` was successful because we always want to pop the style
-    let main_window = Window::new(im_str!("Raven")).flags(w_flags).begin(&ui).ok_or_else(|| Box::<dyn Error>::from("couldn't create main window"))?;
+    let main_window = Window::new(im_str!("Raven"))
+        .flags(w_flags)
+        .begin(&ui)
+        .ok_or_else(|| Box::<dyn Error>::from("couldn't create main window"))?;
     style_stack.pop(&ui);
 
     let mut res: Result<()> = Ok(());
@@ -246,13 +250,18 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                         Ok(nfd::Response::Okay(fs_path)) => {
                             let fs_path = PathBuf::from(fs_path);
 
-                            let file_name = fs_path.file_name().ok_or_else(|| Box::<dyn Error>::from("Invalid path"))?;
+                            let file_name = fs_path
+                                .file_name()
+                                .ok_or_else(|| Box::<dyn Error>::from("Invalid path"))?;
 
                             let mut raven_path = PathBuf::default();
                             raven_path.push(path::PROJECT_ROOT_RUNE);
                             raven_path.push(file_name);
 
-                            fs::copy(fs_path, path::as_fs_abs(&proj_state.project_root, &raven_path))?;
+                            fs::copy(
+                                fs_path,
+                                path::as_fs_abs(&proj_state.project_root, &raven_path),
+                            )?;
 
                             import::import(&raven_path, proj_state)?;
                         }
@@ -271,7 +280,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             main_window.end(&ui);
             return Err(err);
         }
-        _ => ()
+        _ => (),
     }
 
     // Setup docking and dock windows
@@ -378,14 +387,36 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
     });
 
     Window::new(im_str!("Hierarchy")).build(&ui, || {
-        imgui::TreeNode::new(im_str!("entities")).build(ui, || {
-            imgui::TreeNode::new(im_str!("x")).build(ui, || {
-                ui.text("X");
+        let scene = match proj_state.processor.get_scene() {
+            Some(scene) => scene,
+            None => return,
+        };
+
+        fn draw_tree_node(ui: &imgui::Ui, ent: Entity, hier_comp: &HierarchyComponent, scene: &Scene, next_nameless_name: &mut u32) {
+            let name = match scene.get_one::<NameComponent>(ent) {
+                Some(name_comp) => name_comp.0.clone(),
+                None => format!("{}", *next_nameless_name),
+            };
+
+            let title = imgui::ImString::from(name);
+            *next_nameless_name += 1;
+
+            imgui::TreeNode::new(&title).default_open(false).leaf(hier_comp.children.len() == 0).build(ui, || {
+                for child in &hier_comp.children {
+                    if let Some(hier_comp) = scene.get_one::<HierarchyComponent>(*child) {
+                        draw_tree_node(ui, *child, &*hier_comp, scene, next_nameless_name);
+                    }
+                }
             });
-            imgui::TreeNode::new(im_str!("x")).build(ui, || {
-                ui.text("Y");
-            });
-        });
+        };
+
+        let mut next_nameless_name = 0;
+
+        for (ent, (hier_comp,), _) in <(HierarchyComponent,)>::query_shallow(scene)
+            .filter(|(ent, (hier_comp,), _)| hier_comp.parent.is_none())
+        {
+            draw_tree_node(ui, ent, &*hier_comp, scene, &mut next_nameless_name);
+        }
     });
 
     main_window.end(&ui);

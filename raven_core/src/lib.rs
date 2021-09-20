@@ -72,6 +72,10 @@ impl Processor {
         Ok(())
     }
 
+    pub fn get_scene(&self) -> Option<&Scene> {
+        self.scene.as_ref()
+    }
+
     pub fn set_canvas_size(&mut self, width: u32, height: u32) {
         self.state.canvas_size = [width, height];
     }
