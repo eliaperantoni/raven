@@ -6,7 +6,6 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use crate::resource::*;
-use crate::component::NameComponent;
 
 pub trait Serializable: Sized {
     fn save<P: AsRef<Path>>(&self, at: P) -> Result<(), Box<dyn Error>>;

@@ -16,11 +16,11 @@ use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
 use raven_core::component::{HierarchyComponent, NameComponent};
-use raven_core::ecs::{Query, Entity};
+use raven_core::ecs::{Entity, Query};
 use raven_core::framebuffer::Framebuffer;
 use raven_core::path;
-use raven_core::Processor;
 use raven_core::resource::Scene;
+use raven_core::Processor;
 
 mod import;
 
@@ -30,6 +30,8 @@ struct OpenProjectState {
     project_root: PathBuf,
     processor: Processor,
     framebuffer: Option<([u32; 2], Framebuffer)>,
+
+    selection: Option<Entity>,
 }
 
 fn main() -> Result<()> {
@@ -176,6 +178,8 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
                                 project_root: PathBuf::from(&path),
                                 processor,
                                 framebuffer: None,
+
+                                selection: None,
                             }))
                         }
                         _ => (),
@@ -392,30 +396,54 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             None => return,
         };
 
-        fn draw_tree_node(ui: &imgui::Ui, ent: Entity, hier_comp: &HierarchyComponent, scene: &Scene, next_nameless_name: &mut u32) {
-            let name = match scene.get_one::<NameComponent>(ent) {
+        struct Ctx<'me> {
+            ui: &'me imgui::Ui<'me>,
+            scene: &'me Scene,
+            next_nameless_name: &'me mut u32,
+            selection: &'me mut Option<Entity>,
+        }
+
+        fn draw_tree_node(ctx: &mut Ctx, ent: Entity, hier_comp: &HierarchyComponent) {
+            let name = match ctx.scene.get_one::<NameComponent>(ent) {
                 Some(name_comp) => name_comp.0.clone(),
-                None => format!("{}", *next_nameless_name),
+                None => {
+                    let name = format!("{}", *ctx.next_nameless_name);
+                    *ctx.next_nameless_name += 1;
+                    name
+                }
             };
 
-            let title = imgui::ImString::from(name);
-            *next_nameless_name += 1;
-
-            imgui::TreeNode::new(&title).default_open(false).leaf(hier_comp.children.len() == 0).build(ui, || {
-                for child in &hier_comp.children {
-                    if let Some(hier_comp) = scene.get_one::<HierarchyComponent>(*child) {
-                        draw_tree_node(ui, *child, &*hier_comp, scene, next_nameless_name);
+            imgui::TreeNode::new(&imgui::ImString::from(name))
+                .flags(imgui::TreeNodeFlags::SPAN_AVAIL_WIDTH)
+                .open_on_arrow(true)
+                .selected(*ctx.selection == Some(ent))
+                .leaf(hier_comp.children.is_empty())
+                .build(ctx.ui, || {
+                    if ctx.ui.is_item_clicked(imgui::MouseButton::Left) && !ctx.ui.is_item_toggled_open() {
+                        *ctx.selection = Some(ent);
                     }
-                }
-            });
-        };
+
+                    for child in &hier_comp.children {
+                        if let Some(hier_comp) = ctx.scene.get_one::<HierarchyComponent>(*child) {
+                            draw_tree_node(ctx, *child, &*hier_comp);
+                        }
+                    }
+                });
+        }
 
         let mut next_nameless_name = 0;
 
+        let mut ctx = Ctx {
+            ui,
+            scene,
+            next_nameless_name: &mut next_nameless_name,
+            selection: &mut proj_state.selection,
+        };
+
         for (ent, (hier_comp,), _) in <(HierarchyComponent,)>::query_shallow(scene)
-            .filter(|(ent, (hier_comp,), _)| hier_comp.parent.is_none())
+            .filter(|(_, (hier_comp,), _)| hier_comp.parent.is_none())
         {
-            draw_tree_node(ui, ent, &*hier_comp, scene, &mut next_nameless_name);
+            draw_tree_node(&mut ctx, ent, &*hier_comp);
         }
     });
 
