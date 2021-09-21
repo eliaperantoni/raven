@@ -7,3 +7,11 @@ members = [
     "raven_editor",
     "raven_runtime",
 ]
+
+[patch.crates-io]
+# Because the upstream imgui crate doesn't expose the docking branch
+imgui-sys = { path="../imgui-rs/imgui-sys" }
+# Because the docking bindings present some fixes that have been fixed here
+imgui = { path="../imgui-rs/imgui" }
+# Because the upstream crate hasn't been updated to imgui=0.8.0
+imgui-opengl-renderer = { git="https://github.com/eliaperantoni/rust-imgui-opengl-renderer" }

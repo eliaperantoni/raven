@@ -230,9 +230,11 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
     let style_stack = {
         use imgui::StyleVar::*;
-        ui.push_style_var(WindowRounding(0.0));
-        ui.push_style_var(WindowBorderSize(0.0));
-        ui.push_style_var(WindowPadding([0.0, 0.0]))
+        vec![
+            ui.push_style_var(WindowRounding(0.0)),
+            ui.push_style_var(WindowBorderSize(0.0)),
+            ui.push_style_var(WindowPadding([0.0, 0.0]))
+        ]
     };
 
     // Don't check if `begin` was successful because we always want to pop the style
@@ -240,7 +242,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
         .flags(w_flags)
         .begin(&ui)
         .ok_or_else(|| Box::<dyn Error>::from("couldn't create main window"))?;
-    style_stack.pop();
+    style_stack.into_iter().for_each(|style| style.end());
 
     let mut res: Result<()> = Ok(());
 
@@ -288,7 +290,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
     // Setup docking and dock windows
     unsafe {
         let dock_name = CString::new("dock_space").unwrap();
-        let id = imgui_sys::igGetIDStr(dock_name.as_ptr());
+        let id = imgui_sys::igGetID_Str(dock_name.as_ptr());
 
         if imgui_sys::igDockBuilderGetNode(id).is_null() {
             imgui_sys::igDockBuilderAddNode(id, imgui_sys::ImGuiDockNodeFlags_DockSpace);
