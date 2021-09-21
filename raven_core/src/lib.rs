@@ -76,6 +76,10 @@ impl Processor {
         self.scene.as_ref()
     }
 
+    pub fn get_scene_mut(&mut self) -> Option<&mut Scene> {
+        self.scene.as_mut()
+    }
+
     pub fn set_canvas_size(&mut self, width: u32, height: u32) {
         self.state.canvas_size = [width, height];
     }

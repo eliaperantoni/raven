@@ -15,12 +15,14 @@ use imgui_opengl_renderer::Renderer;
 use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
-use raven_core::component::{HierarchyComponent, NameComponent};
+use raven_core::component::{HierarchyComponent, NameComponent, TransformComponent};
 use raven_core::ecs::{Entity, Query};
 use raven_core::framebuffer::Framebuffer;
 use raven_core::path;
 use raven_core::resource::Scene;
 use raven_core::Processor;
+use raven_core::glam::{Mat4, Vec3, Quat, EulerRot};
+use raven_core::mat4;
 
 mod import;
 
@@ -474,7 +476,48 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
     });
 
     Window::new("Inspector").build(ui, || {
-        ui.text("Hello World");
+        let selection = match proj_state.selection {
+            Some(selection) => selection,
+            None => return
+        };
+
+        match proj_state.processor.get_scene_mut().unwrap().get_one_mut::<TransformComponent>(selection) {
+            Some(mut tran_comp) => {
+                let m4: &mut Mat4 = &mut tran_comp.0;
+
+                let mut position = Vec3::default();
+                let mut scale = Vec3::default();
+                let mut rotation = Quat::default();
+
+                let mut rotation_euler = rotation.to_euler(EulerRot::XYZ);
+
+                mat4::decompose(m4.as_ref(), position.as_mut(), scale.as_mut(), rotation.as_mut());
+
+                const SPEED: f32 = 0.05;
+
+                ui.text("Position");
+                imgui::Drag::new("##PosX").speed(SPEED).build(ui, &mut position.x);
+                imgui::Drag::new("##PosY").speed(SPEED).build(ui, &mut position.y);
+                imgui::Drag::new("##PosZ").speed(SPEED).build(ui, &mut position.z);
+
+                ui.spacing();
+                ui.text("Scale");
+                imgui::Drag::new("##ScaleX").speed(SPEED).build(ui, &mut scale.x);
+                imgui::Drag::new("##ScaleY").speed(SPEED).build(ui, &mut scale.y);
+                imgui::Drag::new("##ScaleZ").speed(SPEED).build(ui, &mut scale.z);
+
+                ui.spacing();
+                ui.text("Rotation");
+                imgui::Drag::new("##RotX").speed(SPEED).build(ui, &mut rotation_euler.0);
+                imgui::Drag::new("##RotY").speed(SPEED).build(ui, &mut rotation_euler.1);
+                imgui::Drag::new("##RotZ").speed(SPEED).build(ui, &mut rotation_euler.2);
+
+                rotation = Quat::from_euler(EulerRot::XYZ, rotation_euler.0, rotation_euler.1, rotation_euler.2);
+
+                mat4::compose(m4.as_mut(), position.as_ref(), scale.as_ref(), rotation.as_ref());
+            },
+            None => (),
+        };
     });
 
     main_window.end();
