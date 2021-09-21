@@ -233,7 +233,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
         vec![
             ui.push_style_var(WindowRounding(0.0)),
             ui.push_style_var(WindowBorderSize(0.0)),
-            ui.push_style_var(WindowPadding([0.0, 0.0]))
+            ui.push_style_var(WindowPadding([0.0, 0.0])),
         ]
     };
 
@@ -296,33 +296,59 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             imgui_sys::igDockBuilderAddNode(id, imgui_sys::ImGuiDockNodeFlags_DockSpace);
             imgui_sys::igDockBuilderSetNodeSize(id, (*viewport).Size);
 
-            let mut hierarchy_id = 0;
-            let mut viewport_id = 0;
-            let mut cbrowser_id = 0;
+            // +------------------------+
+            // | TL  | TR               |
+            // |     |                  |
+            // |     |                  |
+            // |-----|                  |
+            // | BL  |                  |
+            // |     |----------------- |
+            // |     | BR               |
+            // +------------------------+
+
+            let mut left_id = 0;
+            let mut right_id = 0;
 
             imgui_sys::igDockBuilderSplitNode(
                 id,
                 imgui_sys::ImGuiDir_Left,
                 0.2,
-                &mut hierarchy_id,
-                &mut viewport_id,
+                &mut left_id,
+                &mut right_id,
+            );
+
+            let mut top_left_id = 0;
+            let mut bot_left_id = 0;
+
+            let mut top_right_id = 0;
+            let mut bot_right_id = 0;
+
+            imgui_sys::igDockBuilderSplitNode(
+                left_id,
+                imgui_sys::ImGuiDir_Up,
+                0.5,
+                &mut top_left_id,
+                &mut bot_left_id,
             );
             imgui_sys::igDockBuilderSplitNode(
-                viewport_id,
-                imgui_sys::ImGuiDir_Down,
-                0.2,
-                &mut cbrowser_id,
-                &mut viewport_id,
+                right_id,
+                imgui_sys::ImGuiDir_Up,
+                0.8,
+                &mut top_right_id,
+                &mut bot_right_id,
             );
 
-            let window_name = CString::new("Viewport").unwrap();
-            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), viewport_id);
-
             let window_name = CString::new("Hierarchy").unwrap();
-            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), hierarchy_id);
+            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), top_left_id);
+
+            let window_name = CString::new("Inspector").unwrap();
+            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), bot_left_id);
+
+            let window_name = CString::new("Viewport").unwrap();
+            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), top_right_id);
 
             let window_name = CString::new("Content browser").unwrap();
-            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), cbrowser_id);
+            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), bot_right_id);
 
             imgui_sys::igDockBuilderFinish(id);
         }
@@ -445,6 +471,10 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
         {
             draw_tree_node(&mut ctx, ent, &*hier_comp);
         }
+    });
+
+    Window::new("Inspector").build(ui, || {
+        ui.text("Hello World");
     });
 
     main_window.end();
