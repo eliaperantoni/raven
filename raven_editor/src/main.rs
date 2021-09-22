@@ -527,53 +527,55 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
                 const SPEED: f32 = 0.05;
 
-                ui.text("Position");
+                if imgui::CollapsingHeader::new("TransformComponent").build(ui) {
+                    ui.text("Position");
 
-                ui.columns(3, "Position##Cols", false);
+                    ui.columns(3, "Position##Cols", false);
 
-                ui.set_next_item_width(ui.current_column_width());
-                with_color(ui, COL_RED, || imgui::Drag::new("##PosX").speed(SPEED).build(ui, &mut position.x));
-                ui.next_column();
-                ui.set_next_item_width(ui.current_column_width());
-                with_color(ui, COL_GRE, || imgui::Drag::new("##PosY").speed(SPEED).build(ui, &mut position.y));
-                ui.next_column();
-                ui.set_next_item_width(ui.current_column_width());
-                with_color(ui, COL_BLU, || imgui::Drag::new("##PosZ").speed(SPEED).build(ui, &mut position.z));
-                ui.next_column();
+                    ui.set_next_item_width(ui.current_column_width());
+                    with_color(ui, COL_RED, || imgui::Drag::new("##PosX").speed(SPEED).build(ui, &mut position.x));
+                    ui.next_column();
+                    ui.set_next_item_width(ui.current_column_width());
+                    with_color(ui, COL_GRE, || imgui::Drag::new("##PosY").speed(SPEED).build(ui, &mut position.y));
+                    ui.next_column();
+                    ui.set_next_item_width(ui.current_column_width());
+                    with_color(ui, COL_BLU, || imgui::Drag::new("##PosZ").speed(SPEED).build(ui, &mut position.z));
+                    ui.next_column();
 
-                ui.spacing();
+                    ui.spacing();
 
-                ui.columns(1, "Scale##LabelCol", false);
-                ui.text("Scale");
+                    ui.columns(1, "Scale##LabelCol", false);
+                    ui.text("Scale");
 
-                ui.columns(3, "Scale##Cols", false);
+                    ui.columns(3, "Scale##Cols", false);
 
-                ui.set_next_item_width(ui.current_column_width());
-                with_color(ui, COL_RED, || imgui::Drag::new("##ScaleX").speed(SPEED).build(ui, &mut scale.x));
-                ui.next_column();
-                ui.set_next_item_width(ui.current_column_width());
-                with_color(ui, COL_GRE, || imgui::Drag::new("##ScaleY").speed(SPEED).build(ui, &mut scale.y));
-                ui.next_column();
-                ui.set_next_item_width(ui.current_column_width());
-                with_color(ui, COL_BLU, || imgui::Drag::new("##ScaleZ").speed(SPEED).build(ui, &mut scale.z));
-                ui.next_column();
+                    ui.set_next_item_width(ui.current_column_width());
+                    with_color(ui, COL_RED, || imgui::Drag::new("##ScaleX").speed(SPEED).build(ui, &mut scale.x));
+                    ui.next_column();
+                    ui.set_next_item_width(ui.current_column_width());
+                    with_color(ui, COL_GRE, || imgui::Drag::new("##ScaleY").speed(SPEED).build(ui, &mut scale.y));
+                    ui.next_column();
+                    ui.set_next_item_width(ui.current_column_width());
+                    with_color(ui, COL_BLU, || imgui::Drag::new("##ScaleZ").speed(SPEED).build(ui, &mut scale.z));
+                    ui.next_column();
 
-                ui.spacing();
+                    ui.spacing();
 
-                ui.columns(1, "Rotation##LabelCol", false);
-                ui.text("Rotation");
+                    ui.columns(1, "Rotation##LabelCol", false);
+                    ui.text("Rotation");
 
-                ui.columns(3, "Rotation##Cols", false);
+                    ui.columns(3, "Rotation##Cols", false);
 
-                ui.set_next_item_width(ui.current_column_width());
-                with_color(ui, COL_RED, || imgui::Drag::new("##RotX").speed(SPEED).build(ui, &mut rotation_euler.0));
-                ui.next_column();
-                ui.set_next_item_width(ui.current_column_width());
-                with_color(ui, COL_GRE, || imgui::Drag::new("##RotY").speed(SPEED).build(ui, &mut rotation_euler.1));
-                ui.next_column();
-                ui.set_next_item_width(ui.current_column_width());
-                with_color(ui, COL_BLU, || imgui::Drag::new("##RotZ").speed(SPEED).build(ui, &mut rotation_euler.2));
-                ui.next_column();
+                    ui.set_next_item_width(ui.current_column_width());
+                    with_color(ui, COL_RED, || imgui::Drag::new("##RotX").speed(SPEED).build(ui, &mut rotation_euler.0));
+                    ui.next_column();
+                    ui.set_next_item_width(ui.current_column_width());
+                    with_color(ui, COL_GRE, || imgui::Drag::new("##RotY").speed(SPEED).build(ui, &mut rotation_euler.1));
+                    ui.next_column();
+                    ui.set_next_item_width(ui.current_column_width());
+                    with_color(ui, COL_BLU, || imgui::Drag::new("##RotZ").speed(SPEED).build(ui, &mut rotation_euler.2));
+                    ui.next_column();
+                }
 
                 rotation = Quat::from_euler(EulerRot::XYZ, rotation_euler.0, rotation_euler.1, rotation_euler.2);
 
