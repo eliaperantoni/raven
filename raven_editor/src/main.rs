@@ -6,11 +6,11 @@ use std::fs;
 use std::path::PathBuf;
 
 use gl;
+use glutin::ContextBuilder;
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
-use glutin::ContextBuilder;
-use imgui::{Context, Window};
+use imgui::{Context, StyleColor, Window, Ui};
 use imgui_opengl_renderer::Renderer;
 use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -18,11 +18,13 @@ use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use raven_core::component::{HierarchyComponent, NameComponent, TransformComponent};
 use raven_core::ecs::{Entity, Query};
 use raven_core::framebuffer::Framebuffer;
-use raven_core::path;
-use raven_core::resource::Scene;
-use raven_core::Processor;
-use raven_core::glam::{Mat4, Vec3, Quat, EulerRot};
+use raven_core::glam::{EulerRot, Mat4, Quat, Vec3};
 use raven_core::mat4;
+use raven_core::path;
+use raven_core::Processor;
+use raven_core::resource::Scene;
+use palette;
+use palette::{FromColor, Saturate, Shade};
 
 mod import;
 
@@ -410,7 +412,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 imgui::TextureId::new(framebuffer.get_tex_id() as _),
                 [width, height],
             )
-            .build(&ui);
+                .build(&ui);
         });
 
     style_stack.pop();
@@ -442,22 +444,26 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 }
             };
 
-            imgui::TreeNode::new(&imgui::ImString::from(name))
+            let tree_node = imgui::TreeNode::new(&imgui::ImString::from(name))
                 .flags(imgui::TreeNodeFlags::SPAN_AVAIL_WIDTH)
                 .open_on_arrow(true)
                 .selected(*ctx.selection == Some(ent))
                 .leaf(hier_comp.children.is_empty())
-                .build(ctx.ui, || {
-                    if ctx.ui.is_item_clicked() {
-                        *ctx.selection = Some(ent);
-                    }
+                .push(ctx.ui);
 
-                    for child in &hier_comp.children {
-                        if let Some(hier_comp) = ctx.scene.get_one::<HierarchyComponent>(*child) {
-                            draw_tree_node(ctx, *child, &*hier_comp);
-                        }
+            if ctx.ui.is_item_clicked() && !ctx.ui.is_item_toggled_open() {
+                *ctx.selection = Some(ent);
+            }
+
+            if let Some(tree_node) = tree_node {
+                for child in &hier_comp.children {
+                    if let Some(hier_comp) = ctx.scene.get_one::<HierarchyComponent>(*child) {
+                        draw_tree_node(ctx, *child, &*hier_comp);
                     }
-                });
+                }
+
+                tree_node.end();
+            }
         }
 
         let mut next_nameless_name = 0;
@@ -469,8 +475,8 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             selection: &mut proj_state.selection,
         };
 
-        for (ent, (hier_comp,), _) in <(HierarchyComponent,)>::query_shallow(scene)
-            .filter(|(_, (hier_comp,), _)| hier_comp.parent.is_none())
+        for (ent, (hier_comp, ), _) in <(HierarchyComponent, )>::query_shallow(scene)
+            .filter(|(_, (hier_comp, ), _)| hier_comp.parent.is_none())
         {
             draw_tree_node(&mut ctx, ent, &*hier_comp);
         }
@@ -479,7 +485,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
     Window::new("Inspector").build(ui, || {
         let selection = match proj_state.selection {
             Some(selection) => selection,
-            None => return
+            None => return,
         };
 
         match proj_state.processor.get_scene_mut().unwrap().get_one_mut::<TransformComponent>(selection) {
@@ -494,29 +500,85 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
                 mat4::decompose(m4.as_ref(), position.as_mut(), scale.as_mut(), rotation.as_mut());
 
+                fn with_color<F: FnOnce() -> bool>(ui: &Ui, color: [f32; 3], f: F) -> bool {
+                    fn to_hsv(color: [f32; 3]) -> palette::Hsv {
+                        let [red, green, blue] = color;
+                        palette::Hsv::from_color(palette::Srgb::new(red, green, blue))
+                    }
+
+                    fn from_hsv(color: palette::Hsv) -> [f32; 4] {
+                        let (red, green, blue) = palette::Srgb::from_color(color).into_components();
+                        [red, green, blue, 1.0]
+                    }
+
+                    let style_cols = vec![
+                        ui.push_style_color(StyleColor::FrameBg, from_hsv(to_hsv(color).desaturate(0.7).darken(0.7))),
+                        ui.push_style_color(StyleColor::FrameBgHovered, from_hsv(to_hsv(color).desaturate(0.7).darken(0.6))),
+                        ui.push_style_color(StyleColor::FrameBgActive, from_hsv(to_hsv(color).desaturate(0.7).darken(0.5))),
+                    ];
+                    let res = f();
+                    style_cols.into_iter().for_each(|style_col| style_col.pop());
+                    res
+                }
+
+                const COL_RED: [f32; 3] = [1.0, 0.0, 0.0];
+                const COL_GRE: [f32; 3] = [0.0, 1.0, 0.0];
+                const COL_BLU: [f32; 3] = [0.0, 0.0, 1.0];
+
                 const SPEED: f32 = 0.05;
 
                 ui.text("Position");
-                imgui::Drag::new("##PosX").speed(SPEED).build(ui, &mut position.x);
-                imgui::Drag::new("##PosY").speed(SPEED).build(ui, &mut position.y);
-                imgui::Drag::new("##PosZ").speed(SPEED).build(ui, &mut position.z);
+
+                ui.columns(3, "Position##Cols", false);
+
+                ui.set_next_item_width(ui.current_column_width());
+                with_color(ui, COL_RED, || imgui::Drag::new("##PosX").speed(SPEED).build(ui, &mut position.x));
+                ui.next_column();
+                ui.set_next_item_width(ui.current_column_width());
+                with_color(ui, COL_GRE, || imgui::Drag::new("##PosY").speed(SPEED).build(ui, &mut position.y));
+                ui.next_column();
+                ui.set_next_item_width(ui.current_column_width());
+                with_color(ui, COL_BLU, || imgui::Drag::new("##PosZ").speed(SPEED).build(ui, &mut position.z));
+                ui.next_column();
 
                 ui.spacing();
+
+                ui.columns(1, "Scale##LabelCol", false);
                 ui.text("Scale");
-                imgui::Drag::new("##ScaleX").speed(SPEED).build(ui, &mut scale.x);
-                imgui::Drag::new("##ScaleY").speed(SPEED).build(ui, &mut scale.y);
-                imgui::Drag::new("##ScaleZ").speed(SPEED).build(ui, &mut scale.z);
+
+                ui.columns(3, "Scale##Cols", false);
+
+                ui.set_next_item_width(ui.current_column_width());
+                with_color(ui, COL_RED, || imgui::Drag::new("##ScaleX").speed(SPEED).build(ui, &mut scale.x));
+                ui.next_column();
+                ui.set_next_item_width(ui.current_column_width());
+                with_color(ui, COL_GRE, || imgui::Drag::new("##ScaleY").speed(SPEED).build(ui, &mut scale.y));
+                ui.next_column();
+                ui.set_next_item_width(ui.current_column_width());
+                with_color(ui, COL_BLU, || imgui::Drag::new("##ScaleZ").speed(SPEED).build(ui, &mut scale.z));
+                ui.next_column();
 
                 ui.spacing();
+
+                ui.columns(1, "Rotation##LabelCol", false);
                 ui.text("Rotation");
-                imgui::Drag::new("##RotX").speed(SPEED).build(ui, &mut rotation_euler.0);
-                imgui::Drag::new("##RotY").speed(SPEED).build(ui, &mut rotation_euler.1);
-                imgui::Drag::new("##RotZ").speed(SPEED).build(ui, &mut rotation_euler.2);
+
+                ui.columns(3, "Rotation##Cols", false);
+
+                ui.set_next_item_width(ui.current_column_width());
+                with_color(ui, COL_RED, || imgui::Drag::new("##RotX").speed(SPEED).build(ui, &mut rotation_euler.0));
+                ui.next_column();
+                ui.set_next_item_width(ui.current_column_width());
+                with_color(ui, COL_GRE, || imgui::Drag::new("##RotY").speed(SPEED).build(ui, &mut rotation_euler.1));
+                ui.next_column();
+                ui.set_next_item_width(ui.current_column_width());
+                with_color(ui, COL_BLU, || imgui::Drag::new("##RotZ").speed(SPEED).build(ui, &mut rotation_euler.2));
+                ui.next_column();
 
                 rotation = Quat::from_euler(EulerRot::XYZ, rotation_euler.0, rotation_euler.1, rotation_euler.2);
 
                 mat4::compose(m4.as_mut(), position.as_ref(), scale.as_ref(), rotation.as_ref());
-            },
+            }
             None => (),
         };
     });
