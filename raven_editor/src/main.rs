@@ -505,9 +505,9 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 let mut scale = Vec3::default();
                 let mut rotation = Quat::default();
 
-                let mut rotation_euler = rotation.to_euler(EulerRot::XYZ);
-
                 mat4::decompose(m4.as_ref(), position.as_mut(), scale.as_mut(), rotation.as_mut());
+
+                let mut rotation_euler = rotation.to_euler(EulerRot::XYZ);
 
                 fn with_color<F: FnOnce() -> bool>(ui: &Ui, color: [f32; 3], f: F) -> bool {
                     fn to_hsv(color: [f32; 3]) -> palette::Hsv {
