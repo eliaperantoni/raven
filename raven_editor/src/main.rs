@@ -224,6 +224,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             WindowFlags::NO_BRING_TO_FRONT_ON_FOCUS,
             WindowFlags::NO_NAV_FOCUS,
             WindowFlags::NO_BACKGROUND,
+            WindowFlags::MENU_BAR,
         ] {
             w_flags.insert(w_flag);
         }
@@ -248,7 +249,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
     let mut res: Result<()> = Ok(());
 
-    if let Some(menu_bar) = ui.begin_main_menu_bar() {
+    if let Some(menu_bar) = ui.begin_menu_bar() {
         if let Some(menu) = ui.begin_menu("File") {
             res = try {
                 if imgui::MenuItem::new("Import external").build(ui) {
