@@ -488,6 +488,15 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             None => return,
         };
 
+        match proj_state.processor.get_scene_mut().unwrap().get_one_mut::<NameComponent>(selection) {
+            Some(mut name_comp) => {
+                if imgui::CollapsingHeader::new("NameComponent").default_open(true).build(ui) {
+                    imgui::InputText::new(ui, "Name", &mut name_comp.0).build();
+                }
+            },
+            None => (),
+        };
+
         match proj_state.processor.get_scene_mut().unwrap().get_one_mut::<TransformComponent>(selection) {
             Some(mut tran_comp) => {
                 let m4: &mut Mat4 = &mut tran_comp.0;
@@ -527,7 +536,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
                 const SPEED: f32 = 0.05;
 
-                if imgui::CollapsingHeader::new("TransformComponent").build(ui) {
+                if imgui::CollapsingHeader::new("TransformComponent").default_open(true).build(ui) {
                     ui.text("Position");
 
                     ui.columns(3, "Position##Cols", false);
