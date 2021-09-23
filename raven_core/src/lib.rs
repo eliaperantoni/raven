@@ -203,7 +203,7 @@ fn compute_camera_mats(scene: &Scene, base_transform: Mat4, canvas_size: &[u32; 
             projection_mat: {
                 let [width, height] = canvas_size;
                 let aspect_ratio = *width as f32 / *height as f32;
-                Mat4::perspective_rh_gl(90_f32.to_radians(), aspect_ratio, 0.1, 100.0)
+                Mat4::perspective_rh(90_f32.to_radians(), aspect_ratio, 0.1, 100.0)
             },
         }
     })

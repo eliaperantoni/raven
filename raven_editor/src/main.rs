@@ -10,10 +10,12 @@ use glutin::ContextBuilder;
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
-use imgui::{Context, StyleColor, Window, Ui};
+use imgui::{Context, StyleColor, Ui, Window};
 use imgui_opengl_renderer::Renderer;
 use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
+use palette;
+use palette::{FromColor, Saturate, Shade};
 
 use raven_core::component::{HierarchyComponent, NameComponent, TransformComponent};
 use raven_core::ecs::{Entity, Query};
@@ -24,9 +26,6 @@ use raven_core::path;
 use raven_core::Processor;
 use raven_core::resource::Scene;
 use raven_core::time::Delta;
-
-use palette;
-use palette::{FromColor, Saturate, Shade};
 
 mod import;
 
@@ -419,8 +418,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             imgui::Image::new(
                 imgui::TextureId::new(framebuffer.get_tex_id() as _),
                 [width, height],
-            )
-                .build(&ui);
+            ).build(&ui);
         });
 
     style_stack.pop();
@@ -512,7 +510,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 if imgui::CollapsingHeader::new("NameComponent").default_open(true).build(ui) {
                     imgui::InputText::new(ui, "Name", &mut name_comp.0).build();
                 }
-            },
+            }
             None => (),
         };
 
