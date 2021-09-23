@@ -23,6 +23,8 @@ use raven_core::mat4;
 use raven_core::path;
 use raven_core::Processor;
 use raven_core::resource::Scene;
+use raven_core::time::Delta;
+
 use palette;
 use palette::{FromColor, Saturate, Shade};
 
@@ -71,6 +73,8 @@ fn main() -> Result<()> {
     // Currently loaded project
     let mut proj_state: Option<OpenProjectState> = None;
 
+    let mut delta = Delta::default();
+
     el.run(move |event, _, control_flow| {
         match event {
             Event::MainEventsCleared => {
@@ -78,6 +82,10 @@ fn main() -> Result<()> {
                     .prepare_frame(imgui.io_mut(), windowed_context.window())
                     .expect("failed to prepare frame");
                 windowed_context.window().request_redraw();
+
+                if let Some(delta) = delta.on_frame() {
+                    imgui.io_mut().delta_time = delta.as_secs_f32();
+                }
             }
             Event::RedrawRequested(_) => {
                 let ui = imgui.frame();

@@ -1,4 +1,5 @@
 #![feature(with_options)]
+#![feature(duration_constants)]
 
 use std::error::Error;
 use std::path::{Path, PathBuf};
@@ -27,6 +28,7 @@ pub mod component;
 pub mod io;
 pub mod path;
 pub mod framebuffer;
+pub mod time;
 
 mod vao;
 mod tex;

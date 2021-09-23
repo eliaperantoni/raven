@@ -1,5 +1,3 @@
-#![feature(duration_constants)]
-
 use std::error::Error;
 
 use glutin::ContextBuilder;
@@ -7,12 +5,10 @@ use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
 
-use fps::FpsCounter;
 use raven_core::Processor;
+use raven_core::time::FpsCounter;
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
-
-mod fps;
 
 fn main() -> Result<()> {
     let el = EventLoop::new();
