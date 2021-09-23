@@ -127,9 +127,12 @@ impl Processor {
     }
 
     fn process_scene(scene: &mut Scene, state: &mut ProcessorState, base_transform: Mat4) -> Result<()> {
-        for (_, (mut scene_comp, transform_comp), _)
-        in <(SceneComponent, TransformComponent)>::query_shallow_mut(scene) {
-            Processor::process_scene(scene_comp.loaded.as_mut().unwrap(), state, base_transform * transform_comp.0)?;
+        let scene_containers: Vec<(Entity, Mat4)> = <(SceneComponent, )>::query_shallow(scene)
+            .map(|(entity, _, _)| (entity, base_transform * combined_transform(scene, entity))).collect();
+
+        for (entity, base_transform) in scene_containers {
+            let mut scene_comp = scene.get_one_mut::<SceneComponent>(entity).unwrap();
+            Processor::process_scene(scene_comp.loaded.as_mut().unwrap(), state, base_transform)?;
         }
 
         for (_, (mut mesh_comp, ), _)
