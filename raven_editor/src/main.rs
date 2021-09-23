@@ -430,10 +430,21 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
     });
 
     Window::new("Hierarchy").build(&ui, || {
-        let scene = match proj_state.processor.get_scene() {
+        let scene = match proj_state.processor.get_scene_mut() {
             Some(scene) => scene,
             None => return,
         };
+
+        if ui.button_with_size("Create new entity", [ui.content_region_avail()[0], 0.0]) {
+            let entity = scene.create();
+            scene.attach(entity, TransformComponent::default());
+            scene.attach(entity, HierarchyComponent::default());
+            scene.attach(entity, NameComponent("New entity".to_owned()));
+        }
+
+        ui.spacing();
+        ui.separator();
+        ui.spacing();
 
         struct Ctx<'me> {
             ui: &'me imgui::Ui<'me>,
