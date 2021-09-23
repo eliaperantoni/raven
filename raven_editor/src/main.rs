@@ -418,7 +418,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             imgui::Image::new(
                 imgui::TextureId::new(framebuffer.get_tex_id() as _),
                 [width, height],
-            ).build(&ui);
+            ).uv0([0.0, 1.0]).uv1([1.0, 0.0]).build(&ui);
         });
 
     style_stack.pop();
