@@ -17,7 +17,7 @@ use imgui_winit_support::{HiDpiMode, WinitPlatform};
 use palette;
 use palette::{FromColor, Saturate, Shade};
 
-use raven_core::component::{HierarchyComponent, NameComponent, TransformComponent};
+use raven_core::component::{HierarchyComponent, NameComponent, TransformComponent, SceneComponent};
 use raven_core::ecs::{Entity, Query};
 use raven_core::framebuffer::Framebuffer;
 use raven_core::glam::{EulerRot, Mat4, Quat, Vec3};
@@ -26,6 +26,10 @@ use raven_core::path;
 use raven_core::Processor;
 use raven_core::resource::Scene;
 use raven_core::time::Delta;
+use std::collections::HashMap;
+
+use glob;
+use itertools::Itertools;
 
 mod import;
 
@@ -37,6 +41,41 @@ struct OpenProjectState {
     framebuffer: Option<([u32; 2], Framebuffer)>,
 
     selection: Option<Entity>,
+
+    avail_resources: HashMap<ResourceType, Vec<PathBuf>>,
+}
+
+#[derive(Eq, PartialEq, Debug, Hash, Copy, Clone)]
+enum ResourceType {
+    Scene
+}
+
+impl ResourceType {
+    fn glob(&self) -> &'static str {
+        match self {
+            Self::Scene => "*.scn"
+        }
+    }
+}
+
+impl OpenProjectState {
+    fn scan_avail_resources(&mut self) -> Result<()> {
+        self.avail_resources.clear();
+
+        for r_type in vec![ResourceType::Scene] {
+            let mut path = std::path::PathBuf::new();
+            path.push(&self.project_root);
+            path.push("**");
+            path.push(r_type.glob());
+
+            for match_ in glob::glob(path.to_str().expect("non utf8 path")).map_err(|err| Box::<dyn Error>::from(err))? {
+                let mut vec = self.avail_resources.entry(r_type).or_insert_with(|| Vec::new());
+                vec.push(match_?);
+            }
+        }
+
+        Ok(())
+    }
 }
 
 fn main() -> Result<()> {
@@ -185,13 +224,19 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
                             let mut processor = Processor::new(&path).unwrap();
                             processor.load_scene("$/main.scn").unwrap();
 
-                            out = Ok(Some(OpenProjectState {
+                            let mut state = OpenProjectState {
                                 project_root: PathBuf::from(&path),
                                 processor,
                                 framebuffer: None,
 
                                 selection: None,
-                            }))
+
+                                avail_resources: HashMap::new(),
+                            };
+
+                            state.scan_avail_resources()?;
+
+                            out = Ok(Some(state));
                         }
                         _ => (),
                     }
@@ -609,6 +654,32 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             }
             None => (),
         };
+
+        match proj_state.processor.get_scene().unwrap().get_one::<SceneComponent>(selection) {
+            Some(scene_comp) => {
+                if imgui::CollapsingHeader::new("SceneComponent").default_open(true).build(ui) {
+                    let scenes = if let Some(scenes) = proj_state.avail_resources.get(&ResourceType::Scene) {
+                        scenes
+                    } else { return; };
+
+                    let mut idx = if let Some((idx, _)) = scenes.iter().find_position(|scene| **scene == scene_comp.scene) {
+                        idx
+                    } else { return; };
+
+                    let scenes_str: Vec<_> = scenes.iter().map(|scene| scene.to_str().expect("non utf8 path")).collect();
+
+                    let old_idx = idx;
+                    ui.combo_simple_string("##Scene", &mut idx, &scenes_str);
+
+                    if old_idx != idx {
+                        let mut scene_comp = proj_state.processor.get_scene_mut().unwrap().get_one_mut::<SceneComponent>(selection).unwrap();
+                        scene_comp.scene = scenes[idx].clone();
+                        scene_comp.loaded = None;
+                    }
+                }
+            }
+            None => (),
+        }
     });
 
     main_window.end();

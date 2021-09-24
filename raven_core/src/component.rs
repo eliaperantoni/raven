@@ -50,5 +50,5 @@ pub struct CameraComponent {}
 pub struct SceneComponent {
     pub scene: PathBuf,
     #[serde(skip)]
-    pub(crate) loaded: Option<Scene>,
+    pub loaded: Option<Scene>,
 }

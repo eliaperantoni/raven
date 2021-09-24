@@ -1561,6 +1561,7 @@ name = "raven_editor"
 version = "0.1.0"
 dependencies = [
  "gl",
+ "glob",
  "glutin",
  "image",
  "imgui",
