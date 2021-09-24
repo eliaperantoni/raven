@@ -1,4 +1,5 @@
 #![feature(try_blocks)]
+#![feature(label_break_value)]
 
 use std::error::Error;
 use std::ffi::CString;
@@ -69,8 +70,15 @@ impl OpenProjectState {
             path.push(r_type.glob());
 
             for match_ in glob::glob(path.to_str().expect("non utf8 path")).map_err(|err| Box::<dyn Error>::from(err))? {
-                let mut vec = self.avail_resources.entry(r_type).or_insert_with(|| Vec::new());
-                vec.push(match_?);
+                let abs_path = match_?;
+                let rel_path = abs_path.strip_prefix(&self.project_root)?;
+
+                let mut raven_path = PathBuf::new();
+                raven_path.push(path::PROJECT_ROOT_RUNE);
+                raven_path.push(rel_path);
+
+                let vec = self.avail_resources.entry(r_type).or_insert_with(|| Vec::new());
+                vec.push(raven_path);
             }
         }
 
@@ -235,6 +243,8 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
                             };
 
                             state.scan_avail_resources()?;
+
+                            dbg!(&state.avail_resources);
 
                             out = Ok(Some(state));
                         }
@@ -646,6 +656,8 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                     ui.set_next_item_width(ui.current_column_width());
                     with_color(ui, COL_BLU, || imgui::Drag::new("##RotZ").speed(SPEED).build(ui, &mut rotation_euler.2));
                     ui.next_column();
+
+                    ui.columns(1, "##Reset", false);
                 }
 
                 rotation = Quat::from_euler(EulerRot::XYZ, rotation_euler.0, rotation_euler.1, rotation_euler.2);
@@ -655,30 +667,42 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             None => (),
         };
 
-        match proj_state.processor.get_scene().unwrap().get_one::<SceneComponent>(selection) {
+        let new_scene: Option<PathBuf> = match proj_state.processor.get_scene().unwrap().get_one::<SceneComponent>(selection) {
             Some(scene_comp) => {
                 if imgui::CollapsingHeader::new("SceneComponent").default_open(true).build(ui) {
-                    let scenes = if let Some(scenes) = proj_state.avail_resources.get(&ResourceType::Scene) {
-                        scenes
-                    } else { return; };
+                    'draw_header: {
+                        let scenes = if let Some(scenes) = proj_state.avail_resources.get(&ResourceType::Scene) {
+                            scenes
+                        } else { break 'draw_header None; };
 
-                    let mut idx = if let Some((idx, _)) = scenes.iter().find_position(|scene| **scene == scene_comp.scene) {
-                        idx
-                    } else { return; };
+                        let mut idx = if let Some((idx, _)) = scenes.iter().find_position(|scene| **scene == scene_comp.scene) {
+                            idx
+                        } else { break 'draw_header None; };
 
-                    let scenes_str: Vec<_> = scenes.iter().map(|scene| scene.to_str().expect("non utf8 path")).collect();
+                        let scenes_str: Vec<_> = scenes.iter().map(|scene| scene.to_str().expect("non utf8 path")).collect();
 
-                    let old_idx = idx;
-                    ui.combo_simple_string("##Scene", &mut idx, &scenes_str);
+                        let old_idx = idx;
 
-                    if old_idx != idx {
-                        let mut scene_comp = proj_state.processor.get_scene_mut().unwrap().get_one_mut::<SceneComponent>(selection).unwrap();
-                        scene_comp.scene = scenes[idx].clone();
-                        scene_comp.loaded = None;
+                        ui.set_next_item_width(ui.content_region_avail()[0]);
+                        ui.combo_simple_string("##Scene", &mut idx, &scenes_str);
+
+                        if old_idx != idx {
+                            Some(scenes[idx].clone())
+                        } else {
+                            None
+                        }
                     }
+                } else {
+                    None
                 }
             }
-            None => (),
+            None => None,
+        };
+
+        if let Some(new_scene) = new_scene {
+            let mut scene_comp = proj_state.processor.get_scene_mut().unwrap().get_one_mut::<SceneComponent>(selection).unwrap();
+            scene_comp.scene = new_scene;
+            scene_comp.loaded = None;
         }
     });
 
