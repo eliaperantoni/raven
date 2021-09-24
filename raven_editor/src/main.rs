@@ -504,6 +504,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 .open_on_arrow(true)
                 .selected(*ctx.selection == Some(ent))
                 .leaf(hier_comp.children.is_empty())
+                .open_on_double_click(true)
                 .push(ctx.ui);
 
             if ctx.ui.is_item_clicked() && !ctx.ui.is_item_toggled_open() {
