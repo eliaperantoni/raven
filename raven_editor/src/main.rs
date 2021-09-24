@@ -364,13 +364,13 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             imgui_sys::igDockBuilderSetNodeSize(id, (*viewport).Size);
 
             // +------------------------+
-            // | TL  | TR               |
+            // | TL  | R                |
             // |     |                  |
             // |     |                  |
             // |-----|                  |
             // | BL  |                  |
-            // |     |----------------- |
-            // |     | BR               |
+            // |     |                  |
+            // |     |                  |
             // +------------------------+
 
             let mut left_id = 0;
@@ -387,22 +387,12 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             let mut top_left_id = 0;
             let mut bot_left_id = 0;
 
-            let mut top_right_id = 0;
-            let mut bot_right_id = 0;
-
             imgui_sys::igDockBuilderSplitNode(
                 left_id,
                 imgui_sys::ImGuiDir_Up,
                 0.5,
                 &mut top_left_id,
                 &mut bot_left_id,
-            );
-            imgui_sys::igDockBuilderSplitNode(
-                right_id,
-                imgui_sys::ImGuiDir_Up,
-                0.8,
-                &mut top_right_id,
-                &mut bot_right_id,
             );
 
             let window_name = CString::new("Hierarchy").unwrap();
@@ -412,10 +402,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), bot_left_id);
 
             let window_name = CString::new("Viewport").unwrap();
-            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), top_right_id);
-
-            let window_name = CString::new("Content browser").unwrap();
-            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), bot_right_id);
+            imgui_sys::igDockBuilderDockWindow(window_name.as_ptr(), right_id);
 
             imgui_sys::igDockBuilderFinish(id);
         }
@@ -477,10 +464,6 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
         });
 
     style_stack.pop();
-
-    Window::new("Content browser").build(&ui, || {
-        ui.text("Hello I'm the content browser");
-    });
 
     Window::new("Hierarchy").build(&ui, || {
         let scene = match proj_state.processor.get_scene_mut() {
