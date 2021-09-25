@@ -229,8 +229,7 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
                 if ui.button_with_size("Open existing project", BTN_SIZE) {
                     match nfd::open_pick_folder(None) {
                         Ok(nfd::Response::Okay(path)) => {
-                            let mut processor = Processor::new(&path)?;
-                            processor.load_scene("$/main.scn")?;
+                            let processor = Processor::new(&path)?;
 
                             let mut state = OpenProjectState {
                                 project_root: PathBuf::from(&path),
@@ -383,6 +382,11 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             return Err(err);
         }
         _ => (),
+    }
+
+    if proj_state.processor.get_scene().is_none() {
+        ui.text("No scene");
+        return Ok(());
     }
 
     // Setup docking and dock windows
