@@ -577,6 +577,14 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                     scene.attach(selection, SceneComponent::default());
                 }
             }
+
+            if imgui::Selectable::new("CameraComponent").build(ui) {
+                let scene = proj_state.processor.get_scene_mut().unwrap();
+
+                if scene.get_one::<CameraComponent>(selection).is_none() {
+                    scene.attach(selection, CameraComponent::default());
+                }
+            }
         });
 
         ui.separator();

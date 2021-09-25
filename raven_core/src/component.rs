@@ -43,7 +43,7 @@ impl MeshComponent {
     }
 }
 
-#[derive(Component, Serialize, Deserialize)]
+#[derive(Component, Serialize, Deserialize, Default)]
 pub struct CameraComponent {}
 
 #[derive(Component, Serialize, Deserialize, Default)]
