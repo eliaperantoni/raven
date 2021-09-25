@@ -230,7 +230,7 @@ fn compute_camera_mats(scene: &Scene, base_transform: Mat4, canvas_size: &[u32; 
     })
 }
 
-fn combined_transform(scene: &Scene, mut entity: Entity) -> Mat4 {
+pub fn combined_transform(scene: &Scene, mut entity: Entity) -> Mat4 {
     let mut transform_components = Vec::new();
 
     loop {

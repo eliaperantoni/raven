@@ -32,6 +32,7 @@ use raven_core::path;
 use raven_core::Processor;
 use raven_core::resource::Scene;
 use raven_core::time::Delta;
+use raven_core::combined_transform;
 
 mod import;
 
@@ -578,8 +579,13 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             dragging: &'me mut Option<Entity>,
         }
 
+        enum ReattachTarget {
+            Entity(Entity),
+            Unroot,
+        }
+
         struct Reattach {
-            parent: Entity,
+            target: ReattachTarget,
             child: Entity,
         }
 
@@ -613,7 +619,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 if target.accept_payload_empty(drag_drop_name, imgui::DragDropFlags::empty()).is_some() {
                     let child_ent = ctx.dragging.take().unwrap();
                     reattach = Some(Reattach {
-                        parent: ent,
+                        target: ReattachTarget::Entity(ent),
                         child: child_ent,
                     })
                 }
@@ -663,23 +669,51 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
         }
 
         if let Some(reattach) = reattach {
-            let mut child_comp = scene.get_one_mut::<HierarchyComponent>(reattach.child).unwrap();
-            if child_comp.parent != Some(reattach.parent) {
-                let old_parent = child_comp.parent;
+            match reattach.target {
+                ReattachTarget::Entity(parent) => {
+                    // Given
+                    // A: combined transform of current parent
+                    // B: combined transform of new parent
+                    // x: current transform
+                    // y: new transform (this is what we want to find)
+                    // w: global transform to preserve
+                    // then
+                    // A * x = w = B * y
+                    // gives
+                    // B^-1 * w = B^-1 * B * y
+                    // and so
+                    // B^-1 * w = y
 
-                child_comp.parent = Some(reattach.parent);
-                drop(child_comp);
+                    let b = combined_transform(scene, parent);
+                    let b_inv = b.inverse();
 
-                match old_parent {
-                    Some(old_parent) => {
-                        let vec: &mut Vec<Entity> = &mut scene.get_one_mut::<HierarchyComponent>(old_parent).unwrap().children;
-                        let (idx, _) = vec.iter().find_position(|ent| **ent == reattach.child).unwrap();
-                        vec.remove(idx);
-                    },
-                    None => (),
+                    let w = combined_transform(scene, reattach.child);
+
+                    let y = b_inv * w;
+
+                    scene.get_one_mut::<TransformComponent>(reattach.child).unwrap().0 = y;
+
+                    let mut child_comp = scene.get_one_mut::<HierarchyComponent>(reattach.child).unwrap();
+
+                    let old_parent = child_comp.parent;
+
+                    // Set child's parent
+                    child_comp.parent = Some(parent);
+                    drop(child_comp);
+
+                    // If has an old parent, remove child from list of children
+                    match old_parent {
+                        Some(old_parent) => {
+                            let vec: &mut Vec<Entity> = &mut scene.get_one_mut::<HierarchyComponent>(old_parent).unwrap().children;
+                            let (idx, _) = vec.iter().find_position(|ent| **ent == reattach.child).unwrap();
+                            vec.remove(idx);
+                        },
+                        None => (),
+                    }
+
+                    scene.get_one_mut::<HierarchyComponent>(parent).unwrap().children.push(reattach.child);
                 }
-
-                scene.get_one_mut::<HierarchyComponent>(reattach.parent).unwrap().children.push(reattach.child);
+                _ => todo!()
             }
         }
     });
