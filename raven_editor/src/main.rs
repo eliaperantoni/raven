@@ -21,17 +21,17 @@ use itertools::Itertools;
 use palette;
 use palette::{FromColor, Saturate, Shade};
 
-use raven_core::component::{HierarchyComponent, NameComponent, SceneComponent, TransformComponent, CameraComponent};
+use raven_core::component::{CameraComponent, HierarchyComponent, NameComponent, SceneComponent, TransformComponent};
 use raven_core::ecs::{Entity, Query};
 use raven_core::framebuffer::Framebuffer;
+use raven_core::FrameError;
 use raven_core::glam::{EulerRot, Mat4, Quat, Vec3};
+use raven_core::io::Serializable;
 use raven_core::mat4;
 use raven_core::path;
 use raven_core::Processor;
 use raven_core::resource::Scene;
 use raven_core::time::Delta;
-use raven_core::FrameError;
-use raven_core::io::Serializable;
 
 mod import;
 
@@ -42,10 +42,16 @@ struct OpenProjectState {
     processor: Processor,
     framebuffer: Option<([u32; 2], Framebuffer)>,
 
+    // Original absolute file system path to the loaded scene
     opened_scene_fs_path: Option<PathBuf>,
 
+    // Entity currently selected in the hierarchy panel
     selection: Option<Entity>,
 
+    // Entity being dragged
+    dragging: Option<Entity>,
+
+    // Resources known to the editor
     avail_resources: HashMap<ResourceType, Vec<PathBuf>>,
 }
 
@@ -242,6 +248,8 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
                                 opened_scene_fs_path: None,
 
                                 selection: None,
+
+                                dragging: None,
 
                                 avail_resources: HashMap::new(),
                             };
@@ -529,7 +537,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 Err(FrameError::Generic(err)) => {
                     out = Err(err);
                     return;
-                },
+                }
                 Err(FrameError::NoCamera) => {
                     ui.text("No camera");
                     return;
@@ -567,9 +575,15 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             scene: &'me Scene,
             next_nameless_name: &'me mut u32,
             selection: &'me mut Option<Entity>,
+            dragging: &'me mut Option<Entity>,
         }
 
-        fn draw_tree_node(ctx: &mut Ctx, ent: Entity, hier_comp: &HierarchyComponent) {
+        struct Reattach {
+            parent: Entity,
+            child: Entity,
+        }
+
+        fn draw_tree_node(ctx: &mut Ctx, ent: Entity, hier_comp: &HierarchyComponent) -> Option<Reattach> {
             let name = match ctx.scene.get_one::<NameComponent>(ent) {
                 Some(name_comp) => name_comp.0.clone(),
                 None => {
@@ -579,13 +593,33 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 }
             };
 
-            let tree_node = imgui::TreeNode::new(&imgui::ImString::from(name))
+            let tree_node = imgui::TreeNode::new(&imgui::ImString::from(name.clone()))
                 .flags(imgui::TreeNodeFlags::SPAN_AVAIL_WIDTH)
                 .open_on_arrow(true)
                 .selected(*ctx.selection == Some(ent))
                 .leaf(hier_comp.children.is_empty())
                 .open_on_double_click(true)
                 .push(ctx.ui);
+
+            let drag_drop_name = "entity_dragging";
+
+            if imgui::DragDropSource::new(drag_drop_name).begin(ctx.ui).is_some() {
+                *ctx.dragging = Some(ent);
+            }
+
+            let mut reattach = None;
+
+            if let Some(target) = imgui::DragDropTarget::new(ctx.ui) {
+                if target.accept_payload_empty(drag_drop_name, imgui::DragDropFlags::empty()).is_some() {
+                    let child_ent = ctx.dragging.take().unwrap();
+                    reattach = Some(Reattach {
+                        parent: ent,
+                        child: child_ent,
+                    })
+                }
+
+                target.pop();
+            }
 
             if ctx.ui.is_item_clicked() && !ctx.ui.is_item_toggled_open() {
                 *ctx.selection = Some(ent);
@@ -594,12 +628,17 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             if let Some(tree_node) = tree_node {
                 for child in &hier_comp.children {
                     if let Some(hier_comp) = ctx.scene.get_one::<HierarchyComponent>(*child) {
-                        draw_tree_node(ctx, *child, &*hier_comp);
+                        let reattach_downstream = draw_tree_node(ctx, *child, &*hier_comp);
+                        if reattach_downstream.is_some() {
+                            reattach = reattach_downstream;
+                        }
                     }
                 }
 
                 tree_node.end();
             }
+
+            reattach
         }
 
         let mut next_nameless_name = 0;
@@ -609,12 +648,39 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             scene,
             next_nameless_name: &mut next_nameless_name,
             selection: &mut proj_state.selection,
+            dragging: &mut proj_state.dragging,
         };
+
+        let mut reattach = None;
 
         for (ent, (hier_comp, ), _) in <(HierarchyComponent, )>::query_shallow(scene)
             .filter(|(_, (hier_comp, ), _)| hier_comp.parent.is_none())
         {
-            draw_tree_node(&mut ctx, ent, &*hier_comp);
+            let reattach_downstream = draw_tree_node(&mut ctx, ent, &*hier_comp);
+            if reattach_downstream.is_some() {
+                reattach = reattach_downstream;
+            }
+        }
+
+        if let Some(reattach) = reattach {
+            let mut child_comp = scene.get_one_mut::<HierarchyComponent>(reattach.child).unwrap();
+            if child_comp.parent != Some(reattach.parent) {
+                let old_parent = child_comp.parent;
+
+                child_comp.parent = Some(reattach.parent);
+                drop(child_comp);
+
+                match old_parent {
+                    Some(old_parent) => {
+                        let vec: &mut Vec<Entity> = &mut scene.get_one_mut::<HierarchyComponent>(old_parent).unwrap().children;
+                        let (idx, _) = vec.iter().find_position(|ent| **ent == reattach.child).unwrap();
+                        vec.remove(idx);
+                    },
+                    None => (),
+                }
+
+                scene.get_one_mut::<HierarchyComponent>(reattach.parent).unwrap().children.push(reattach.child);
+            }
         }
     });
 
