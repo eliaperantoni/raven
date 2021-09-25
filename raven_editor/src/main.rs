@@ -345,6 +345,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                             raven_path.push(path::PROJECT_ROOT_RUNE);
                             raven_path.push(rel_path);
 
+                            proj_state.selection = None;
                             proj_state.processor.load_scene(&raven_path)?;
                         }
                         _ => (),
