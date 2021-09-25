@@ -651,30 +651,35 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             None => (),
         };
 
-        let new_scene: Option<PathBuf> = match proj_state.processor.get_scene().unwrap().get_one::<SceneComponent>(selection) {
+        type NewScene = Option<PathBuf>;
+
+        // Some(Option<PathBuf>) if the scene has changed. None otherwise.
+        let new_scene: Option<NewScene> = match proj_state.processor.get_scene().unwrap().get_one::<SceneComponent>(selection) {
             Some(scene_comp) => {
                 if imgui::CollapsingHeader::new("SceneComponent").default_open(true).build(ui) {
-                    'draw_header: {
-                        let scenes = if let Some(scenes) = proj_state.avail_resources.get(&ResourceType::Scene) {
-                            scenes
-                        } else { break 'draw_header None; };
+                    try {
+                        let scenes = proj_state.avail_resources.get(&ResourceType::Scene)?;
 
-                        let mut idx = if let Some((idx, _)) = scenes.iter().find_position(|scene| **scene == scene_comp.scene) {
-                            idx
-                        } else { break 'draw_header None; };
+                        let mut scenes: Vec<Option<&PathBuf>> = scenes.into_iter().map(|scene| Some(scene)).collect::<Vec<_>>();
+                        scenes.insert(0, None);
 
-                        let scenes_str: Vec<_> = scenes.iter().map(|scene| scene.to_str().expect("non utf8 path")).collect();
+                        let (mut idx, _) = scenes.iter().find_position(|scene| **scene == scene_comp.scene.as_ref())?;
+
+                        let scenes_str: Vec<_> = scenes.iter().map(|scene| match *scene {
+                            Some(scene) => scene.to_str().expect("non utf8 path"),
+                            None => "",
+                        }).collect();
 
                         let old_idx = idx;
 
                         ui.set_next_item_width(ui.content_region_avail()[0]);
                         ui.combo_simple_string("##Scene", &mut idx, &scenes_str);
 
-                        if old_idx != idx {
-                            Some(scenes[idx].clone())
-                        } else {
-                            None
+                        if old_idx == idx {
+                            None?;
                         }
+
+                        scenes[idx].cloned()
                     }
                 } else {
                     None

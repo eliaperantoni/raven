@@ -117,8 +117,14 @@ impl Processor {
     fn load_downstream_scenes(scene: &mut Scene, state: &ProcessorState) -> Result<()> {
         for (_, (mut scene_comp, ), _)
         in <(SceneComponent, )>::query_shallow_mut(scene) {
+            // Ignore SceneComponents with no scene selected
+            let scene = match scene_comp.scene.as_ref() {
+                Some(scene) => scene,
+                None => continue,
+            };
+
             if scene_comp.loaded.is_none() {
-                scene_comp.loaded = Some(Scene::load(path::as_fs_abs(&state.project_root, &scene_comp.scene))?);
+                scene_comp.loaded = Some(Scene::load(path::as_fs_abs(&state.project_root, scene))?);
             }
 
             Processor::load_downstream_scenes(scene_comp.loaded.as_mut().unwrap(), state)?;
@@ -128,6 +134,7 @@ impl Processor {
 
     fn process_scene(scene: &mut Scene, state: &mut ProcessorState, base_transform: Mat4) -> Result<()> {
         let scene_containers: Vec<(Entity, Mat4)> = <(SceneComponent, )>::query_shallow(scene)
+            .filter(|(_, (scene_comp,), _)| scene_comp.scene.is_some()) // Ignore SceneComponents with no scene selected
             .map(|(entity, _, _)| (entity, base_transform * combined_transform(scene, entity))).collect();
 
         for (entity, base_transform) in scene_containers {
@@ -178,6 +185,11 @@ impl Processor {
 fn compute_camera_mats(scene: &Scene, base_transform: Mat4, canvas_size: &[u32; 2]) -> Option<CameraMats> {
     for (_, (scene_comp, transform_comp), _)
     in <(SceneComponent, TransformComponent)>::query_deep(scene) {
+        // Ignore SceneComponents with no scene selected
+        if scene_comp.scene.is_none() {
+            continue;
+        }
+
         let transform = base_transform * transform_comp.0.clone();
         if let Some(mats) = compute_camera_mats(scene_comp.loaded.as_ref().unwrap(), transform, canvas_size) {
             return Some(mats);

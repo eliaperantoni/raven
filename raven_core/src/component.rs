@@ -48,7 +48,7 @@ pub struct CameraComponent {}
 
 #[derive(Component, Serialize, Deserialize)]
 pub struct SceneComponent {
-    pub scene: PathBuf,
+    pub scene: Option<PathBuf>,
     #[serde(skip)]
     pub loaded: Option<Scene>,
 }
