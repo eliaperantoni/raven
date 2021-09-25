@@ -682,12 +682,14 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             None => (),
         };
 
+        let mut has_scene_component = true;
+
         type NewScene = Option<PathBuf>;
 
         // Some(Option<PathBuf>) if the scene has changed. None otherwise.
         let new_scene: Option<NewScene> = match proj_state.processor.get_scene().unwrap().get_one::<SceneComponent>(selection) {
             Some(scene_comp) => {
-                if imgui::CollapsingHeader::new("SceneComponent").default_open(true).build(ui) {
+                if imgui::CollapsingHeader::new("SceneComponent").default_open(true).build_with_close_button(ui, &mut has_scene_component) {
                     try {
                         let scenes = proj_state.avail_resources.get(&ResourceType::Scene)?;
 
@@ -723,6 +725,10 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             let mut scene_comp = proj_state.processor.get_scene_mut().unwrap().get_one_mut::<SceneComponent>(selection).unwrap();
             scene_comp.scene = new_scene;
             scene_comp.loaded = None;
+        }
+
+        if !has_scene_component {
+            proj_state.processor.get_scene_mut().unwrap().detach_one::<SceneComponent>(selection);
         }
     });
 
