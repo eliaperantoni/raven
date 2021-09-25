@@ -345,6 +345,8 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
                                 import::import(&raven_path, proj_state)?;
                             }
+
+                            proj_state.scan_avail_resources()?;
                         }
                         _ => (),
                     }
