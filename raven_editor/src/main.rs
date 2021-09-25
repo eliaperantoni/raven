@@ -316,7 +316,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
         if let Some(menu) = ui.begin_menu("File") {
             res = try {
                 if imgui::MenuItem::new("Import external").build(ui) {
-                    match nfd::open_file_dialog(None, None) {
+                    match nfd::open_file_dialog(None, Some(proj_state.project_root.to_str().expect("non utf8 path"))) {
                         Ok(nfd::Response::Okay(fs_path)) => {
                             let fs_path = PathBuf::from(fs_path);
 
