@@ -4,7 +4,7 @@ use std::ptr;
 use gl;
 use glam::Mat4;
 
-use crate::Result;
+use std::error::Error;
 
 pub struct Shader {
     id: u32,
@@ -27,7 +27,7 @@ impl Shader {
         self
     }
 
-    pub fn build(self) -> Result<Shader> {
+    pub fn build(self) -> Result<Shader, Box<dyn Error>> {
         use gl::types::{GLint, GLchar};
 
         unsafe {
@@ -112,7 +112,7 @@ pub struct ShaderComponent {
 }
 
 impl ShaderComponent {
-    pub fn new<P: AsRef<str>>(source: P, t: ShaderComponentType) -> Result<ShaderComponent> {
+    pub fn new<P: AsRef<str>>(source: P, t: ShaderComponentType) -> Result<ShaderComponent, Box<dyn Error>> {
         use gl::types::{GLint, GLchar};
 
         // Convert to C string

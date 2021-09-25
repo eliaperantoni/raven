@@ -1,5 +1,5 @@
-use crate::Result;
 use crate::shader::{Shader, ShaderComponent, ShaderComponentType};
+use std::error::Error;
 
 const STANDARD_VERT_SHADER: &'static str = r"
 #version 330 core
@@ -45,7 +45,7 @@ void main() {
 }
 ";
 
-pub fn get_standard_shader() -> Result<Shader> {
+pub fn get_standard_shader() -> Result<Shader, Box<dyn Error>> {
     Shader::new()
         .with_component(ShaderComponent::new(STANDARD_VERT_SHADER, ShaderComponentType::VERTEX)?)
         .with_component(ShaderComponent::new(STANDARD_FRAG_SHADER, ShaderComponentType::FRAGMENT)?)

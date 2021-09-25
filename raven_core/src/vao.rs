@@ -3,7 +3,7 @@ use std::mem;
 use gl;
 
 use crate::resource::Mesh;
-use crate::Result;
+use std::error::Error;
 
 // 3 for the position
 // 3 for the normal
@@ -30,7 +30,7 @@ impl Drop for Vao {
 }
 
 impl Vao {
-    pub(crate) fn from(mesh: &Mesh) -> Result<Vao> {
+    pub(crate) fn from(mesh: &Mesh) -> Result<Vao, Box<dyn Error>> {
         let mut vao_id: u32 = 0;
 
         // Setup VAO

@@ -3,6 +3,7 @@
 
 use std::error::Error;
 use std::path::{Path, PathBuf};
+use std::result::Result;
 
 use gl;
 pub use glam;
@@ -35,8 +36,6 @@ mod tex;
 mod shader;
 mod standard_shader;
 
-type Result<T> = ::std::result::Result<T, Box<dyn Error>>;
-
 pub struct Processor {
     state: ProcessorState,
     scene: Option<Scene>,
@@ -54,8 +53,13 @@ struct CameraMats {
     projection_mat: Mat4,
 }
 
+pub enum FrameError {
+    NoCamera,
+    Generic(Box<dyn Error>)
+}
+
 impl Processor {
-    pub fn new<R: AsRef<Path>>(project_root: R) -> Result<Processor> {
+    pub fn new<R: AsRef<Path>>(project_root: R) -> Result<Processor, Box<dyn Error>> {
         Ok(Processor {
             state: ProcessorState {
                 project_root: project_root.as_ref().to_owned(),
@@ -67,7 +71,7 @@ impl Processor {
         })
     }
 
-    pub fn load_scene<P: AsRef<Path>>(&mut self, scene_path: P) -> Result<()> {
+    pub fn load_scene<P: AsRef<Path>>(&mut self, scene_path: P) -> Result<(), Box<dyn Error>> {
         let scene_path = path::as_fs_abs(&self.state.project_root, scene_path);
 
         self.scene = Some(Scene::load(scene_path)?);
@@ -86,7 +90,7 @@ impl Processor {
         self.state.canvas_size = [width, height];
     }
 
-    pub fn do_frame(&mut self) -> Result<()> {
+    pub fn do_frame(&mut self) -> Result<(), FrameError> {
         clear_canvas();
 
         {
@@ -104,17 +108,19 @@ impl Processor {
             gl::Enable(gl::DEPTH_TEST);
         }
 
-        Processor::load_downstream_scenes(self.scene.as_mut().unwrap(), &self.state)?;
+        Processor::load_downstream_scenes(self.scene.as_mut().unwrap(), &self.state).map_err(|err| FrameError::Generic(err))?;
 
-        self.state.camera_mats = Some(compute_camera_mats(self.scene.as_ref().unwrap(), Mat4::default(), &self.state.canvas_size)
-            .ok_or_else(|| Box::<dyn Error>::from("no camera"))?);
+        self.state.camera_mats = Some(
+            compute_camera_mats(self.scene.as_ref().unwrap(), Mat4::default(), &self.state.canvas_size)
+            .ok_or_else(|| FrameError::NoCamera)?
+        );
 
-        Processor::process_scene(self.scene.as_mut().unwrap(), &mut self.state, Mat4::default())?;
+        Processor::process_scene(self.scene.as_mut().unwrap(), &mut self.state, Mat4::default()).map_err(|err| FrameError::Generic(err))?;
 
         Ok(())
     }
 
-    fn load_downstream_scenes(scene: &mut Scene, state: &ProcessorState) -> Result<()> {
+    fn load_downstream_scenes(scene: &mut Scene, state: &ProcessorState) -> Result<(), Box<dyn Error>> {
         for (_, (mut scene_comp, ), _)
         in <(SceneComponent, )>::query_shallow_mut(scene) {
             // Ignore SceneComponents with no scene selected
@@ -132,7 +138,7 @@ impl Processor {
         Ok(())
     }
 
-    fn process_scene(scene: &mut Scene, state: &mut ProcessorState, base_transform: Mat4) -> Result<()> {
+    fn process_scene(scene: &mut Scene, state: &mut ProcessorState, base_transform: Mat4) -> Result<(), Box<dyn Error>> {
         let scene_containers: Vec<(Entity, Mat4)> = <(SceneComponent, )>::query_shallow(scene)
             .filter(|(_, (scene_comp,), _)| scene_comp.scene.is_some()) // Ignore SceneComponents with no scene selected
             .map(|(entity, _, _)| (entity, base_transform * combined_transform(scene, entity))).collect();

@@ -21,7 +21,7 @@ use itertools::Itertools;
 use palette;
 use palette::{FromColor, Saturate, Shade};
 
-use raven_core::component::{HierarchyComponent, NameComponent, SceneComponent, TransformComponent};
+use raven_core::component::{HierarchyComponent, NameComponent, SceneComponent, TransformComponent, CameraComponent};
 use raven_core::ecs::{Entity, Query};
 use raven_core::framebuffer::Framebuffer;
 use raven_core::glam::{EulerRot, Mat4, Quat, Vec3};
@@ -30,6 +30,7 @@ use raven_core::path;
 use raven_core::Processor;
 use raven_core::resource::Scene;
 use raven_core::time::Delta;
+use raven_core::FrameError;
 
 mod import;
 
@@ -457,14 +458,19 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
             // Render a frame inside the framebuffer
             framebuffer.bind();
-            match proj_state.processor.do_frame() {
-                Ok(_) => (),
-                Err(err) => out = Err(err),
-            }
+            let res = proj_state.processor.do_frame();
             framebuffer.unbind();
 
-            if out.is_err() {
-                return;
+            match res {
+                Ok(_) => (),
+                Err(FrameError::Generic(err)) => {
+                    out = Err(err);
+                    return;
+                },
+                Err(FrameError::NoCamera) => {
+                    ui.text("No camera");
+                    return;
+                }
             }
 
             // Display it
@@ -583,6 +589,19 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             }
             None => (),
         };
+
+        let mut has_camera_component = true;
+
+        match proj_state.processor.get_scene_mut().unwrap().get_one_mut::<CameraComponent>(selection) {
+            Some(_) => {
+                drop(imgui::CollapsingHeader::new("CameraComponent").leaf(true).build_with_close_button(ui, &mut has_camera_component));
+            }
+            None => (),
+        };
+
+        if !has_camera_component {
+            proj_state.processor.get_scene_mut().unwrap().detach_one::<CameraComponent>(selection);
+        }
 
         match proj_state.processor.get_scene_mut().unwrap().get_one_mut::<TransformComponent>(selection) {
             Some(mut tran_comp) => {
