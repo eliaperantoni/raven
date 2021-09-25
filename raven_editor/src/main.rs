@@ -42,6 +42,8 @@ struct OpenProjectState {
     processor: Processor,
     framebuffer: Option<([u32; 2], Framebuffer)>,
 
+    opened_scene_fs_path: Option<PathBuf>,
+
     selection: Option<Entity>,
 
     avail_resources: HashMap<ResourceType, Vec<PathBuf>>,
@@ -237,6 +239,8 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
                                 processor,
                                 framebuffer: None,
 
+                                opened_scene_fs_path: None,
+
                                 selection: None,
 
                                 avail_resources: HashMap::new(),
@@ -345,6 +349,12 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                     }
                 }
 
+                if proj_state.processor.get_scene().is_some() {
+                    if imgui::MenuItem::new("Save scene").build(ui) {
+                        proj_state.processor.get_scene().unwrap().save(proj_state.opened_scene_fs_path.as_ref().unwrap())?;
+                    }
+                }
+
                 if let Some(fs_path) = load_scene {
                     if !fs_path.starts_with(&proj_state.project_root) {
                         Err(Box::<dyn Error>::from("non local scene"))?
@@ -358,6 +368,8 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
                     proj_state.selection = None;
                     proj_state.processor.load_scene(&raven_path)?;
+
+                    proj_state.opened_scene_fs_path = Some(fs_path);
                 }
 
                 if imgui::MenuItem::new("Import external").build(ui) {
