@@ -16,6 +16,7 @@ use raven_core::io::Serializable;
 use raven_core::path as path_pkg;
 use raven_core::resource::{Material, Mesh, Scene, Texture, Vertex};
 
+use crate::wipe_dir;
 use crate::OpenProjectState;
 use crate::Result;
 
@@ -64,21 +65,6 @@ fn as_import_root(path: &Path) -> PathBuf {
     import_root.push(path_pkg::strip_rune(path));
 
     import_root
-}
-
-fn wipe_dir(path: &Path) -> Result<()> {
-    for entry in fs::read_dir(path)? {
-        let entry = entry?;
-        let path = entry.path();
-
-        if entry.file_type()?.is_dir() {
-            wipe_dir(&path)?;
-            fs::remove_dir(path)?;
-        } else {
-            fs::remove_file(path)?;
-        }
-    }
-    Ok(())
 }
 
 fn prepare_import_root_for(path: &Path, state: &OpenProjectState) -> Result<PathBuf> {

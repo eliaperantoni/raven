@@ -53,6 +53,7 @@ struct CameraMats {
     projection_mat: Mat4,
 }
 
+#[derive(Debug)]
 pub enum FrameError {
     NoCamera,
     Generic(Box<dyn Error>)

@@ -20,7 +20,7 @@ fn main() -> Result<()> {
 
     gl::load_with(|symbol| windowed_context.get_proc_address(symbol));
 
-    let mut processor = Processor::new("/home/elia/code/raven_proj")?;
+    let mut processor = Processor::new(".")?;
     processor.load_scene("$/main.scn")?;
 
     let mut fps_counter = FpsCounter::default();

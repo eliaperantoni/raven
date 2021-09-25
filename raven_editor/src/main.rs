@@ -1,11 +1,13 @@
 #![feature(try_blocks)]
 #![feature(label_break_value)]
+#![feature(with_options)]
 
 use std::collections::HashMap;
 use std::error::Error;
 use std::ffi::CString;
 use std::fs;
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use gl;
 use glob;
@@ -21,6 +23,7 @@ use itertools::Itertools;
 use palette;
 use palette::{FromColor, Saturate, Shade};
 
+use raven_core::combined_transform;
 use raven_core::component::{CameraComponent, HierarchyComponent, NameComponent, SceneComponent, TransformComponent};
 use raven_core::ecs::{Entity, Query};
 use raven_core::framebuffer::Framebuffer;
@@ -32,9 +35,11 @@ use raven_core::path;
 use raven_core::Processor;
 use raven_core::resource::Scene;
 use raven_core::time::Delta;
-use raven_core::combined_transform;
+use std::os::unix::fs::OpenOptionsExt;
 
 mod import;
+
+const RUNTIME_BYTES: &'static [u8] = include_bytes!("../../target/release/raven_runtime");
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -325,7 +330,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
     let mut res: Result<()> = Ok(());
 
     if let Some(menu_bar) = ui.begin_menu_bar() {
-        if let Some(menu) = ui.begin_menu("File") {
+        if let Some(menu) = ui.begin_menu("Scene") {
             res = try {
                 let mut load_scene: Option<PathBuf> = None;
 
@@ -382,7 +387,13 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
                     proj_state.opened_scene_fs_path = Some(fs_path);
                 }
+            };
 
+            menu.end();
+        }
+
+        if let Some(menu) = ui.begin_menu("Import") {
+            res = try {
                 if imgui::MenuItem::new("Import external").build(ui) {
                     match nfd::open_file_dialog(None, Some(proj_state.project_root.to_str().expect("non utf8 path"))) {
                         Ok(nfd::Response::Okay(fs_path)) => {
@@ -422,6 +433,39 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
             menu.end();
         }
+
+        if let Some(menu) = ui.begin_menu("Export") {
+            res = try {
+                if imgui::MenuItem::new("Export project").build(ui) {
+                    match nfd::open_pick_folder(None) {
+                        Ok(nfd::Response::Okay(fs_path)) => {
+                            let fs_path = PathBuf::from(fs_path);
+
+                            wipe_dir(&fs_path)?;
+
+                            let mut options = fs_extra::dir::CopyOptions::new();
+                            options.content_only = true;
+                            fs_extra::dir::copy(&proj_state.project_root, &fs_path, &options)?;
+
+                            let mut runtime_path = fs_path;
+                            runtime_path.push("run");
+
+                            let mut runtime_fd = fs::File::with_options()
+                                .write(true)
+                                .create(true)
+                                .truncate(true)
+                                .mode(0o755)
+                                .open(&runtime_path)?;
+                            runtime_fd.write(RUNTIME_BYTES)?;
+                        }
+                        _ => (),
+                    }
+                }
+            };
+
+            menu.end();
+        }
+
         menu_bar.end();
     }
 
@@ -955,5 +999,20 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
     main_window.end();
 
+    Ok(())
+}
+
+fn wipe_dir(path: &Path) -> Result<()> {
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if entry.file_type()?.is_dir() {
+            wipe_dir(&path)?;
+            fs::remove_dir(path)?;
+        } else {
+            fs::remove_file(path)?;
+        }
+    }
     Ok(())
 }
