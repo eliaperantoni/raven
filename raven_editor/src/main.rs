@@ -229,8 +229,8 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
                 if ui.button_with_size("Open existing project", BTN_SIZE) {
                     match nfd::open_pick_folder(None) {
                         Ok(nfd::Response::Okay(path)) => {
-                            let mut processor = Processor::new(&path).unwrap();
-                            processor.load_scene("$/main.scn").unwrap();
+                            let mut processor = Processor::new(&path)?;
+                            processor.load_scene("$/main.scn")?;
 
                             let mut state = OpenProjectState {
                                 project_root: PathBuf::from(&path),
