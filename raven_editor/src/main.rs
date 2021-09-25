@@ -332,6 +332,8 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                             let scene = Scene::default();
                             scene.save(&fs_path)?;
 
+                            proj_state.scan_avail_resources()?;
+
                             load_scene = Some(fs_path);
                         }
                         _ => (),
