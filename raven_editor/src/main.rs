@@ -1,12 +1,14 @@
 #![feature(try_blocks)]
 #![feature(label_break_value)]
 
+use std::collections::HashMap;
 use std::error::Error;
 use std::ffi::CString;
 use std::fs;
 use std::path::PathBuf;
 
 use gl;
+use glob;
 use glutin::ContextBuilder;
 use glutin::event::{Event, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
@@ -15,10 +17,11 @@ use imgui::{Context, StyleColor, Ui, Window};
 use imgui_opengl_renderer::Renderer;
 use imgui_sys;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
+use itertools::Itertools;
 use palette;
 use palette::{FromColor, Saturate, Shade};
 
-use raven_core::component::{HierarchyComponent, NameComponent, TransformComponent, SceneComponent};
+use raven_core::component::{HierarchyComponent, NameComponent, SceneComponent, TransformComponent};
 use raven_core::ecs::{Entity, Query};
 use raven_core::framebuffer::Framebuffer;
 use raven_core::glam::{EulerRot, Mat4, Quat, Vec3};
@@ -27,10 +30,6 @@ use raven_core::path;
 use raven_core::Processor;
 use raven_core::resource::Scene;
 use raven_core::time::Delta;
-use std::collections::HashMap;
-
-use glob;
-use itertools::Itertools;
 
 mod import;
 
@@ -555,6 +554,26 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             Some(selection) => selection,
             None => return,
         };
+
+        if ui.button_with_size("Add component", [ui.content_region_avail()[0], 0.0]) {
+            ui.open_popup("Component");
+        }
+
+        ui.spacing();
+        ui.separator();
+        ui.spacing();
+
+        ui.popup("Component", || {
+            if imgui::Selectable::new("SceneComponent").build(ui) {
+                let scene = proj_state.processor.get_scene_mut().unwrap();
+
+                if scene.get_one::<SceneComponent>(selection).is_none() {
+                    scene.attach(selection, SceneComponent::default());
+                }
+            }
+        });
+
+        ui.separator();
 
         match proj_state.processor.get_scene_mut().unwrap().get_one_mut::<NameComponent>(selection) {
             Some(mut name_comp) => {

@@ -46,7 +46,7 @@ impl MeshComponent {
 #[derive(Component, Serialize, Deserialize)]
 pub struct CameraComponent {}
 
-#[derive(Component, Serialize, Deserialize)]
+#[derive(Component, Serialize, Deserialize, Default)]
 pub struct SceneComponent {
     pub scene: Option<PathBuf>,
     #[serde(skip)]
