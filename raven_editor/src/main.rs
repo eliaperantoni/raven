@@ -589,6 +589,8 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             child: Entity,
         }
 
+        const DRAG_DROP_NAME: &'static str = "entity_dragging";
+
         fn draw_tree_node(ctx: &mut Ctx, ent: Entity, hier_comp: &HierarchyComponent) -> Option<Reattach> {
             let name = match ctx.scene.get_one::<NameComponent>(ent) {
                 Some(name_comp) => name_comp.0.clone(),
@@ -607,16 +609,14 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 .open_on_double_click(true)
                 .push(ctx.ui);
 
-            let drag_drop_name = "entity_dragging";
-
-            if imgui::DragDropSource::new(drag_drop_name).begin(ctx.ui).is_some() {
+            if imgui::DragDropSource::new(DRAG_DROP_NAME).begin(ctx.ui).is_some() {
                 *ctx.dragging = Some(ent);
             }
 
             let mut reattach = None;
 
             if let Some(target) = imgui::DragDropTarget::new(ctx.ui) {
-                if target.accept_payload_empty(drag_drop_name, imgui::DragDropFlags::empty()).is_some() {
+                if target.accept_payload_empty(DRAG_DROP_NAME, imgui::DragDropFlags::empty()).is_some() {
                     let child_ent = ctx.dragging.take().unwrap();
                     reattach = Some(Reattach {
                         target: ReattachTarget::Entity(ent),
@@ -668,6 +668,25 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             }
         }
 
+        ui.invisible_button("unroot", [ui.content_region_avail()[0], 20.0]);
+        if let Some(target) = imgui::DragDropTarget::new(ctx.ui) {
+            if target.accept_payload_empty(DRAG_DROP_NAME, imgui::DragDropFlags::empty()).is_some() {
+                let child_ent = ctx.dragging.take().unwrap();
+                reattach = Some(Reattach {
+                    target: ReattachTarget::Unroot,
+                    child: child_ent,
+                })
+            }
+
+            target.pop();
+        }
+
+        fn remove_child(scene: &mut Scene, parent: Entity, child: Entity) {
+            let vec: &mut Vec<Entity> = &mut scene.get_one_mut::<HierarchyComponent>(parent).unwrap().children;
+            let (idx, _) = vec.iter().find_position(|ent| **ent == child).unwrap();
+            vec.remove(idx);
+        }
+
         if let Some(reattach) = reattach {
             match reattach.target {
                 ReattachTarget::Entity(parent) => {
@@ -703,17 +722,29 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
                     // If has an old parent, remove child from list of children
                     match old_parent {
-                        Some(old_parent) => {
-                            let vec: &mut Vec<Entity> = &mut scene.get_one_mut::<HierarchyComponent>(old_parent).unwrap().children;
-                            let (idx, _) = vec.iter().find_position(|ent| **ent == reattach.child).unwrap();
-                            vec.remove(idx);
-                        },
+                        Some(old_parent) => remove_child(scene, old_parent, reattach.child),
                         None => (),
                     }
 
                     scene.get_one_mut::<HierarchyComponent>(parent).unwrap().children.push(reattach.child);
+                },
+                ReattachTarget::Unroot => {
+                    scene.get_one_mut::<TransformComponent>(reattach.child).unwrap().0 = combined_transform(scene, reattach.child);
+
+                    let mut child_comp = scene.get_one_mut::<HierarchyComponent>(reattach.child).unwrap();
+
+                    let old_parent = child_comp.parent;
+
+                    // Set child's parent
+                    child_comp.parent = None;
+                    drop(child_comp);
+
+                    // If has an old parent, remove child from list of children
+                    match old_parent {
+                        Some(old_parent) => remove_child(scene, old_parent, reattach.child),
+                        None => (),
+                    }
                 }
-                _ => todo!()
             }
         }
     });
