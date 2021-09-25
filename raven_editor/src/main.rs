@@ -314,6 +314,8 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
     if let Some(menu_bar) = ui.begin_menu_bar() {
         if let Some(menu) = ui.begin_menu("File") {
             res = try {
+                let mut load_scene: Option<PathBuf> = None;
+
                 if imgui::MenuItem::new("New scene").build(ui) {
                     match nfd::open_save_dialog(None, Some(proj_state.project_root.to_str().expect("non utf8 path"))) {
                         Ok(nfd::Response::Okay(fs_path)) => {
@@ -325,6 +327,8 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
                             let scene = Scene::default();
                             scene.save(&fs_path)?;
+
+                            load_scene = Some(fs_path);
                         }
                         _ => (),
                     }
@@ -335,21 +339,25 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                         Ok(nfd::Response::Okay(fs_path)) => {
                             let fs_path = PathBuf::from(fs_path);
 
-                            if !fs_path.starts_with(&proj_state.project_root) {
-                                Err(Box::<dyn Error>::from("non local scene"))?
-                            }
-
-                            let rel_path = fs_path.strip_prefix(&proj_state.project_root)?;
-
-                            let mut raven_path = PathBuf::new();
-                            raven_path.push(path::PROJECT_ROOT_RUNE);
-                            raven_path.push(rel_path);
-
-                            proj_state.selection = None;
-                            proj_state.processor.load_scene(&raven_path)?;
+                            load_scene = Some(fs_path);
                         }
                         _ => (),
                     }
+                }
+
+                if let Some(fs_path) = load_scene {
+                    if !fs_path.starts_with(&proj_state.project_root) {
+                        Err(Box::<dyn Error>::from("non local scene"))?
+                    }
+
+                    let rel_path = fs_path.strip_prefix(&proj_state.project_root)?;
+
+                    let mut raven_path = PathBuf::new();
+                    raven_path.push(path::PROJECT_ROOT_RUNE);
+                    raven_path.push(rel_path);
+
+                    proj_state.selection = None;
+                    proj_state.processor.load_scene(&raven_path)?;
                 }
 
                 if imgui::MenuItem::new("Import external").build(ui) {
