@@ -227,7 +227,7 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
         .position_pivot([0.5, 0.5])
         .build(ui, || {
             let maybe_err: Result<()> = try {
-                if ui.button_with_size("Open existing project", BTN_SIZE) {
+                if ui.button_with_size("Open project", BTN_SIZE) {
                     match nfd::open_pick_folder(None) {
                         Ok(nfd::Response::Okay(path)) => {
                             let processor = Processor::new(&path)?;
