@@ -321,20 +321,30 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                         Ok(nfd::Response::Okay(fs_path)) => {
                             let fs_path = PathBuf::from(fs_path);
 
-                            let file_name = fs_path
-                                .file_name()
-                                .ok_or_else(|| Box::<dyn Error>::from("Invalid path"))?;
+                            if fs_path.starts_with(&proj_state.project_root) {
+                                let rel_path = fs_path.strip_prefix(&proj_state.project_root)?;
 
-                            let mut raven_path = PathBuf::default();
-                            raven_path.push(path::PROJECT_ROOT_RUNE);
-                            raven_path.push(file_name);
+                                let mut raven_path = PathBuf::new();
+                                raven_path.push(path::PROJECT_ROOT_RUNE);
+                                raven_path.push(rel_path);
 
-                            fs::copy(
-                                fs_path,
-                                path::as_fs_abs(&proj_state.project_root, &raven_path),
-                            )?;
+                                import::import(&raven_path, proj_state)?;
+                            } else {
+                                let file_name = fs_path
+                                    .file_name()
+                                    .ok_or_else(|| Box::<dyn Error>::from("invalid path"))?;
 
-                            import::import(&raven_path, proj_state)?;
+                                let mut raven_path = PathBuf::default();
+                                raven_path.push(path::PROJECT_ROOT_RUNE);
+                                raven_path.push(file_name);
+
+                                fs::copy(
+                                    fs_path,
+                                    path::as_fs_abs(&proj_state.project_root, &raven_path),
+                                )?;
+
+                                import::import(&raven_path, proj_state)?;
+                            }
                         }
                         _ => (),
                     }
