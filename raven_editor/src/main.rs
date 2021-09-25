@@ -244,8 +244,6 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
 
                             state.scan_avail_resources()?;
 
-                            dbg!(&state.avail_resources);
-
                             out = Ok(Some(state));
                         }
                         _ => (),
