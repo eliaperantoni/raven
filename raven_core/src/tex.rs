@@ -29,10 +29,6 @@ impl Texture {
     }
 
     pub fn use_tex(self_: Option<&Self>, shader: &mut Shader) {
-        unsafe {
-            gl::ActiveTexture(0);
-        }
-
         if let Some(tex) = self_ {
             unsafe {
                 gl::BindTexture(gl::TEXTURE_2D, tex.id.expect("texture not loaded"));

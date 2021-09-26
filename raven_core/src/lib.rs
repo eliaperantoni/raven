@@ -20,6 +20,8 @@ use crate::shader::Shader;
 use crate::standard_shader::get_standard_shader;
 use crate::vao::Vao;
 
+use crate::skybox::Skybox;
+
 pub mod ecs {
     pub use raven_ecs::*;
 }
@@ -35,9 +37,11 @@ mod vao;
 mod tex;
 mod shader;
 mod standard_shader;
+mod skybox;
 
 pub struct Processor {
     state: ProcessorState,
+    skybox: Skybox,
     scene: Option<Scene>,
 }
 
@@ -61,6 +65,8 @@ pub enum FrameError {
 
 impl Processor {
     pub fn new<R: AsRef<Path>>(project_root: R) -> Result<Processor, Box<dyn Error>> {
+        let skybox = Skybox::load()?;
+
         Ok(Processor {
             state: ProcessorState {
                 project_root: project_root.as_ref().to_owned(),
@@ -69,6 +75,7 @@ impl Processor {
                 camera_mats: None,
             },
             scene: None,
+            skybox,
         })
     }
 
@@ -115,6 +122,8 @@ impl Processor {
             compute_camera_mats(self.scene.as_ref().unwrap(), Mat4::default(), &self.state.canvas_size)
             .ok_or_else(|| FrameError::NoCamera)?
         );
+
+        self.skybox.draw(self.state.camera_mats.as_ref().unwrap());
 
         Processor::process_scene(self.scene.as_mut().unwrap(), &mut self.state, Mat4::default()).map_err(|err| FrameError::Generic(err))?;
 
