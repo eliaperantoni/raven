@@ -53,6 +53,7 @@ struct OpenProjectState {
 
     // Entity currently selected in the hierarchy panel
     selection: Option<Entity>,
+    selection_euler: Option<(f32, f32, f32)>,
 
     // Entity being dragged
     dragging: Option<Entity>,
@@ -254,6 +255,7 @@ fn draw_select_project_window(ui: &imgui::Ui) -> Result<Option<OpenProjectState>
                                 opened_scene_fs_path: None,
 
                                 selection: None,
+                                selection_euler: None,
 
                                 dragging: None,
 
@@ -620,6 +622,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             scene: &'me Scene,
             next_nameless_name: &'me mut u32,
             selection: &'me mut Option<Entity>,
+            selection_euler: &'me mut Option<(f32, f32, f32)>,
             dragging: &'me mut Option<Entity>,
         }
 
@@ -673,6 +676,13 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
             if ctx.ui.is_item_clicked() && !ctx.ui.is_item_toggled_open() {
                 *ctx.selection = Some(ent);
+
+                let transform = &ctx.scene.get_one::<TransformComponent>(ent).unwrap().0;
+
+                let mut rotation = Quat::default();
+                mat4::decompose(transform.as_ref(), Vec3::default().as_mut(), Vec3::default().as_mut(), rotation.as_mut());
+
+                *ctx.selection_euler = Some(rotation.to_euler(EulerRot::XYZ));
             }
 
             if let Some(tree_node) = tree_node {
@@ -698,6 +708,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
             scene,
             next_nameless_name: &mut next_nameless_name,
             selection: &mut proj_state.selection,
+            selection_euler: &mut proj_state.selection_euler,
             dragging: &mut proj_state.dragging,
         };
 
@@ -855,11 +866,10 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
 
                 let mut position = Vec3::default();
                 let mut scale = Vec3::default();
-                let mut rotation = Quat::default();
 
-                mat4::decompose(m4.as_ref(), position.as_mut(), scale.as_mut(), rotation.as_mut());
+                mat4::decompose(m4.as_ref(), position.as_mut(), scale.as_mut(), Quat::default().as_mut());
 
-                let mut rotation_euler = rotation.to_euler(EulerRot::XYZ);
+                let euler = proj_state.selection_euler.as_mut().unwrap();
 
                 fn with_color<F: FnOnce() -> bool>(ui: &Ui, color: [f32; 3], f: F) -> bool {
                     fn to_hsv(color: [f32; 3]) -> palette::Hsv {
@@ -928,20 +938,19 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                     ui.columns(3, "Rotation##Cols", false);
 
                     ui.set_next_item_width(ui.current_column_width());
-                    with_color(ui, COL_RED, || imgui::Drag::new("##RotX").speed(SPEED).build(ui, &mut rotation_euler.0));
+                    with_color(ui, COL_RED, || imgui::Drag::new("##RotX").speed(SPEED).build(ui, &mut euler.0));
                     ui.next_column();
                     ui.set_next_item_width(ui.current_column_width());
-                    with_color(ui, COL_GRE, || imgui::Drag::new("##RotY").speed(SPEED).build(ui, &mut rotation_euler.1));
+                    with_color(ui, COL_GRE, || imgui::Drag::new("##RotY").speed(SPEED).build(ui, &mut euler.1));
                     ui.next_column();
                     ui.set_next_item_width(ui.current_column_width());
-                    with_color(ui, COL_BLU, || imgui::Drag::new("##RotZ").speed(SPEED).build(ui, &mut rotation_euler.2));
+                    with_color(ui, COL_BLU, || imgui::Drag::new("##RotZ").speed(SPEED).build(ui, &mut euler.2));
                     ui.next_column();
 
                     ui.columns(1, "##Reset", false);
                 }
 
-                rotation = Quat::from_euler(EulerRot::XYZ, rotation_euler.0, rotation_euler.1, rotation_euler.2);
-
+                let rotation = Quat::from_euler(EulerRot::XYZ, euler.0, euler.1, euler.2);
                 mat4::compose(m4.as_mut(), position.as_ref(), scale.as_ref(), rotation.as_ref());
             }
             None => (),
