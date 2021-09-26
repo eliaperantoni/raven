@@ -682,7 +682,8 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                 let mut rotation = Quat::default();
                 mat4::decompose(transform.as_ref(), Vec3::default().as_mut(), Vec3::default().as_mut(), rotation.as_mut());
 
-                *ctx.selection_euler = Some(rotation.to_euler(EulerRot::XYZ));
+                let (x, y, z) = rotation.to_euler(EulerRot::XYZ);
+                *ctx.selection_euler = Some((x.to_degrees(), y.to_degrees(), z.to_degrees()));
             }
 
             if let Some(tree_node) = tree_node {
@@ -950,7 +951,7 @@ fn draw_editor_window(ui: &imgui::Ui, proj_state: &mut OpenProjectState) -> Resu
                     ui.columns(1, "##Reset", false);
                 }
 
-                let rotation = Quat::from_euler(EulerRot::XYZ, euler.0, euler.1, euler.2);
+                let rotation = Quat::from_euler(EulerRot::XYZ, euler.0.to_radians(), euler.1.to_radians(), euler.2.to_radians());
                 mat4::compose(m4.as_mut(), position.as_ref(), scale.as_ref(), rotation.as_ref());
             }
             None => (),
